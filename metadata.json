@@ -1,0 +1,7 @@
+{
+  "name": "Storehouse MK",
+  "description": "Professional inventory and restaurant management system for the Macedonian market.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

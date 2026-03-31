@@ -1,0 +1,494 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "System users for authentication and basic access.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["SuperAdmin", "Admin", "Manager", "Waiter", "Chef", "Driver"] },
+        "employeeId": { "type": "string" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "restaurants": {
+      "title": "Restaurant",
+      "description": "Restaurant entity for multi-tenant SaaS.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "subscriptionPlan": { "type": "string", "enum": ["basic", "pro", "enterprise"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "name", "ownerId", "subscriptionPlan", "createdAt"]
+    },
+    "tables": {
+      "title": "Table",
+      "description": "Restaurant tables.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "number": { "type": "number" },
+        "capacity": { "type": "number" },
+        "status": { "type": "string", "enum": ["free", "occupied", "reserved", "cleaning"] },
+        "zone": { "type": "string" },
+        "currentOrderId": { "type": "string" },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        }
+      },
+      "required": ["id", "number", "capacity", "status", "zone"]
+    },
+    "orders": {
+      "title": "Order",
+      "description": "Main order document.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "tableId": { "type": "string" },
+        "userId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "preparing", "ready", "delivered", "paid", "cancelled"] },
+        "orderType": { "type": "string", "enum": ["dine_in", "takeaway", "delivery"] },
+        "deliveryAddress": { "type": "string" },
+        "deliveryPhone": { "type": "string" },
+        "driverId": { "type": "string" },
+        "deliveryFee": { "type": "number" },
+        "deliveryStatus": { "type": "string", "enum": ["preparing", "ready", "out_for_delivery", "delivered"] },
+        "totalAmount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "deliveryDriverId": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "card", "online"] }
+      },
+      "required": ["id", "status", "totalAmount", "createdAt", "userId", "orderType"]
+    },
+    "orderItems": {
+      "title": "Order Item",
+      "description": "Individual items within an order.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "productId": { "type": "string" },
+        "name": { "type": "string" },
+        "quantity": { "type": "number" },
+        "price": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "preparing", "ready", "served", "cancelled"] },
+        "notes": { "type": "string" },
+        "preparationStation": { "type": "string", "enum": ["kitchen", "bar", "grill", "dessert"] },
+        "isBundle": { "type": "boolean" }
+      },
+      "required": ["id", "orderId", "productId", "name", "quantity", "price", "status"]
+    },
+    "menuItems": {
+      "title": "Menu Item",
+      "description": "Items available on the restaurant menu.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "categoryId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "active": { "type": "boolean" },
+        "bundleId": { "type": "string" },
+        "preparationStation": { "type": "string", "enum": ["kitchen", "bar", "grill", "dessert"] }
+      },
+      "required": ["id", "name", "price", "categoryId", "active"]
+    },
+    "categories": {
+      "title": "Category",
+      "description": "Menu and inventory categories.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["menu", "inventory"] },
+        "active": { "type": "boolean" },
+        "sortOrder": { "type": "number" }
+      },
+      "required": ["id", "name", "type", "active"]
+    },
+    "bundles": {
+      "title": "Bundle / Normative",
+      "description": "Recipes or product bundles linking menu items to inventory.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "inventoryId": { "type": "string" },
+              "quantity": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["id", "name", "items"]
+    },
+    "inventory": {
+      "title": "Inventory Item",
+      "description": "Raw materials and stock items.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "unit": { "type": "string", "enum": ["kg", "l", "pcs", "box", "g", "ml"] },
+        "currentStock": { "type": "number" },
+        "minStock": { "type": "number" },
+        "purchasePrice": { "type": "number" },
+        "categoryId": { "type": "string" },
+        "supplierId": { "type": "string" }
+      },
+      "required": ["id", "name", "unit", "currentStock", "minStock", "purchasePrice", "categoryId"]
+    },
+    "inventoryMovements": {
+      "title": "Inventory Movement",
+      "description": "Log of stock changes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "inventoryId": { "type": "string" },
+        "quantity": { "type": "number" },
+        "type": { "type": "string", "enum": ["in", "out", "adjustment", "waste", "return"] },
+        "reason": { "type": "string" },
+        "orderId": { "type": "string" },
+        "purchaseOrderId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "inventoryId", "quantity", "type", "userId", "createdAt"]
+    },
+    "customers": {
+      "title": "Customer",
+      "description": "Customer CRM data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "loyaltyPoints": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "phone", "createdAt"]
+    },
+    "reservations": {
+      "title": "Reservation",
+      "description": "Table bookings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "tableId": { "type": "string" },
+        "tableNumber": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string" },
+        "numberOfGuests": { "type": "number" },
+        "status": { "type": "string", "enum": ["reserved", "arrived", "cancelled", "completed"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "restaurantId", "customerId", "date", "time", "numberOfGuests", "status"]
+    },
+    "drivers": {
+      "title": "Driver",
+      "description": "Delivery driver information.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "busy", "offline"] },
+        "vehicleType": { "type": "string" },
+        "currentOrderId": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "employeeId", "status", "active"]
+    },
+    "deliveries": {
+      "title": "Delivery",
+      "description": "Delivery tracking information.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "driverId": { "type": "string" },
+        "status": { "type": "string", "enum": ["preparing", "ready", "out_for_delivery", "delivered"] },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "fee": { "type": "number" },
+        "estimatedTime": { "type": "string" },
+        "actualDeliveryTime": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "orderId", "status", "address", "phone", "fee", "createdAt", "updatedAt"]
+    },
+    "employees": {
+      "title": "Employee",
+      "description": "Staff HR data.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "salary": { "type": "number" },
+        "active": { "type": "boolean" },
+        "hireDate": { "type": "string", "format": "date" }
+      },
+      "required": ["id", "name", "role", "active"]
+    },
+    "suppliers": {
+      "title": "Supplier",
+      "description": "Inventory suppliers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "name", "active"]
+    },
+    "purchaseOrders": {
+      "title": "Purchase Order",
+      "description": "Orders sent to suppliers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "ordered", "received", "cancelled"] },
+        "totalCost": { "type": "number" },
+        "orderDate": { "type": "string", "format": "date-time" },
+        "receivedDate": { "type": "string", "format": "date-time" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "inventoryId": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unitPrice": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["id", "supplierId", "status", "totalCost", "orderDate"]
+    },
+    "shifts": {
+      "title": "Shift",
+      "description": "Staff work shifts and cash management.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "openingCash": { "type": "number" },
+        "closingCash": { "type": "number" },
+        "totalSales": { "type": "number" }
+      },
+      "required": ["id", "employeeId", "startTime", "status", "openingCash"]
+    },
+    "analytics": {
+      "title": "Analytics",
+      "description": "Aggregated daily/monthly metrics.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "dailyRevenue": { "type": "number" },
+        "totalOrders": { "type": "number" },
+        "topItems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "menuItemId": { "type": "string" },
+              "quantity": { "type": "number" }
+            }
+          }
+        },
+        "peakHours": { "type": "object" }
+      },
+      "required": ["id", "date", "dailyRevenue", "totalOrders"]
+    },
+    "printers": {
+      "title": "Printer",
+      "description": "Printer configurations.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["kitchen", "bar", "receipt"] },
+        "ipAddress": { "type": "string" },
+        "port": { "type": "number" },
+        "connectionType": { "type": "string", "enum": ["network", "usb", "bluetooth", "browser"] },
+        "active": { "type": "boolean" },
+        "station": { "type": "string", "enum": ["kitchen", "bar", "grill", "dessert", "salad"] }
+      },
+      "required": ["id", "name", "type", "connectionType", "active"]
+    },
+    "printJobs": {
+      "title": "Print Job",
+      "description": "Log of print operations.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "printerId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "type": { "type": "string", "enum": ["kitchen_ticket", "customer_receipt", "order_summary"] },
+        "status": { "type": "string", "enum": ["pending", "printed", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "printerId", "orderId", "type", "status", "createdAt"]
+    },
+    "discounts": {
+      "title": "Discount",
+      "description": "System discounts for orders.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["percentage", "fixed", "promotion"] },
+        "value": { "type": "number" },
+        "requiresManagerApproval": { "type": "boolean" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "name", "type", "value", "requiresManagerApproval", "active"]
+    },
+    "subscriptions": {
+      "title": "Subscription",
+      "description": "SaaS subscription data for restaurants.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "restaurantId": { "type": "string" },
+        "plan": { "type": "string", "enum": ["starter", "professional", "enterprise"] },
+        "price": { "type": "number" },
+        "billingCycle": { "type": "string", "enum": ["monthly", "yearly"] },
+        "status": { "type": "string", "enum": ["trialing", "active", "past_due", "canceled", "unpaid"] },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "trialEndDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "restaurantId", "plan", "status", "startDate"]
+    },
+    "plans": {
+      "title": "Plan",
+      "description": "Available subscription plans.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "features": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "maxProducts": { "type": "number" },
+            "maxEmployees": { "type": "number" },
+            "hasAnalytics": { "type": "boolean" },
+            "hasDelivery": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "feature_flags": {
+      "title": "Feature Flag",
+      "description": "Feature flags for subscription plans.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "planId": { "type": "string" },
+        "flags": {
+          "type": "object",
+          "properties": {
+            "inventory_enabled": { "type": "boolean" },
+            "analytics_enabled": { "type": "boolean" },
+            "delivery_enabled": { "type": "boolean" },
+            "multi_restaurant_enabled": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["id", "planId", "flags"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "users", "description": "Auth users." },
+    "/restaurants/{restaurantId}": { "schema": "restaurants", "description": "Restaurants." },
+    "/subscriptions/{subscriptionId}": { "schema": "subscriptions", "description": "Subscriptions." },
+    "/plans/{planId}": { "schema": "plans", "description": "Subscription plans." },
+    "/feature_flags/{flagId}": { "schema": "feature_flags", "description": "Plan feature flags." },
+    "/tables/{tableId}": { "schema": "tables", "description": "Restaurant tables." },
+    "/orders/{orderId}": { "schema": "orders", "description": "Main orders." },
+    "/orders/{orderId}/orderItems/{itemId}": { "schema": "orderItems", "description": "Items in an order." },
+    "/menuItems/{itemId}": { "schema": "menuItems", "description": "Menu items." },
+    "/categories/{categoryId}": { "schema": "categories", "description": "Categories." },
+    "/bundles/{bundleId}": { "schema": "bundles", "description": "Recipes/Bundles." },
+    "/inventory/{inventoryId}": { "schema": "inventory", "description": "Inventory stock." },
+    "/inventoryMovements/{movementId}": { "schema": "inventoryMovements", "description": "Stock history." },
+    "/customers/{customerId}": { "schema": "customers", "description": "Customer CRM." },
+    "/reservations/{reservationId}": { "schema": "reservations", "description": "Bookings." },
+    "/drivers/{driverId}": { "schema": "drivers", "description": "Delivery drivers." },
+    "/deliveries/{deliveryId}": { "schema": "deliveries", "description": "Delivery tracking records." },
+    "/employees/{employeeId}": { "schema": "employees", "description": "Staff HR." },
+    "/suppliers/{supplierId}": { "schema": "suppliers", "description": "Suppliers." },
+    "/purchaseOrders/{poId}": { "schema": "purchaseOrders", "description": "Purchase orders." },
+    "/shifts/{shiftId}": { "schema": "shifts", "description": "Work shifts." },
+    "/analytics/{analyticsId}": { "schema": "analytics", "description": "Aggregated data." },
+    "/printers/{printerId}": { "schema": "printers", "description": "Printer settings." },
+    "/printJobs/{jobId}": { "schema": "printJobs", "description": "Print history." },
+    "/discounts/{discountId}": { "schema": "discounts", "description": "Order discounts." }
+  }
+}

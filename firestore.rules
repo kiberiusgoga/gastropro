@@ -1,0 +1,262 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((request.auth.token.email == "kuculovg@gmail.com" && request.auth.token.email_verified == true) || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin'));
+    }
+
+    function isManager() {
+      return isAdmin() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'Manager']);
+    }
+
+    function isWaiter() {
+      return isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Waiter');
+    }
+
+    function isChef() {
+      return isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Chef');
+    }
+
+    function isCashier() {
+      return isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Cashier');
+    }
+
+    function isDriver() {
+      return isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Driver');
+    }
+
+    function isWorker() {
+      return isWaiter() || isCashier() || isChef() || isDriver();
+    }
+
+    function isValidUser(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.email is string &&
+             data.role in ['Admin', 'Manager', 'Waiter', 'Chef', 'Cashier', 'Driver', 'worker'];
+    }
+
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.sku is string && data.sku.size() > 0 && data.sku.size() < 50 &&
+             data.currentStock is number &&
+             data.minStock is number &&
+             data.purchasePrice is number &&
+             data.salePrice is number;
+    }
+
+    function isValidReservation(data) {
+      return data.restaurantId is string &&
+             data.customerId is string &&
+             data.customerName is string &&
+             data.customerPhone is string &&
+             data.tableId is string &&
+             data.tableNumber is number &&
+             data.date is string &&
+             data.time is string &&
+             data.numberOfGuests is number &&
+             data.status in ['reserved', 'arrived', 'cancelled', 'completed'];
+    }
+
+    function isValidSubscription(data) {
+      return data.restaurantId is string &&
+             data.plan in ['starter', 'professional', 'enterprise'] &&
+             data.status in ['trialing', 'active', 'past_due', 'canceled', 'unpaid'] &&
+             data.price is number &&
+             data.startDate is string;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /subscriptions/{subId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidSubscription(request.resource.data);
+      allow update: if isAuthenticated() && isValidSubscription(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /feature_flags/{flagId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId && 
+                      isValidUser(request.resource.data) && 
+                      (request.resource.data.role == 'worker' || isAdmin());
+      allow update: if isAuthenticated() && request.auth.uid == userId && 
+                      isValidUser(request.resource.data) && 
+                      (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /employees/{employeeId} {
+      allow read: if isManager();
+      allow write: if isAdmin();
+    }
+
+    match /tables/{tableId} {
+      allow read: if isAuthenticated();
+      allow write: if isWorker() || isManager();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isWaiter() || isCashier() || isManager();
+      allow update: if isWaiter() || isCashier() || isChef() || isManager() || isDriver();
+      allow delete: if isAdmin();
+
+      match /items/{itemId} {
+        allow read: if isAuthenticated();
+        allow write: if isWaiter() || isCashier() || isChef() || isManager();
+      }
+
+      match /payments/{paymentId} {
+        allow read: if isCashier() || isManager();
+        allow write: if isCashier() || isManager();
+      }
+    }
+
+    match /menu_categories/{catId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    match /menu_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager() && isValidProduct(request.resource.data);
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isWorker() || isManager();
+      allow update, delete: if isAdmin();
+    }
+
+    match /inventory_movements/{movementId} {
+      allow read: if isManager();
+      allow write: if isManager() || isChef();
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow write: if isWorker() || isManager();
+    }
+
+    match /reservations/{resId} {
+      allow read: if isAuthenticated();
+      allow create: if (isWorker() || isManager()) && isValidReservation(request.resource.data);
+      allow update: if (isWorker() || isManager()) && isValidReservation(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /shifts/{shiftId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isManager() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    match /analytics/{docId} {
+      allow read: if isManager();
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager() && request.resource.data.name is string && request.resource.data.name.size() < 100;
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated();
+      allow write: if isWorker() || isManager();
+    }
+
+    match /inventoryChecks/{checkId} {
+      allow read: if isAuthenticated();
+      allow write: if isWorker() || isManager();
+    }
+
+    match /bundles/{bundleId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    match /deliveries/{deliveryId} {
+      allow read: if isAuthenticated();
+      allow create: if isWorker() || isManager();
+      allow update: if isWorker() || isManager() || isDriver();
+      allow delete: if isAdmin();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    match /purchaseOrders/{poId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /printers/{printerId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+
+    match /printJobs/{jobId} {
+      allow read: if isAuthenticated();
+      allow create: if isWorker() || isManager();
+      allow update: if isWorker() || isManager();
+      allow delete: if isAdmin();
+    }
+
+    match /discounts/{discountId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager();
+    }
+  }
+}
