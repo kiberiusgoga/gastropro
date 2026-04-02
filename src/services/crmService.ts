@@ -1,67 +1,83 @@
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  query, 
-  where 
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { Customer } from '../types';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
 export const crmService = {
-  getAll: async (restaurantId: string): Promise<Customer[]> => {
-    const path = 'customers';
+  getAll: async (restaurantId?: string): Promise<Customer[]> => {
     try {
-      const q = query(collection(db, path), where('restaurantId', '==', restaurantId));
-      const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
+      const response = await apiClient.get('/customers');
+      return response.data.map((row: any) => ({
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        name: row.name,
+        phone: row.phone,
+        email: row.email,
+        notes: row.notes,
+        totalSpent: Number(row.total_spent || 0),
+        orderHistory: [], // Postgres currently stores orders_count, actual history is from orders table
+        createdAt: row.created_at
+      })) as Customer[];
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error(error);
       return [];
     }
   },
 
-  create: async (data: Partial<Customer> & { restaurantId: string }) => {
-    const path = 'customers';
+  create: async (data: Partial<Customer> & { restaurantId?: string }): Promise<Customer | null> => {
     try {
-      const customerData = {
-        ...data,
-        totalSpent: 0,
-        orderHistory: []
-      };
-      const docRef = await addDoc(collection(db, path), customerData);
-      return { id: docRef.id, ...customerData };
+      const response = await apiClient.post('/customers', {
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        notes: data.notes
+      });
+      const row = response.data;
+      return {
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        name: row.name,
+        phone: row.phone,
+        email: row.email,
+        notes: row.notes,
+        totalSpent: Number(row.total_spent || 0),
+        orderHistory: [],
+        createdAt: row.created_at
+      } as Customer;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error(error);
+      return null;
     }
   },
 
-  update: async (id: string, data: Partial<Customer>) => {
-    const path = `customers/${id}`;
+  update: async (id: string, data: Partial<Customer>): Promise<void> => {
     try {
-      await updateDoc(doc(db, 'customers', id), data);
+      await apiClient.put(`/customers/${id}`, {
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        notes: data.notes
+      });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
     }
   },
 
-  addOrderToHistory: async (customerId: string, orderId: string, amount: number) => {
-    const path = `customers/${customerId}`;
+  addOrderToHistory: async (customerId: string, orderId: string, amount: number): Promise<void> => {
     try {
-      const customerRef = doc(db, 'customers', customerId);
-      const snap = await getDocs(query(collection(db, 'customers'), where('id', '==', customerId)));
-      if (!snap.empty) {
-        const currentData = snap.docs[0].data() as Customer;
-        await updateDoc(customerRef, {
-          totalSpent: (currentData.totalSpent || 0) + amount,
-          orderHistory: [...(currentData.orderHistory || []), orderId]
+      // Fetch current stats to increment 
+      // (a robust backend would do `total_spent = total_spent + $1`, but here we can just do this if necessary)
+      // Since order history is just a link in Postgres, we don't strictly need to do this from frontend anymore 
+      // if the SQL queries `orders` table. 
+      // However, if we maintain `total_spent` cache in customers table:
+      const allCustomers = await crmService.getAll();
+      const customer = allCustomers.find(c => c.id === customerId);
+      if (customer) {
+        await apiClient.put(`/customers/${customerId}`, {
+          total_spent: customer.totalSpent + amount,
+          // orderHistory needs to be managed separately or calculated dynamically
         });
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
     }
   }
 };

@@ -1,144 +1,85 @@
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged,
-  updateProfile,
-  signInWithPopup,
-  GoogleAuthProvider,
-  User as FirebaseUser
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, getDocs, updateDoc, query, where } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { User } from '../types';
 
-const googleProvider = new GoogleAuthProvider();
+let authListeners: Array<(user: User | null) => void> = [];
 
 export const authService = {
   login: async (email: string, password: string): Promise<User> => {
-    // Demo account bypass if Firebase Auth is not enabled or for testing
-    if (email === 'admin@storehouse.mk' && password === 'password123') {
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const firebaseUser = userCredential.user;
-        return authService.handleUserDoc(firebaseUser);
-      } catch (error: unknown) {
-        const err = error as { code?: string; message?: string };
-        if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/user-not-found') {
-          console.warn('Firebase Auth failed, using mock demo user:', err.message);
-          return {
-            id: 'demo-admin-id',
-            name: 'Admin User (Demo)',
-            email: 'admin@storehouse.mk',
-            role: 'Admin',
-            active: true,
-            createdAt: new Date().toISOString()
-          };
-        }
-        throw error;
-      }
+    try {
+      const response = await apiClient.post('/auth/login', { email, password });
+      const { accessToken, refreshToken, user } = response.data;
+      
+      localStorage.setItem('gastropro_token', accessToken);
+      localStorage.setItem('gastropro_refresh_token', refreshToken);
+      localStorage.setItem('gastropro_user', JSON.stringify(user));
+      
+      // trigger auth listeners
+      authListeners.forEach(listener => listener(user));
+      
+      return user;
+    } catch (error: any) {
+       console.error("Login failed", error);
+       // Check if there is a response message
+       if (error.response && error.response.data && error.response.data.error) {
+           throw new Error(error.response.data.error);
+       }
+       throw error;
     }
-    
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const firebaseUser = userCredential.user;
-    return authService.handleUserDoc(firebaseUser);
   },
 
   loginWithGoogle: async (): Promise<User> => {
-    const userCredential = await signInWithPopup(auth, googleProvider);
-    const firebaseUser = userCredential.user;
-    return authService.handleUserDoc(firebaseUser);
-  },
-
-  handleUserDoc: async (firebaseUser: FirebaseUser): Promise<User> => {
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-    if (userDoc.exists()) {
-      return { id: firebaseUser.uid, ...userDoc.data() } as User;
-    }
-    
-    // Create doc if it doesn't exist (e.g. first time Google login)
-    const newUser: User = {
-      id: firebaseUser.uid,
-      name: firebaseUser.displayName || 'User',
-      email: firebaseUser.email || '',
-      role: 'Admin', // Default to Admin for the first user or demo purposes
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-    
-    await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-    return newUser;
+     throw new Error("Google login is disabled in strict SaaS mode. Use email and password.");
   },
 
   register: async (name: string, email: string, password: string): Promise<User> => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const firebaseUser = userCredential.user;
-    
-    await updateProfile(firebaseUser, { displayName: name });
-    
-    const newUser: User = {
-      id: firebaseUser.uid,
-      name,
-      email,
-      role: 'Admin', 
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-    
-    await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-    return newUser;
+    throw new Error("Feature disabled. Use Restaurant Setup for initial registration.");
   },
 
   logout: async () => {
-    await signOut(auth);
+    localStorage.removeItem('gastropro_token');
+    localStorage.removeItem('gastropro_refresh_token');
+    localStorage.removeItem('gastropro_user');
+    localStorage.removeItem('active_shift'); // Clean up active shift as well
+    
+    // trigger listeners
+    authListeners.forEach(listener => listener(null));
   },
 
   getCurrentUser: (): User | null => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) return null;
-    
-    // This is a bit tricky since getCurrentUser is synchronous in the original code
-    // We'll rely on the StoreContext to handle the async state
-    return null; 
+    const userStr = localStorage.getItem('gastropro_user');
+    return userStr ? JSON.parse(userStr) : null;
   },
 
   onAuthChange: (callback: (user: User | null) => void) => {
-    return onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          callback({ id: firebaseUser.uid, ...userDoc.data() } as User);
-        } else {
-          callback({
-            id: firebaseUser.uid,
-            name: firebaseUser.displayName || 'User',
-            email: firebaseUser.email || '',
-            role: 'Warehouse Worker',
-            active: true,
-            createdAt: new Date().toISOString()
-          });
-        }
-      } else {
-        callback(null);
-      }
-    });
+    authListeners.push(callback);
+    // trigger immediately with current state
+    const current = authService.getCurrentUser();
+    
+    // Simulate async resolution to match previous firebase behavior
+    setTimeout(() => {
+        callback(current);
+    }, 100);
+    
+    // Return unsubscribe function
+    return () => {
+      authListeners = authListeners.filter(l => l !== callback);
+    };
   },
 
-  getUsers: async (restaurantId: string): Promise<User[]> => {
-    const q = query(collection(db, 'users'), where('restaurantId', '==', restaurantId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+  getUsers: async (restaurantId?: string): Promise<User[]> => {
+    // We don't need to pass restaurantId because apiClient automatically attaches JWT
+    // which has the restaurantId securely on the server!
+    const response = await apiClient.get('/users');
+    return response.data;
   },
 
   updateUser: async (id: string, data: Partial<User>) => {
-    await updateDoc(doc(db, 'users', id), data);
+    const response = await apiClient.put(`/users/${id}`, data);
+    return response.data;
   },
 
-  createUser: async (data: Omit<User, 'id'> & { id?: string }) => {
-    // This would typically be done via an admin function or registration
-    // For this app, we'll just use setDoc
-    const id = data.id || Math.random().toString(36).substring(7);
-    await setDoc(doc(db, 'users', id), data);
-    return { id, ...data };
+  createUser: async (data: Omit<User, 'id'> & { password?: string }) => {
+    const response = await apiClient.post('/users', data);
+    return response.data;
   }
 };

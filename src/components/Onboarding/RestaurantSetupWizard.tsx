@@ -85,7 +85,7 @@ const RestaurantSetupWizard = () => {
     
     setIsGeneratingDemo(true);
     try {
-      const success = await onboardingService.generateDemoData(createdRestaurant.id, user.id);
+      const success = await onboardingService.generateDemoData();
       if (success) {
         toast.success('Демо податоците се успешно генерирани!');
         setCurrentStep(7);
@@ -104,7 +104,7 @@ const RestaurantSetupWizard = () => {
     
     setIsGeneratingDemo(true);
     try {
-      const success = await onboardingService.saveManualData(createdRestaurant.id, {
+      const success = await onboardingService.saveManualData({
         tables,
         categories,
         menuItems,

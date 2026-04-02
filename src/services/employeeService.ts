@@ -1,76 +1,70 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { Employee, UserRole } from '../types';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
-const COLLECTION = 'employees';
+const mapEmployee = (row: any): Employee => ({
+  id: row.id,
+  restaurantId: row.restaurant_id,
+  name: row.name,
+  email: row.email,
+  role: row.role,
+  active: row.active,
+  createdAt: row.created_at || row.createdAt,
+});
 
 export const employeeService = {
-  getAll: async (restaurantId: string): Promise<Employee[]> => {
+  getAll: async (restaurantId?: string): Promise<Employee[]> => {
     try {
-      const q = query(
-        collection(db, COLLECTION), 
-        where('restaurantId', '==', restaurantId),
-        orderBy('name', 'asc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+      const response = await apiClient.get('/employees');
+      return response.data.map(mapEmployee);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, COLLECTION);
+      console.error('Error fetching employees:', error);
       return [];
     }
   },
 
   getByRole: async (restaurantId: string, role: UserRole): Promise<Employee[]> => {
     try {
-      const q = query(
-        collection(db, COLLECTION), 
-        where('restaurantId', '==', restaurantId),
-        where('role', '==', role), 
-        where('active', '==', true)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+      const all = await employeeService.getAll(restaurantId);
+      return all.filter(e => e.role === role && e.active);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, COLLECTION);
+      console.error('Error fetching employees by role:', error);
       return [];
     }
   },
 
   create: async (data: Omit<Employee, 'id' | 'createdAt'>): Promise<Employee | undefined> => {
     try {
-      const docRef = await addDoc(collection(db, COLLECTION), {
-        ...data,
-        createdAt: new Date().toISOString()
+      const response = await apiClient.post('/employees', {
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        active: data.active
       });
-      return { id: docRef.id, ...data, createdAt: new Date().toISOString() } as Employee;
+      return mapEmployee(response.data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, COLLECTION);
+      console.error('Error creating employee:', error);
+      return undefined;
     }
   },
 
   update: async (id: string, data: Partial<Employee>): Promise<void> => {
     try {
-      await updateDoc(doc(db, COLLECTION, id), data);
+      await apiClient.put(`/employees/${id}`, {
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        active: data.active
+      });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${id}`);
+      console.error('Error updating employee:', error);
     }
   },
 
   delete: async (id: string): Promise<void> => {
     try {
-      await updateDoc(doc(db, COLLECTION, id), { active: false });
+      await apiClient.put(`/employees/${id}`, { active: false });
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `${COLLECTION}/${id}`);
+      console.error('Error deactivating employee:', error);
     }
   }
 };

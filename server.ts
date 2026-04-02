@@ -3,6 +3,8 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import cors from "cors";
 import morgan from "morgan";
+import router from "./src/api";
+
 
 async function startServer() {
   const app = express();
@@ -11,6 +13,10 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
   app.use(morgan('dev'));
+  
+  // Routes
+  app.use("/api", router);
+
 
   // API Health Check
   app.get("/api/health", (req, res) => {

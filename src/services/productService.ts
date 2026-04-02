@@ -1,91 +1,120 @@
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc,
-  query,
-  where
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { Product, Category } from '../types';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
+
+const mapProduct = (row: any): Product => ({
+  id: row.id,
+  restaurantId: row.restaurant_id,
+  name: row.name,
+  barcode: row.barcode,
+  unit: row.unit,
+  purchasePrice: Number(row.purchase_price),
+  sellingPrice: Number(row.selling_price),
+  categoryId: row.category_id,
+  preparationStation: row.preparation_station,
+  currentStock: Number(row.current_stock || 0),
+  minStock: Number(row.min_stock || 0),
+  active: row.active
+});
+
+const toProductPayload = (data: Partial<Product>) => ({
+  name: data.name,
+  barcode: data.barcode,
+  unit: data.unit,
+  purchase_price: data.purchasePrice,
+  selling_price: data.sellingPrice,
+  category_id: data.categoryId,
+  min_stock: data.minStock,
+  active: data.active !== false,
+  preparation_station: data.preparationStation
+});
 
 export const productService = {
-  getAll: async (restaurantId: string): Promise<Product[]> => {
-    const path = 'products';
+  getAll: async (restaurantId?: string): Promise<Product[]> => {
     try {
-      const q = query(collection(db, path), where('restaurantId', '==', restaurantId));
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const response = await apiClient.get('/products');
+      return response.data.map(mapProduct);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error('Error fetching products', error);
       return [];
     }
   },
-  create: async (data: Partial<Product> & { restaurantId: string }) => {
-    const path = 'products';
+  
+  create: async (data: Partial<Product> & { restaurantId?: string }) => {
     try {
-      const docRef = await addDoc(collection(db, path), data);
-      return { id: docRef.id, ...data };
+      const payload = toProductPayload(data);
+      const response = await apiClient.post('/products', payload);
+      return mapProduct(response.data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error('Error creating product', error);
+      throw error;
     }
   },
+  
   update: async (id: string, data: Partial<Product>) => {
-    const path = `products/${id}`;
     try {
-      await updateDoc(doc(db, 'products', id), data);
+      const payload = toProductPayload(data);
+      await apiClient.put(`/products/${id}`, payload);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error('Error updating product', error);
+      throw error;
     }
   },
+  
   delete: async (id: string) => {
-    const path = `products/${id}`;
     try {
-      await deleteDoc(doc(db, 'products', id));
+      await apiClient.delete(`/products/${id}`);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, path);
+      console.error('Error deleting product', error);
+      throw error;
     }
   }
 };
 
+const mapCategory = (row: any): Category => ({
+  id: row.id,
+  restaurantId: row.restaurant_id,
+  name: row.name,
+  active: row.active
+});
+
 export const categoryService = {
-  getAll: async (restaurantId: string): Promise<Category[]> => {
-    const path = 'categories';
+  getAll: async (restaurantId?: string): Promise<Category[]> => {
     try {
-      const q = query(collection(db, path), where('restaurantId', '==', restaurantId));
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+      const response = await apiClient.get('/categories');
+      return response.data.map(mapCategory);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error('Error fetching categories', error);
       return [];
     }
   },
-  create: async (data: Partial<Category> & { restaurantId: string }) => {
-    const path = 'categories';
+  
+  create: async (data: Partial<Category> & { restaurantId?: string }) => {
     try {
-      const docRef = await addDoc(collection(db, path), data);
-      return { id: docRef.id, ...data };
+      const payload = { name: data.name };
+      const response = await apiClient.post('/categories', payload);
+      return mapCategory(response.data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error('Error creating category', error);
+      throw error;
     }
   },
+  
   update: async (id: string, data: Partial<Category>) => {
-    const path = `categories/${id}`;
     try {
-      await updateDoc(doc(db, 'categories', id), data);
+      const payload = { name: data.name };
+      await apiClient.put(`/categories/${id}`, payload);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error('Error updating category', error);
+      throw error;
     }
   },
+  
   delete: async (id: string) => {
-    const path = `categories/${id}`;
     try {
-      await deleteDoc(doc(db, 'categories', id));
+      await apiClient.delete(`/categories/${id}`);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, path);
+      console.error('Error deleting category', error);
+      throw error;
     }
   }
 };

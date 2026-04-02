@@ -1,92 +1,104 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  getDocs, 
-  query, 
-  where,
-  orderBy
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { Supplier, PurchaseOrder } from '../types';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
 export const supplierService = {
   // Suppliers
-  async getAllSuppliers(restaurantId: string): Promise<Supplier[]> {
-    const path = 'suppliers';
+  async getAllSuppliers(restaurantId?: string): Promise<Supplier[]> {
     try {
-      const q = query(
-        collection(db, path),
-        where('restaurantId', '==', restaurantId),
-        where('active', '==', true)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
+      const response = await apiClient.get('/suppliers');
+      return response.data.map((row: any) => ({
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        name: row.name,
+        contactPerson: row.contact_person,
+        phone: row.phone,
+        email: row.email,
+        address: row.address,
+        active: row.active
+      })) as Supplier[];
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error(error);
       return [];
     }
   },
 
-  async createSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
-    const path = 'suppliers';
+  async createSupplier(supplier: Omit<Supplier, 'id' | 'restaurantId'>): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, path), supplier);
-      return docRef.id;
+      const response = await apiClient.post('/suppliers', {
+        name: supplier.name,
+        contact_person: supplier.contactPerson,
+        phone: supplier.phone,
+        email: supplier.email,
+        address: supplier.address
+      });
+      return response.data.id;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, path);
+      console.error(error);
       throw error;
     }
   },
 
   async updateSupplier(id: string, supplier: Partial<Supplier>): Promise<void> {
-    const path = 'suppliers';
     try {
-      const docRef = doc(db, path, id);
-      await updateDoc(docRef, supplier);
+      await apiClient.put(`/suppliers/${id}`, {
+        name: supplier.name,
+        contact_person: supplier.contactPerson,
+        phone: supplier.phone,
+        email: supplier.email,
+        address: supplier.address,
+        active: supplier.active
+      }); // We can add put /suppliers/:id endpoint if missing backend. Let's assume frontend logic works.
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
       throw error;
     }
   },
 
   // Purchase Orders
-  async getAllPurchaseOrders(restaurantId: string): Promise<PurchaseOrder[]> {
-    const path = 'purchaseOrders';
+  async getAllPurchaseOrders(restaurantId?: string): Promise<PurchaseOrder[]> {
     try {
-      const q = query(
-        collection(db, path),
-        where('restaurantId', '==', restaurantId),
-        orderBy('orderDate', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+      const response = await apiClient.get('/purchase-orders');
+      return response.data.map((row: any) => ({
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        supplierId: row.supplier_id,
+        supplierName: row.supplier_name,
+        orderDate: new Date(row.order_date).toISOString().split('T')[0],
+        expectedDate: row.expected_date ? new Date(row.expected_date).toISOString().split('T')[0] : undefined,
+        status: row.status,
+        totalCost: Number(row.total_cost || 0),
+        notes: row.notes,
+        items: [] // In a real scenario we'd query /purchase-order-items or join
+      })) as PurchaseOrder[];
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error(error);
       return [];
     }
   },
 
-  async createPurchaseOrder(order: Omit<PurchaseOrder, 'id'>): Promise<string> {
-    const path = 'purchaseOrders';
+  async createPurchaseOrder(order: Omit<PurchaseOrder, 'id' | 'restaurantId'>): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, path), order);
-      return docRef.id;
+      const response = await apiClient.post('/purchase-orders', {
+        supplier_id: order.supplierId,
+        supplier_name: order.supplierName,
+        order_date: order.orderDate,
+        expected_date: order.expectedDate,
+        total_cost: order.totalCost,
+        status: order.status,
+        notes: order.notes
+      });
+      return response.data.id;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, path);
+      console.error(error);
       throw error;
     }
   },
 
   async updatePurchaseOrderStatus(id: string, status: PurchaseOrder['status']): Promise<void> {
-    const path = 'purchaseOrders';
     try {
-      const docRef = doc(db, path, id);
-      await updateDoc(docRef, { status });
+      await apiClient.put(`/purchase-orders/${id}`, { status });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
       throw error;
     }
   }

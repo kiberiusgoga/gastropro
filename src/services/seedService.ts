@@ -1,85 +1,57 @@
-import { 
-  collection, 
-  addDoc
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 
 export const seedService = {
   seedAll: async () => {
     try {
       console.log('Starting seed process...');
       
-      // 1. Categories
+      // 1. Menu Categories
       const categories = [
-        { name: 'Пијалоци', sortOrder: 1 },
-        { name: 'Бургери', sortOrder: 2 },
-        { name: 'Пици', sortOrder: 3 },
-        { name: 'Салати', sortOrder: 4 },
-        { name: 'Десерти', sortOrder: 5 },
-        { name: 'Кафе', sortOrder: 6 }
+        { name: 'Пијалоци', sort_order: 1, active: true },
+        { name: 'Бургери', sort_order: 2, active: true },
+        { name: 'Пици', sort_order: 3, active: true },
+        { name: 'Салати', sort_order: 4, active: true },
+        { name: 'Десерти', sort_order: 5, active: true },
+        { name: 'Кафе', sort_order: 6, active: true }
       ];
       
       const categoryIds: string[] = [];
       for (const cat of categories) {
-        const docRef = await addDoc(collection(db, 'menu_categories'), cat);
-        categoryIds.push(docRef.id);
+        const res = await apiClient.post('/menu-categories', cat);
+        categoryIds.push(res.data.id);
       }
       
       // 2. Menu Items
       const menuItems = [
-        { name: 'Еспресо', price: 80, menuCategoryId: categoryIds[5], active: true, preparationStation: 'bar' },
-        { name: 'Капучино', price: 100, menuCategoryId: categoryIds[5], active: true, preparationStation: 'bar' },
-        { name: 'Класик Бургер', price: 250, menuCategoryId: categoryIds[1], active: true, preparationStation: 'grill' },
-        { name: 'Чизбургер', price: 280, menuCategoryId: categoryIds[1], active: true, preparationStation: 'grill' },
-        { name: 'Маргарита Пица', price: 320, menuCategoryId: categoryIds[2], active: true, preparationStation: 'kitchen' },
-        { name: 'Капричиоза', price: 380, menuCategoryId: categoryIds[2], active: true, preparationStation: 'kitchen' },
-        { name: 'Шопска Салата', price: 180, menuCategoryId: categoryIds[3], active: true, preparationStation: 'salad' },
-        { name: 'Цезар Салата', price: 220, menuCategoryId: categoryIds[3], active: true, preparationStation: 'salad' },
-        { name: 'Чоколадна Торта', price: 150, menuCategoryId: categoryIds[4], active: true, preparationStation: 'dessert' },
-        { name: 'Сладолед', price: 120, menuCategoryId: categoryIds[4], active: true, preparationStation: 'dessert' },
-        { name: 'Скопско Пиво', price: 140, menuCategoryId: categoryIds[0], active: true, preparationStation: 'bar' },
-        { name: 'Кока Кола', price: 100, menuCategoryId: categoryIds[0], active: true, preparationStation: 'bar' }
+        { name: 'Еспресо', price: 80, menu_category_id: categoryIds[5], active: true, preparation_station: 'bar' },
+        { name: 'Капучино', price: 100, menu_category_id: categoryIds[5], active: true, preparation_station: 'bar' },
+        { name: 'Класик Бургер', price: 250, menu_category_id: categoryIds[1], active: true, preparation_station: 'grill' },
+        { name: 'Чизбургер', price: 280, menu_category_id: categoryIds[1], active: true, preparation_station: 'grill' },
+        { name: 'Маргарита Пица', price: 320, menu_category_id: categoryIds[2], active: true, preparation_station: 'kitchen' },
+        { name: 'Капричиоза', price: 380, menu_category_id: categoryIds[2], active: true, preparation_station: 'kitchen' },
+        { name: 'Шопска Салата', price: 180, menu_category_id: categoryIds[3], active: true, preparation_station: 'salad' },
+        { name: 'Цезар Салата', price: 220, menu_category_id: categoryIds[3], active: true, preparation_station: 'salad' },
+        { name: 'Чоколадна Торта', price: 150, menu_category_id: categoryIds[4], active: true, preparation_station: 'dessert' },
+        { name: 'Сладолед', price: 120, menu_category_id: categoryIds[4], active: true, preparation_station: 'dessert' },
+        { name: 'Скопско Пиво', price: 140, menu_category_id: categoryIds[0], active: true, preparation_station: 'bar' },
+        { name: 'Кока Кола', price: 100, menu_category_id: categoryIds[0], active: true, preparation_station: 'bar' }
       ];
       
       for (const item of menuItems) {
-        await addDoc(collection(db, 'menu_items'), item);
+        await apiClient.post('/menu-items', item);
       }
       
       // 3. Tables
       const tables = [
-        { number: 1, capacity: 2, status: 'free', zone: 'Внатре' },
-        { number: 2, capacity: 4, status: 'free', zone: 'Внатре' },
-        { number: 3, capacity: 6, status: 'free', zone: 'Тераса' },
-        { number: 4, capacity: 4, status: 'free', zone: 'Тераса' },
-        { number: 5, capacity: 2, status: 'free', zone: 'Шанк' }
+        { number: '1', capacity: 2, status: 'free', zone: 'Внатре' },
+        { number: '2', capacity: 4, status: 'free', zone: 'Внатре' },
+        { number: '3', capacity: 6, status: 'free', zone: 'Тераса' },
+        { number: '4', capacity: 4, status: 'free', zone: 'Тераса' },
+        { number: '5', capacity: 2, status: 'free', zone: 'Шанк' }
       ];
       
       for (const table of tables) {
-        await addDoc(collection(db, 'tables'), table);
-      }
-      
-      // 4. Employees
-      const employees = [
-        { name: 'Марко Келнер', email: 'marko@test.mk', role: 'Waiter', active: true, createdAt: new Date().toISOString() },
-        { name: 'Ана Менаџер', email: 'ana@test.mk', role: 'Manager', active: true, createdAt: new Date().toISOString() },
-        { name: 'Игор Готвач', email: 'igor@test.mk', role: 'Chef', active: true, createdAt: new Date().toISOString() },
-        { name: 'Стефан Доставувач', email: 'stefan@test.mk', role: 'Driver', active: true, createdAt: new Date().toISOString() }
-      ];
-      
-      for (const emp of employees) {
-        await addDoc(collection(db, 'employees'), emp);
-      }
-      
-      // 5. Products (Inventory)
-      const products = [
-        { name: 'Месо за Бургер', barcode: '101', unit: 'kg', purchasePrice: 300, sellingPrice: 0, categoryId: 'meat', currentStock: 50, minStock: 10, active: true },
-        { name: 'Брашно', barcode: '102', unit: 'kg', purchasePrice: 40, sellingPrice: 0, categoryId: 'dry', currentStock: 100, minStock: 20, active: true },
-        { name: 'Кафе во зрно', barcode: '103', unit: 'kg', purchasePrice: 800, sellingPrice: 0, categoryId: 'coffee', currentStock: 10, minStock: 2, active: true },
-        { name: 'Пиво 0.5л', barcode: '104', unit: 'pcs', purchasePrice: 60, sellingPrice: 140, categoryId: 'drinks', currentStock: 200, minStock: 50, active: true }
-      ];
-      
-      for (const prod of products) {
-        await addDoc(collection(db, 'products'), prod);
+        await apiClient.post('/tables', table);
       }
       
       console.log('Seed process completed successfully!');

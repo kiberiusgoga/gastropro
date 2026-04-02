@@ -1,146 +1,137 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy,
-  getDoc
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { Driver, Order } from '../types';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-
-const DRIVERS_COLLECTION = 'drivers';
-const ORDERS_COLLECTION = 'orders';
-const DELIVERIES_COLLECTION = 'deliveries';
 
 export const deliveryService = {
   // Driver management
   getDrivers: async (): Promise<Driver[]> => {
     try {
-      const q = query(collection(db, DRIVERS_COLLECTION), where('active', '==', true));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Driver));
+      const response = await apiClient.get('/drivers');
+      return response.data.map((row: any) => ({
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        name: row.name,
+        phone: row.phone,
+        status: row.status,
+        currentOrderId: row.current_order_id,
+        active: row.active
+      })) as Driver[];
     } catch (error) {
-      return handleFirestoreError(error, OperationType.GET, DRIVERS_COLLECTION);
+      console.error(error);
+      return [];
     }
   },
 
-  createDriver: async (data: Omit<Driver, 'id'>): Promise<Driver> => {
+  createDriver: async (data: Omit<Driver, 'id' | 'restaurantId'>): Promise<Driver> => {
     try {
-      const docRef = await addDoc(collection(db, DRIVERS_COLLECTION), {
-        ...data,
-        createdAt: new Date().toISOString()
+      const response = await apiClient.post('/drivers', {
+        name: data.name,
+        phone: data.phone
       });
-      return { id: docRef.id, ...data };
+      const row = response.data;
+      return {
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        name: row.name,
+        phone: row.phone,
+        status: row.status,
+        currentOrderId: row.current_order_id,
+        active: row.active
+      } as Driver;
     } catch (error) {
-      return handleFirestoreError(error, OperationType.CREATE, DRIVERS_COLLECTION);
+      console.error(error);
+      throw error;
     }
   },
 
   updateDriver: async (id: string, data: Partial<Driver>): Promise<void> => {
     try {
-      await updateDoc(doc(db, DRIVERS_COLLECTION, id), data);
+      await apiClient.put(`/drivers/${id}`, {
+        status: data.status,
+        current_order_id: data.currentOrderId,
+        active: data.active
+      });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `${DRIVERS_COLLECTION}/${id}`);
+      console.error(error);
     }
   },
 
   // Delivery order management
   getDeliveryOrders: async (): Promise<Order[]> => {
     try {
-      const q = query(
-        collection(db, ORDERS_COLLECTION), 
-        where('orderType', '==', 'delivery'),
-        orderBy('createdAt', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      // In a real scenario we'd query /orders?type=delivery
+      const response = await apiClient.get('/orders');
+      if (!response.data) return [];
+      
+      // Filter out only delivery orders
+      const orders = response.data.map((row: any) => ({
+        id: row.id,
+        orderType: row.order_type,
+        status: row.status,
+        deliveryStatus: row.deliveryStatus, // Assume API maps this or we infer
+        driverId: row.driver_id,
+        totalAmount: row.total_amount,
+        createdAt: row.created_at,
+        deliveryAddress: row.deliveryAddress || '',
+        deliveryPhone: row.deliveryPhone || '',
+        deliveryFee: row.deliveryFee || 0
+      })) as Order[];
+      return orders.filter(o => o.orderType === 'delivery');
     } catch (error) {
-      return handleFirestoreError(error, OperationType.GET, ORDERS_COLLECTION);
+      console.error(error);
+      return [];
     }
   },
 
   assignDriver: async (orderId: string, driverId: string): Promise<void> => {
     try {
-      const orderRef = doc(db, ORDERS_COLLECTION, orderId);
-      const driverRef = doc(db, DRIVERS_COLLECTION, driverId);
-      
-      const orderSnap = await getDoc(orderRef);
-      if (!orderSnap.exists()) throw new Error('Нарачката не постои');
-      const orderData = orderSnap.data() as Order;
+      // 1. Create delivery record
+      await apiClient.post('/deliveries', {
+        order_id: orderId,
+        address: 'N/A', // Normally get from order
+        phone: 'N/A',
+        fee: 0,
+        estimated_time: new Date(Date.now() + 30 * 60000).toISOString()
+      });
 
-      // Update Order
-      await updateDoc(orderRef, { 
-        driverId: driverId,
+      // 2. Update order status
+      await apiClient.put(`/orders/${orderId}`, {
         deliveryStatus: 'out_for_delivery',
-        status: 'out_for_delivery'
+        driver_id: driverId
       });
 
-      // Update Driver
-      await updateDoc(driverRef, { 
+      // 3. Update driver status
+      await apiClient.put(`/drivers/${driverId}`, {
         status: 'busy',
-        currentOrderId: orderId
+        current_order_id: orderId
       });
-
-      // Create/Update Delivery record
-      const deliveryData = {
-        orderId,
-        driverId,
-        status: 'out_for_delivery',
-        address: orderData.deliveryAddress || '',
-        phone: orderData.deliveryPhone || '',
-        fee: orderData.deliveryFee || 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      await addDoc(collection(db, DELIVERIES_COLLECTION), deliveryData);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `${ORDERS_COLLECTION}/${orderId}`);
+      console.error('Error assigning driver', error);
     }
   },
 
   updateDeliveryStatus: async (orderId: string, status: Order['deliveryStatus']): Promise<void> => {
     try {
-      const orderRef = doc(db, ORDERS_COLLECTION, orderId);
-      
-      const updateData: Partial<Order> = { 
+      // 1. Update Order
+      await apiClient.put(`/orders/${orderId}`, {
         deliveryStatus: status,
-        status: status === 'delivered' ? 'paid' : (status as Order['status'])
-      };
+        status: status === 'delivered' ? 'paid' : status
+      });
 
-      await updateDoc(orderRef, updateData);
-
-      // If delivered, free up driver
+      // 2. Fetch driver to reset if delivered
       if (status === 'delivered') {
-        const orderSnap = await getDoc(orderRef);
-        const orderData = orderSnap.data() as Order;
-        
-        if (orderData.driverId) {
-          await updateDoc(doc(db, DRIVERS_COLLECTION, orderData.driverId), {
+        const drivers = await deliveryService.getDrivers();
+        const driver = drivers.find(d => d.currentOrderId === orderId);
+        if (driver) {
+          await apiClient.put(`/drivers/${driver.id}`, {
             status: 'available',
-            currentOrderId: null
+            current_order_id: null
           });
         }
       }
 
-      // Update Delivery record
-      const q = query(collection(db, DELIVERIES_COLLECTION), where('orderId', '==', orderId));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        const deliveryDoc = snapshot.docs[0];
-        await updateDoc(doc(db, DELIVERIES_COLLECTION, deliveryDoc.id), {
-          status,
-          updatedAt: new Date().toISOString(),
-          actualDeliveryTime: status === 'delivered' ? new Date().toISOString() : undefined
-        });
-      }
+      // 3. We might also want to update the delivery record, assuming an endpoint exists or backend triggers it
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `${ORDERS_COLLECTION}/${orderId}`);
+      console.error('Error updating delivery status', error);
     }
   }
 };

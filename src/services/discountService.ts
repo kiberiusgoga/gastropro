@@ -1,45 +1,54 @@
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  query, 
-  where 
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { Discount } from '../types';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
 export const discountService = {
   getAll: async (): Promise<Discount[]> => {
-    const path = 'discounts';
     try {
-      const q = query(collection(db, path), where('active', '==', true));
-      const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Discount));
+      const response = await apiClient.get('/discounts');
+      return response.data.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        value: row.value,
+        requiresManagerApproval: row.requires_manager_approval,
+        active: row.active
+      })) as Discount[];
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error(error);
       return [];
     }
   },
 
-  create: async (data: Omit<Discount, 'id'>) => {
-    const path = 'discounts';
+  create: async (data: Omit<Discount, 'id'>): Promise<Discount | null> => {
     try {
-      const docRef = await addDoc(collection(db, path), data);
-      return { id: docRef.id, ...data };
+      const response = await apiClient.post('/discounts', {
+        name: data.name,
+        type: data.type,
+        value: data.value,
+        requires_manager_approval: data.requiresManagerApproval
+      });
+      const row = response.data;
+      return {
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        value: row.value,
+        requiresManagerApproval: row.requires_manager_approval,
+        active: row.active
+      } as Discount;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error(error);
+      return null;
     }
   },
 
-  update: async (id: string, data: Partial<Discount>) => {
-    const path = `discounts/${id}`;
+  update: async (id: string, data: Partial<Discount>): Promise<void> => {
     try {
-      await updateDoc(doc(db, 'discounts', id), data);
+      await apiClient.put(`/discounts/${id}`, {
+        active: data.active
+      });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
     }
   }
 };

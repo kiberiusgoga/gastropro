@@ -1,15 +1,4 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  setDoc, 
-  query, 
-  where 
-} from "firebase/firestore";
-import { db } from "../firebase";
-import { FeatureFlag, FeatureFlags, Subscription, SubscriptionPlanId } from "../types";
-
-const FEATURE_FLAGS_COLLECTION = "feature_flags";
+import { FeatureFlags, Subscription, SubscriptionPlanId } from '../types';
 
 export const DEFAULT_FEATURE_FLAGS: Record<SubscriptionPlanId, FeatureFlags> = {
   starter: {
@@ -34,55 +23,23 @@ export const DEFAULT_FEATURE_FLAGS: Record<SubscriptionPlanId, FeatureFlags> = {
 
 export const featureFlagService = {
   async getFeatureFlags(planId: SubscriptionPlanId): Promise<FeatureFlags> {
-    try {
-      const q = query(collection(db, FEATURE_FLAGS_COLLECTION), where("planId", "==", planId));
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        // If not found in Firestore, seed it with defaults
-        const defaultFlags = DEFAULT_FEATURE_FLAGS[planId];
-        await this.seedFeatureFlags(planId, defaultFlags);
-        return defaultFlags;
-      }
-      
-      const data = snapshot.docs[0].data() as FeatureFlag;
-      return data.flags;
-    } catch (error) {
-      console.error("Error fetching feature flags:", error);
-      return DEFAULT_FEATURE_FLAGS[planId];
-    }
+    // Feature flags are derived from the plan. No need for a DB lookup —
+    // they're static config that maps plan → capabilities.
+    return DEFAULT_FEATURE_FLAGS[planId] || DEFAULT_FEATURE_FLAGS.starter;
   },
 
-  async seedFeatureFlags(planId: SubscriptionPlanId, flags: FeatureFlags): Promise<void> {
-    const docId = `flags_${planId}`;
-    await setDoc(doc(db, FEATURE_FLAGS_COLLECTION, docId), {
-      id: docId,
-      planId,
-      flags,
-    });
+  async seedFeatureFlags(_planId: SubscriptionPlanId, _flags: FeatureFlags): Promise<void> {
+    // No-op: feature flags are now derived from the plan definition, not stored in DB.
+    // Kept for API compatibility with callers.
   },
 
   isFeatureEnabled(subscription: Subscription | null, flags: FeatureFlags | null, feature: keyof FeatureFlags): boolean {
     if (!subscription) return false;
-    if (!flags) return DEFAULT_FEATURE_FLAGS[subscription.plan][feature];
+    if (!flags) return DEFAULT_FEATURE_FLAGS[subscription.plan]?.[feature] ?? false;
     return flags[feature];
   },
 
   async getAllFlags(): Promise<Record<SubscriptionPlanId, FeatureFlags>> {
-    const snapshot = await getDocs(collection(db, FEATURE_FLAGS_COLLECTION));
-    if (snapshot.empty) {
-      // Seed all if empty
-      for (const planId of Object.keys(DEFAULT_FEATURE_FLAGS) as SubscriptionPlanId[]) {
-        await this.seedFeatureFlags(planId, DEFAULT_FEATURE_FLAGS[planId]);
-      }
-      return DEFAULT_FEATURE_FLAGS;
-    }
-
-    const result: Record<string, FeatureFlags> = {};
-    snapshot.docs.forEach(doc => {
-      const data = doc.data() as FeatureFlag;
-      result[data.planId] = data.flags;
-    });
-    return result as Record<SubscriptionPlanId, FeatureFlags>;
+    return DEFAULT_FEATURE_FLAGS;
   }
 };

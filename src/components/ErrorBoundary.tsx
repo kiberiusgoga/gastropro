@@ -29,12 +29,10 @@ class ErrorBoundary extends Component<Props, State> {
       
       try {
         const errorMsg = this.state.error?.message || '';
-        // Only try to parse if it looks like a JSON object
+        // Handle generic API or JSON errors
         if (errorMsg.trim().startsWith('{')) {
           const parsed = JSON.parse(errorMsg);
-          if (parsed.error) {
-            errorMessage = `Firestore Error: ${parsed.error} during ${parsed.operationType} on ${parsed.path}`;
-          }
+          errorMessage = parsed.error || parsed.message || errorMessage;
         } else {
           errorMessage = errorMsg || errorMessage;
         }

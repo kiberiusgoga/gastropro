@@ -1,92 +1,117 @@
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where,
-  orderBy 
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { MenuItem, MenuCategory } from '../types';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
+
+// Helper functions to map snake_case to camelCase
+const mapCategory = (row: any): MenuCategory => ({
+  id: row.id,
+  restaurantId: row.restaurant_id,
+  name: row.name,
+  sortOrder: row.sort_order,
+  active: row.active
+});
+
+const mapMenuItem = (row: any): MenuItem => ({
+  id: row.id,
+  restaurantId: row.restaurant_id,
+  name: row.name,
+  description: row.description,
+  price: Number(row.price),
+  menuCategoryId: row.menu_category_id,
+  bundleId: row.bundle_id,
+  imageUrl: row.image_url,
+  active: row.active,
+  preparationStation: row.preparation_station
+});
+
+// Helper functions to map camelCase back to snake_case for payloads
+const toCategoryPayload = (data: Partial<MenuCategory>) => ({
+  name: data.name,
+  sort_order: data.sortOrder,
+  active: data.active !== false
+});
+
+const toMenuItemPayload = (data: Partial<MenuItem>) => ({
+  name: data.name,
+  description: data.description,
+  price: data.price,
+  menu_category_id: data.menuCategoryId,
+  bundle_id: data.bundleId,
+  image_url: data.imageUrl,
+  active: data.active !== false,
+  available: true,
+  preparation_station: data.preparationStation
+});
 
 export const menuService = {
   // Categories
-  getCategories: async (restaurantId: string): Promise<MenuCategory[]> => {
-    const path = 'menu_categories';
+  getCategories: async (restaurantId?: string): Promise<MenuCategory[]> => {
     try {
-      const q = query(
-        collection(db, path), 
-        where('restaurantId', '==', restaurantId),
-        orderBy('sortOrder', 'asc')
-      );
-      const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuCategory));
+      const response = await apiClient.get('/menu-categories');
+      return response.data.map(mapCategory);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error('Error fetching categories', error);
       return [];
     }
   },
 
-  getAllCategories: async (restaurantId: string): Promise<MenuCategory[]> => {
-    return menuService.getCategories(restaurantId);
+  getAllCategories: async (restaurantId?: string): Promise<MenuCategory[]> => {
+    return menuService.getCategories();
   },
 
   createCategory: async (data: Partial<MenuCategory>) => {
-    const path = 'menu_categories';
     try {
-      const docRef = await addDoc(collection(db, path), data);
-      return { id: docRef.id, ...data };
+      const payload = toCategoryPayload(data);
+      const response = await apiClient.post('/menu-categories', payload);
+      return mapCategory(response.data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error('Error creating category', error);
+      throw error;
     }
   },
 
   // Items
-  getItems: async (restaurantId: string): Promise<MenuItem[]> => {
-    const path = 'menu_items';
+  getItems: async (restaurantId?: string): Promise<MenuItem[]> => {
     try {
-      const q = query(collection(db, path), where('restaurantId', '==', restaurantId));
-      const snap = await getDocs(q);
-      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
+      const response = await apiClient.get('/menu-items');
+      return response.data.map(mapMenuItem);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error('Error fetching menu items', error);
       return [];
     }
   },
 
-  getAllItems: async (restaurantId: string): Promise<MenuItem[]> => {
-    return menuService.getItems(restaurantId);
+  getAllItems: async (restaurantId?: string): Promise<MenuItem[]> => {
+    return menuService.getItems();
   },
 
   createItem: async (data: Partial<MenuItem>) => {
-    const path = 'menu_items';
     try {
-      const docRef = await addDoc(collection(db, path), data);
-      return { id: docRef.id, ...data };
+      const payload = toMenuItemPayload(data);
+      const response = await apiClient.post('/menu-items', payload);
+      return mapMenuItem(response.data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error('Error creating menu item', error);
+      throw error;
     }
   },
 
   updateItem: async (id: string, data: Partial<MenuItem>) => {
-    const path = `menu_items/${id}`;
     try {
-      await updateDoc(doc(db, 'menu_items', id), data);
+      const payload = toMenuItemPayload(data);
+      const response = await apiClient.put(`/menu-items/${id}`, payload);
+      return mapMenuItem(response.data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error('Error updating menu item', error);
+      throw error;
     }
   },
 
   deleteItem: async (id: string) => {
-    const path = `menu_items/${id}`;
     try {
-      await deleteDoc(doc(db, 'menu_items', id));
+      await apiClient.delete(`/menu-items/${id}`);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, path);
+      console.error('Error deleting menu item', error);
+      throw error;
     }
   }
 };

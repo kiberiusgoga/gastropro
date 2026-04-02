@@ -1,58 +1,94 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy,
-  limit,
-  onSnapshot
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { Notification } from '../types';
-
-const COLLECTION = 'notifications';
 
 export const notificationService = {
   getAll: async (): Promise<Notification[]> => {
-    const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'), limit(50));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+    try {
+      const response = await apiClient.get('/notifications');
+      return response.data.map((row: any) => ({
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        title: row.title,
+        message: row.message,
+        type: row.type,
+        category: row.category,
+        read: row.read,
+        link: row.link,
+        createdAt: row.created_at
+      })) as Notification[];
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
   },
 
   getUnread: async (): Promise<Notification[]> => {
-    const q = query(collection(db, COLLECTION), where('read', '==', false), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+    try {
+      const all = await notificationService.getAll();
+      return all.filter(n => !n.read);
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
   },
 
-  create: async (data: Omit<Notification, 'id' | 'createdAt' | 'read'>): Promise<Notification> => {
-    const docRef = await addDoc(collection(db, COLLECTION), {
-      ...data,
-      read: false,
-      createdAt: new Date().toISOString()
-    });
-    return { id: docRef.id, ...data, read: false, createdAt: new Date().toISOString() } as Notification;
+  create: async (data: Omit<Notification, 'id' | 'createdAt' | 'read' | 'restaurantId'>): Promise<Notification | null> => {
+    try {
+      const response = await apiClient.post('/notifications', {
+        title: data.title,
+        message: data.message,
+        type: data.type,
+        category: data.category,
+        link: data.link
+      });
+      const row = response.data;
+      return {
+        id: row.id,
+        restaurantId: row.restaurant_id,
+        title: row.title,
+        message: row.message,
+        type: row.type,
+        category: row.category,
+        read: row.read,
+        link: row.link,
+        createdAt: row.created_at
+      } as Notification;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
   },
 
   markAsRead: async (id: string): Promise<void> => {
-    await updateDoc(doc(db, COLLECTION, id), { read: true });
+    try {
+      await apiClient.put(`/notifications/${id}/read`);
+    } catch (error) {
+      console.error(error);
+    }
   },
 
   markAllAsRead: async (): Promise<void> => {
-    const q = query(collection(db, COLLECTION), where('read', '==', false));
-    const snapshot = await getDocs(q);
-    for (const d of snapshot.docs) {
-      await updateDoc(doc(db, COLLECTION, d.id), { read: true });
+    try {
+      const unread = await notificationService.getUnread();
+      await Promise.all(unread.map(n => apiClient.put(`/notifications/${n.id}/read`)));
+    } catch (error) {
+      console.error(error);
     }
   },
 
   subscribeToUnread: (callback: (notifications: Notification[]) => void) => {
-    const q = query(collection(db, COLLECTION), where('read', '==', false), orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-      callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification)));
-    });
+    const fetchUnread = async () => {
+      const data = await notificationService.getUnread();
+      callback(data);
+    };
+    
+    // Initial fetch
+    fetchUnread();
+    
+    // Poll every 15 seconds to simulate realtime behavior
+    const interval = setInterval(fetchUnread, 15000);
+    
+    // Return unsubscribe function
+    return () => clearInterval(interval);
   }
 };

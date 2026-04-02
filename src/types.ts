@@ -63,6 +63,7 @@ export interface MenuCategory {
   restaurantId: string;
   name: string;
   sortOrder: number;
+  active?: boolean;
 }
 
 export interface Category {

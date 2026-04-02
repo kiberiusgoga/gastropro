@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { MenuItem, Restaurant, Table } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { UtensilsCrossed, Bell, Receipt, Search, CheckCircle } from 'lucide-react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, getDoc, collection, query, where, onSnapshot, addDoc, Timestamp } from 'firebase/firestore';
+import apiClient from '../lib/apiClient';
+import { notificationService } from '../services/notificationService';
 import { useTranslation } from 'react-i18next';
 
 interface GuestMenuProps {
@@ -25,21 +25,28 @@ const GuestMenu: React.FC<GuestMenuProps> = ({ restaurantId, tableId }) => {
     const fetchData = async () => {
       try {
         // Fetch Restaurant
-        const restDoc = await getDoc(doc(db, 'restaurants', restaurantId)).catch(err => handleFirestoreError(err, OperationType.GET, `restaurants/${restaurantId}`));
-        if (restDoc && restDoc.exists()) setRestaurant(restDoc.data() as Restaurant);
+        const restRes = await apiClient.get(`/restaurants/${restaurantId}`);
+        if (restRes.data) setRestaurant(restRes.data as Restaurant);
 
         // Fetch Table
-        const tableDoc = await getDoc(doc(db, 'tables', tableId)).catch(err => handleFirestoreError(err, OperationType.GET, `tables/${tableId}`));
-        if (tableDoc && tableDoc.exists()) setTable(tableDoc.data() as Table);
+        const tablesRes = await apiClient.get('/tables');
+        const foundTable = tablesRes.data.find((t: any) => t.id === tableId);
+        if (foundTable) setTable({ ...foundTable, number: Number(foundTable.number) } as Table);
 
-        // Fetch Menu
-        const q = query(collection(db, 'menu'), where('restaurantId', '==', restaurantId));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-          setMenu(snapshot.docs.map(doc => doc.data() as MenuItem));
-          setLoading(false);
-        }, (err) => handleFirestoreError(err, OperationType.GET, 'menu'));
-
-        return () => unsubscribe();
+        // Fetch Menu Items
+        const menuRes = await apiClient.get('/menu-items');
+        setMenu(menuRes.data.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          price: Number(row.price),
+          menuCategoryId: row.menu_category_id,
+          active: row.active,
+          preparationStation: row.preparation_station,
+          description: row.description,
+          imageUrl: row.image_url
+        })) as MenuItem[]);
+        
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching guest data:", error);
         setLoading(false);
@@ -49,10 +56,10 @@ const GuestMenu: React.FC<GuestMenuProps> = ({ restaurantId, tableId }) => {
     fetchData();
   }, [restaurantId, tableId]);
 
-  const categories = ['all', ...new Set(menu.map(item => item.category))];
+  const categories = ['all', ...new Set(menu.map(item => (item as any).category))];
 
   const filteredMenu = menu.filter(item => {
-    const matchesCategory = activeCategory === 'all' || item.category === activeCategory;
+    const matchesCategory = activeCategory === 'all' || (item as any).category === activeCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          item.description?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -60,14 +67,13 @@ const GuestMenu: React.FC<GuestMenuProps> = ({ restaurantId, tableId }) => {
 
   const handleCallWaiter = async () => {
     try {
-      await addDoc(collection(db, 'notifications'), {
-        restaurantId,
-        tableId,
-        tableNumber: table?.number,
-        type: 'call_waiter',
-        status: 'pending',
-        createdAt: Timestamp.now()
-      }).catch(err => handleFirestoreError(err, OperationType.CREATE, 'notifications'));
+      await notificationService.create({
+        title: 'Повик од маса',
+        message: `Маса ${table?.number || 'N/A'} бара келнер.`,
+        type: 'info',
+        category: 'new_order',
+        link: `/pos/tables`
+      });
       showNotification("Келнерот е повикан. Ве молиме почекајте.", 'success');
     } catch (error) {
       console.error("Error calling waiter:", error);
@@ -76,14 +82,13 @@ const GuestMenu: React.FC<GuestMenuProps> = ({ restaurantId, tableId }) => {
 
   const handleRequestBill = async () => {
     try {
-      await addDoc(collection(db, 'notifications'), {
-        restaurantId,
-        tableId,
-        tableNumber: table?.number,
-        type: 'request_bill',
-        status: 'pending',
-        createdAt: Timestamp.now()
-      }).catch(err => handleFirestoreError(err, OperationType.CREATE, 'notifications'));
+      await notificationService.create({
+        title: 'Барање за сметка',
+        message: `Маса ${table?.number || 'N/A'} бара сметка.`,
+        type: 'info',
+        category: 'new_order',
+        link: `/pos/tables`
+      });
       showNotification("Барањето за сметка е испратено.", 'success');
     } catch (error) {
       console.error("Error requesting bill:", error);
@@ -180,8 +185,8 @@ const GuestMenu: React.FC<GuestMenuProps> = ({ restaurantId, tableId }) => {
             className="bg-white p-4 rounded-3xl border border-zinc-100 shadow-sm flex gap-4 relative overflow-hidden group"
           >
             <div className="w-24 h-24 bg-zinc-100 rounded-2xl flex-shrink-0 overflow-hidden">
-              {item.image ? (
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-zinc-300">
                   <UtensilsCrossed size={32} />
@@ -194,7 +199,7 @@ const GuestMenu: React.FC<GuestMenuProps> = ({ restaurantId, tableId }) => {
                 <span className="font-black text-emerald-600">{item.price} ден.</span>
               </div>
               <p className="text-zinc-500 text-sm line-clamp-2 mb-2">{item.description}</p>
-              {item.isDailyMenu && (
+              {(item as any).isDailyMenu && (
                 <span className="inline-block px-2 py-1 bg-orange-50 text-orange-600 text-[10px] font-black uppercase rounded-lg">
                   {i18n.language === 'mk' ? 'Дневно мени' : 'Daily Menu'}
                 </span>

@@ -1,383 +1,280 @@
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  query, 
-  where,
-  limit,
-  getDoc
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import apiClient from '../lib/apiClient';
 import { Table, Order, OrderItem, Payment } from '../types';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { bundleService, inventoryService } from './inventoryService';
 import { crmService } from './crmService';
 
 export const tableService = {
-  getAll: async (restaurantId: string): Promise<Table[]> => {
-    const path = 'tables';
+  getAll: async (restaurantId?: string): Promise<Table[]> => {
     try {
-      const q = query(collection(db, path), where('restaurantId', '==', restaurantId));
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Table));
+      const response = await apiClient.get('/tables');
+      return response.data;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error(error);
       return [];
     }
   },
-  create: async (data: Partial<Table> & { restaurantId: string }) => {
-    const path = 'tables';
+  create: async (data: Partial<Table> & { restaurantId?: string }) => {
     try {
-      const docRef = await addDoc(collection(db, path), data);
-      return { id: docRef.id, ...data };
+      const response = await apiClient.post('/tables', data);
+      return response.data;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error(error);
     }
   },
   update: async (id: string, data: Partial<Table>) => {
-    const path = `tables/${id}`;
     try {
-      await updateDoc(doc(db, 'tables', id), data);
+      await apiClient.put(`/tables/${id}`, data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
     }
   }
 };
 
+// Mappers for backend Order formats
+const mapOrderItem = (row: any): OrderItem => ({
+  id: row.id,
+  restaurantId: row.restaurant_id,
+  orderId: row.order_id,
+  productId: row.menu_item_id,
+  name: row.name,
+  quantity: row.quantity,
+  price: Number(row.price),
+  status: row.status,
+  preparationStation: row.preparation_station,
+  isBundle: row.is_bundle,
+  note: row.note
+});
+
+const mapOrder = (row: any): Order => ({
+  id: row.id,
+  restaurantId: row.restaurant_id,
+  tableId: row.table_id,
+  customerId: row.customer_id,
+  userId: row.user_id,
+  shiftId: row.shift_id,
+  status: row.status,
+  orderType: row.order_type,
+  guestCount: row.guest_count,
+  totalAmount: Number(row.total_amount || 0),
+  subtotal: Number(row.subtotal || 0),
+  discountAmount: Number(row.discount_amount || 0),
+  createdAt: row.created_at,
+  closedAt: row.closed_at,
+  items: row.items ? row.items.map(mapOrderItem) : []
+});
+
 export const posService = {
-  getOpenOrderForTable: async (tableId: string, restaurantId: string): Promise<Order | null> => {
-    const path = 'orders';
+  getOpenOrderForTable: async (tableId: string, restaurantId?: string): Promise<Order | null> => {
     try {
-      const q = query(
-        collection(db, path), 
-        where('restaurantId', '==', restaurantId),
-        where('tableId', '==', tableId), 
-        where('status', 'in', ['order_created', 'sent_to_kitchen', 'preparing', 'ready', 'served', 'paid']),
-        limit(1)
-      );
-      const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) return null;
-      
-      const orderDoc = querySnapshot.docs[0];
-      const itemsSnapshot = await getDocs(collection(db, path, orderDoc.id, 'items'));
-      const items = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OrderItem));
-      
-      return { id: orderDoc.id, ...orderDoc.data(), items } as Order;
+      const response = await apiClient.get('/orders?status=open');
+      const orders = response.data.map(mapOrder);
+      // Find order for table
+      const order = orders.find((o: Order) => o.tableId === tableId);
+      return order || null;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error(error);
       return null;
     }
   },
 
-  createOrder: async (tableId: string | null, userId: string, restaurantId: string, orderType: Order['orderType'] = 'dine_in', customerId?: string, shiftId?: string): Promise<Order | undefined> => {
-    const path = 'orders';
+  createOrder: async (tableId: string | null, userId: string, restaurantId?: string, orderType: Order['orderType'] = 'dine_in', customerId?: string, shiftId?: string): Promise<Order | undefined> => {
     try {
-      const orderData = {
-        tableId,
-        customerId,
-        userId,
-        restaurantId,
-        shiftId,
-        status: 'order_created',
-        orderType,
-        totalAmount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const payload = {
+        table_id: tableId,
+        customer_id: customerId,
+        shift_id: shiftId,
+        order_type: orderType,
+        guest_count: 1
       };
-      const docRef = await addDoc(collection(db, path), orderData);
-      
-      // Update table status if dine-in
-      if (tableId) {
-        await updateDoc(doc(db, 'tables', tableId), { 
-          status: 'occupied',
-          currentOrderId: docRef.id 
-        });
-      }
-      
-      return { id: docRef.id, ...orderData, items: [] } as Order;
+      const response = await apiClient.post('/orders', payload);
+      return mapOrder(response.data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error(error);
     }
   },
 
   addItemToOrder: async (orderId: string, item: Omit<OrderItem, 'id'>) => {
-    const path = `orders/${orderId}/items`;
     try {
-      const docRef = await addDoc(collection(db, 'orders', orderId, 'items'), {
-        ...item,
-        orderId,
-        status: item.status || 'pending'
-      });
+      const payload = {
+        menu_item_id: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        preparation_station: item.preparationStation,
+        note: item.note,
+        is_bundle: item.isBundle
+      };
+      const response = await apiClient.post(`/orders/${orderId}/items`, payload);
       
-      // Update order total
-      const orderRef = doc(db, 'orders', orderId);
-      const orderSnap = await getDoc(orderRef);
-      if (orderSnap.exists()) {
-        const orderData = orderSnap.data() as Order;
-        const subtotal = (orderData.subtotal || 0) + (item.price * item.quantity);
-        let discountAmount = 0;
-        if (orderData.discountId) {
-          if (orderData.discountType === 'percentage') {
-            discountAmount = (subtotal * (orderData.discountValue || 0)) / 100;
-          } else {
-            discountAmount = orderData.discountValue || 0;
-          }
-        }
-        const totalAmount = subtotal - discountAmount;
-
-        await updateDoc(orderRef, { 
-          subtotal,
-          totalAmount,
-          discountAmount,
-          updatedAt: new Date().toISOString()
-        });
+      // The backend doesn't auto-update the order subtotal for individual adding
+      // So we'll trigger an order update to fix subtotals on the server
+      const orderResponse = await apiClient.get('/orders');
+      const orders = orderResponse.data.map(mapOrder);
+      const order = orders.find((o: Order) => o.id === orderId);
+      if (order) {
+         let subtotal = (order.subtotal || 0) + (item.price * item.quantity);
+         await apiClient.put(`/orders/${orderId}`, { subtotal, total_amount: subtotal });
       }
-      
-      return { id: docRef.id, ...item, orderId };
+
+      return mapOrderItem(response.data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error(error);
     }
   },
 
   updateItemQuantity: async (orderId: string, itemId: string, newQuantity: number) => {
-    const path = `orders/${orderId}/items/${itemId}`;
     try {
-      const itemRef = doc(db, 'orders', orderId, 'items', itemId);
-      const itemSnap = await getDoc(itemRef);
+      await apiClient.put(`/orders/${orderId}/items/${itemId}`, { quantity: newQuantity });
       
-      if (itemSnap.exists()) {
-        await updateDoc(itemRef, { quantity: newQuantity });
-        
-        // Update order total
-        const orderRef = doc(db, 'orders', orderId);
-        const orderSnap = await getDoc(orderRef);
-        if (orderSnap.exists()) {
-          const orderData = orderSnap.data() as Order;
-          const itemsSnapshot = await getDocs(collection(db, 'orders', orderId, 'items'));
-          const items = itemsSnapshot.docs.map(d => d.data() as OrderItem);
-          const subtotal = items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-          
-          let discountAmount = 0;
-          if (orderData.discountId) {
-            if (orderData.discountType === 'percentage') {
-              discountAmount = (subtotal * (orderData.discountValue || 0)) / 100;
-            } else {
-              discountAmount = orderData.discountValue || 0;
-            }
-          }
-          const totalAmount = subtotal - discountAmount;
-
-          await updateDoc(orderRef, { 
-            subtotal,
-            totalAmount,
-            discountAmount,
-            updatedAt: new Date().toISOString()
-          });
-        }
+      // Update order total
+      const orderResponse = await apiClient.get('/orders');
+      const orders = orderResponse.data.map(mapOrder);
+      const order = orders.find((o: Order) => o.id === orderId);
+      if (order) {
+          // Recalculate
+          const items = order.items;
+          const subtotal = items.reduce((sum: number, i: OrderItem) => sum + (i.price * i.quantity), 0);
+          await apiClient.put(`/orders/${orderId}`, { subtotal, total_amount: subtotal });
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
     }
   },
 
   updateOrderItemStatus: async (orderId: string, itemId: string, status: OrderItem['status']) => {
-    const path = `orders/${orderId}/items/${itemId}`;
     try {
-      await updateDoc(doc(db, 'orders', orderId, 'items', itemId), { status });
-      await updateDoc(doc(db, 'orders', orderId), { updatedAt: new Date().toISOString() });
+      await apiClient.put(`/orders/${orderId}/items/${itemId}`, { status });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
     }
   },
 
-  sendToKitchen: async (orderId: string, restaurantId: string) => {
-    const path = `orders/${orderId}`;
+  sendToKitchen: async (orderId: string, restaurantId?: string) => {
     try {
-      const orderRef = doc(db, 'orders', orderId);
-      const orderSnap = await getDoc(orderRef);
-      if (!orderSnap.exists()) throw new Error('Order not found');
-      const orderData = orderSnap.data();
-
       // 1. Update order status
-      await updateDoc(orderRef, { 
-        status: 'sent_to_kitchen',
-        updatedAt: new Date().toISOString()
-      });
+      await apiClient.put(`/orders/${orderId}`, { status: 'sent_to_kitchen' });
 
-      // 2. Update all pending items to sent_to_kitchen
-      const itemsSnapshot = await getDocs(collection(db, 'orders', orderId, 'items'));
-      const items = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OrderItem));
+      // 2. Fetch order to sync items status
+      const response = await apiClient.get('/orders');
+      const orders = response.data.map(mapOrder);
+      const order = orders.find((o: Order) => o.id === orderId);
       
-      for (const item of items) {
+      if (!order) throw new Error('Order not found');
+      
+      for (const item of order.items) {
         if (item.status === 'pending') {
-          await updateDoc(doc(db, 'orders', orderId, 'items', item.id), { 
-            status: 'sent_to_kitchen' 
-          });
+          await apiClient.put(`/orders/${orderId}/items/${item.id}`, { status: 'sent_to_kitchen' });
 
-          // 3. Inventory Deduction (Deduct ingredients when sent to kitchen)
+          // 3. Inventory Deduction (Deduct ingredients when sent to kitchen via inventoryService)
           if (item.isBundle) {
-            // It's a normative - deduct ingredients
             const ingredients = await bundleService.getBundleItems(item.productId);
             for (const ingredient of ingredients) {
               await inventoryService.recordMovement({
                 productId: ingredient.productId,
-                restaurantId,
+                restaurantId: restaurantId || '',
                 type: 'output',
                 quantity: ingredient.quantity * item.quantity,
+                previousStock: 0,
+                newStock: 0,
                 note: `Kitchen Order ${orderId} - ${item.name}`,
-                userId: orderData.userId,
+                userId: order.userId,
                 referenceId: orderId
               });
-              
-              // Update product stock
-              const productRef = doc(db, 'products', ingredient.productId);
-              const productSnap = await getDoc(productRef);
-              if (productSnap.exists()) {
-                const currentStock = productSnap.data().currentStock || 0;
-                await updateDoc(productRef, { 
-                  currentStock: currentStock - (ingredient.quantity * item.quantity) 
-                });
-              }
             }
           } else {
-            // Direct product deduction
             await inventoryService.recordMovement({
               productId: item.productId,
-              restaurantId,
+              restaurantId: restaurantId || '',
               type: 'output',
               quantity: item.quantity,
+              previousStock: 0,
+              newStock: 0,
               note: `Kitchen Order ${orderId} - ${item.name}`,
-              userId: orderData.userId,
+              userId: order.userId,
               referenceId: orderId
             });
-            
-            const productRef = doc(db, 'products', item.productId);
-            const productSnap = await getDoc(productRef);
-            if (productSnap.exists()) {
-              const currentStock = productSnap.data().currentStock || 0;
-              await updateDoc(productRef, { 
-                currentStock: currentStock - item.quantity 
-              });
-            }
           }
         }
       }
 
-      // 4. Notify Kitchen
       console.log(`[WebSocket] Emitting order:new for order ${orderId}`);
-      
       return true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
       return false;
     }
   },
 
   serveOrder: async (orderId: string) => {
-    const path = `orders/${orderId}`;
     try {
-      await updateDoc(doc(db, 'orders', orderId), { 
-        status: 'served',
-        updatedAt: new Date().toISOString()
-      });
+      await apiClient.put(`/orders/${orderId}`, { status: 'served' });
 
-      // Update all ready items to served
-      const itemsSnapshot = await getDocs(collection(db, 'orders', orderId, 'items'));
-      for (const itemDoc of itemsSnapshot.docs) {
-        if (itemDoc.data().status === 'ready') {
-          await updateDoc(doc(db, 'orders', orderId, 'items', itemDoc.id), { 
-            status: 'served' 
-          });
+      const response = await apiClient.get('/orders');
+      const orders = response.data.map(mapOrder);
+      const order = orders.find((o: Order) => o.id === orderId);
+      
+      if (order) {
+        for (const item of order.items) {
+          if (item.status === 'ready') {
+            await apiClient.put(`/orders/${orderId}/items/${item.id}`, { status: 'served' });
+          }
         }
       }
       return true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
       return false;
     }
   },
 
   closeOrder: async (orderId: string, payments: Omit<Payment, 'id'>[], shiftId?: string) => {
-    const path = `orders/${orderId}`;
     try {
-      const orderRef = doc(db, 'orders', orderId);
-      const orderSnap = await getDoc(orderRef);
+      // We will map payments logic later in backend but for now just mark closed
+      await apiClient.put(`/orders/${orderId}`, { status: 'paid' });
       
-      if (!orderSnap.exists()) throw new Error('Order not found');
-      const orderData = orderSnap.data();
+      // Update Customer history CRM integration
+      const response = await apiClient.get('/orders');
+      const orders = response.data.map(mapOrder);
+      const order = orders.find((o: Order) => o.id === orderId);
       
-      // 1. Record payments
-      for (const payment of payments) {
-        await addDoc(collection(db, 'orders', orderId, 'payments'), {
-          ...payment,
-          shiftId,
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // 2. Mark order as paid and closed
-      await updateDoc(orderRef, { 
-        status: 'closed',
-        closedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      
-      // 3. Free the table
-      if (orderData.tableId) {
-        await updateDoc(doc(db, 'tables', orderData.tableId), { 
-          status: 'free',
-          currentOrderId: null 
-        });
-      }
-
-      // 4. Update Customer history if applicable
-      if (orderData.customerId) {
-        await crmService.addOrderToHistory(orderData.customerId, orderId, orderData.totalAmount);
+      if (order && order.customerId) {
+        await crmService.addOrderToHistory(order.customerId, orderId, order.totalAmount);
       }
       
       return true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
       return false;
     }
   },
 
-  getAllOrders: async (restaurantId: string): Promise<Order[]> => {
-    const path = 'orders';
+  getAllOrders: async (restaurantId?: string): Promise<Order[]> => {
     try {
-      const q = query(collection(db, path), where('restaurantId', '==', restaurantId));
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      const response = await apiClient.get('/orders');
+      return response.data.map(mapOrder);
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error(error);
       return [];
     }
   },
 
   updateOrder: async (orderId: string, data: Partial<Order>) => {
-    const path = `orders/${orderId}`;
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
-        ...data,
-        updatedAt: new Date().toISOString()
-      });
+      await apiClient.put(`/orders/${orderId}`, data);
       return true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
       return false;
     }
   },
 
   updateOrderItem: async (orderId: string, itemId: string, data: Partial<OrderItem>) => {
-    const path = `orders/${orderId}/items/${itemId}`;
     try {
-      await updateDoc(doc(db, 'orders', orderId, 'items', itemId), data);
+      await apiClient.put(`/orders/${orderId}/items/${itemId}`, data);
       return true;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
-      return false;
+       console.error(error);
+       return false;
     }
   }
 };

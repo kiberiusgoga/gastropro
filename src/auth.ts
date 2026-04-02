@@ -13,20 +13,21 @@ export interface AuthRequest extends Request {
     id: string;
     email: string;
     role: string;
+    restaurantId: string;
   };
 }
 
-export const generateAccessToken = (user: { id: string; email: string; role: string }) => {
+export const generateAccessToken = (user: { id: string; email: string; role: string; restaurantId: string }) => {
   return jwt.sign(user, JWT_SECRET, { expiresIn: '15m' });
 };
 
-export const generateRefreshToken = (user: { id: string; email: string; role: string }) => {
+export const generateRefreshToken = (user: { id: string; email: string; role: string; restaurantId: string }) => {
   return jwt.sign(user, REFRESH_SECRET, { expiresIn: '7d' });
 };
 
 export const verifyRefreshToken = (token: string) => {
   try {
-    return jwt.verify(token, REFRESH_SECRET) as { id: string; email: string; role: string };
+    return jwt.verify(token, REFRESH_SECRET) as { id: string; email: string; role: string; restaurantId: string };
   } catch {
     return null;
   }
@@ -40,7 +41,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return next(new ForbiddenError('Invalid or expired token'));
-    req.user = user as { id: string; email: string; role: string };
+    req.user = user as { id: string; email: string; role: string; restaurantId: string };
     next();
   });
 };

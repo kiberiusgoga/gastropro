@@ -1,78 +1,56 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  query, 
-  where, 
-  getDocs,
-  limit
-} from 'firebase/firestore';
-import { db } from '../firebase';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-
-export interface Shift {
-  id: string;
-  userId: string;
-  userName: string;
-  startTime: string;
-  endTime?: string;
-  startingCash: number;
-  endingCash?: number;
-  status: 'open' | 'closed';
-  totalSales: number;
-}
+import apiClient from '../lib/apiClient';
+import { Shift } from '../types';
 
 export const shiftService = {
-  openShift: async (userId: string, userName: string, startingCash: number, restaurantId: string) => {
-    const path = 'shifts';
+  openShift: async (userId: string, userName: string, startingCash: number, restaurantId?: string): Promise<Shift | null> => {
     try {
-      const shiftData = {
-        userId,
+      const payload = { initial_cash: startingCash };
+      const response = await apiClient.post('/shifts', payload);
+      const row = response.data;
+      return {
+        id: row.id,
+        userId: row.user_id,
         userName,
-        restaurantId,
-        startTime: new Date().toISOString(),
-        startingCash,
-        status: 'open',
-        totalSales: 0
-      };
-      const docRef = await addDoc(collection(db, path), shiftData);
-      return { id: docRef.id, ...shiftData };
+        startTime: row.start_time,
+        startingCash: Number(row.initial_cash || 0),
+        status: row.status,
+        totalSales: 0,
+        restaurantId: row.restaurant_id
+      } as Shift;
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.error(error);
+      return null;
     }
   },
 
-  getActiveShift: async (userId: string, restaurantId: string) => {
+  getActiveShift: async (userId: string, restaurantId?: string): Promise<Shift | null> => {
     if (!userId) return null;
-    const path = 'shifts';
     try {
-      const q = query(
-        collection(db, path),
-        where('userId', '==', userId),
-        where('restaurantId', '==', restaurantId),
-        where('status', '==', 'open'),
-        limit(1)
-      );
-      const snap = await getDocs(q);
-      if (snap.empty) return null;
-      return { id: snap.docs[0].id, ...snap.docs[0].data() } as Shift;
+      const response = await apiClient.get('/shifts/active');
+      if (!response.data) return null;
+      
+      const row = response.data;
+      return {
+        id: row.id,
+        userId: row.user_id,
+        userName: 'Current User', // we usually don't need this in active fetch
+        startTime: row.start_time,
+        startingCash: Number(row.initial_cash || 0),
+        status: row.status,
+        totalSales: 0, // In backend we should probably compute this or fetch from orders, for now 0
+        restaurantId: row.restaurant_id
+      } as Shift;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.error(error);
       return null;
     }
   },
 
   closeShift: async (shiftId: string, endingCash: number) => {
-    const path = `shifts/${shiftId}`;
     try {
-      await updateDoc(doc(db, 'shifts', shiftId), {
-        endTime: new Date().toISOString(),
-        endingCash,
-        status: 'closed'
-      });
+      await apiClient.put(`/shifts/${shiftId}/end`, { final_cash: endingCash, expected_cash: endingCash });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, path);
+      console.error(error);
     }
   }
 };
