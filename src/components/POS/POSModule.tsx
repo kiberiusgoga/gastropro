@@ -332,18 +332,22 @@ const POSModule = () => {
     if (!item) return null;
 
     return (
-      <div style={style} className="p-2">
+      <div style={style} className="p-3">
         <button
           onClick={() => handleAddItem(item)}
-          className="w-full h-full bg-white p-4 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 transition-all text-left flex flex-col justify-between group"
+          className="w-full h-full bg-white dark:bg-zinc-900 p-5 rounded-[2rem] shadow-sm border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-xl hover:-translate-y-1 transition-all text-left flex flex-col justify-between group relative overflow-hidden"
         >
-          <div className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">{item.name}</div>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-lg font-black text-slate-900">{item.price} ден</span>
-            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Plus size={18} />
+          <div>
+            <div className="font-black text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 transition-colors line-clamp-2 uppercase tracking-tight text-sm">{item.name}</div>
+            <div className="text-[10px] font-black text-zinc-400 mt-1 uppercase tracking-widest">{item.category}</div>
+          </div>
+          <div className="mt-4 flex items-center justify-between relative z-10">
+            <span className="text-xl font-black text-zinc-900 dark:text-zinc-100 tracking-tighter font-display">{item.price} <small className="text-[10px] opacity-50 uppercase">ден</small></span>
+            <div className="w-10 h-10 bg-blue-500 text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 shadow-lg shadow-blue-500/20">
+              <Plus size={20} strokeWidth={3} />
             </div>
           </div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/[0.02] rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700"></div>
         </button>
       </div>
     );
@@ -384,61 +388,70 @@ const POSModule = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {tables.map(table => (
                 <button
                   key={table.id}
                   onClick={() => handleTableSelect(table)}
-                  className={`aspect-square p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all shadow-sm border-2 ${
+                  className={`aspect-square p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all shadow-sm border-2 relative overflow-hidden group ${
                     table.status === 'occupied' 
-                      ? 'bg-red-50 border-red-200 text-red-700' 
+                      ? 'bg-rose-50 border-rose-100 text-rose-700 dark:bg-rose-900/10 dark:border-rose-900/20' 
                       : table.status === 'reserved'
-                      ? 'bg-amber-50 border-amber-200 text-amber-700'
-                      : 'bg-white border-white hover:border-blue-200 text-slate-700'
+                      ? 'bg-amber-50 border-amber-100 text-amber-700 dark:bg-amber-900/10 dark:border-amber-900/20'
+                      : 'bg-white border-white dark:bg-zinc-900 dark:border-zinc-800 hover:border-emerald-200 dark:hover:border-emerald-800 text-zinc-700 dark:text-zinc-300'
                   }`}
                 >
-                  <div className="text-3xl font-bold">#{table.number}</div>
-                  <div className="text-xs uppercase font-semibold opacity-60">{table.zone}</div>
-                  <div className="flex items-center gap-1 text-sm mt-1">
-                    <Users size={14} />
+                  <div className="text-4xl font-black font-display tracking-tighter">#{table.number}</div>
+                  <div className="text-[10px] uppercase font-black tracking-widest opacity-50">{table.zone}</div>
+                  <div className="flex items-center gap-1.5 text-xs mt-2 font-bold px-3 py-1 bg-black/5 dark:bg-white/5 rounded-full">
+                    <Users size={12} />
                     <span>{table.capacity}</span>
                   </div>
+                  {table.status === 'occupied' && (
+                    <div className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
+                  )}
+                  <div className={`absolute -bottom-2 -right-2 w-16 h-16 rounded-full opacity-10 group-hover:scale-150 transition-transform duration-700 ${
+                    table.status === 'occupied' ? 'bg-rose-500' : 'bg-emerald-500'
+                  }`}></div>
                 </button>
               ))}
             </div>
           </div>
         ) : (
           <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-6">
                 <button 
                   onClick={() => { setSelectedTable(null); setOrderType('dine_in'); }}
-                  className="p-2 bg-white rounded-xl shadow-sm border border-slate-200 text-slate-600 hover:text-slate-900"
+                  className="w-12 h-12 flex items-center justify-center bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all hover:shadow-md active:scale-90"
                 >
-                  <X size={20} />
+                  <X size={24} />
                 </button>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">
+                  <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 tracking-tighter font-display uppercase italic">
                     {orderType === 'dine_in' ? `Маса #${selectedTable?.number}` : orderType === 'takeaway' ? 'За носење' : 'Достава'}
                   </h2>
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Избор на производи</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="w-6 h-[2px] bg-emerald-500 rounded-full"></span>
+                    <p className="text-[10px] text-zinc-400 uppercase font-black tracking-[0.2em]">Избор на производи</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <div className="flex items-center gap-4">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
                   <input 
                     type="text"
-                    placeholder="Пребарај..."
+                    placeholder="Брзо пребарување..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    className="pl-11 pr-6 py-3 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 text-sm font-bold w-64 transition-all"
                   />
                 </div>
                 <button 
                   onClick={() => setShowCustomerModal(true)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all font-bold text-sm ${selectedCustomer ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  className={`flex items-center gap-3 px-6 py-3 rounded-2xl border transition-all font-black text-xs uppercase tracking-widest shadow-sm hover:shadow-md ${selectedCustomer ? 'bg-blue-500 border-blue-500 text-white shadow-blue-500/20' : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
                 >
                   <UserIcon size={18} />
                   {selectedCustomer ? selectedCustomer.name : 'Клиент'}
@@ -447,15 +460,15 @@ const POSModule = () => {
             </div>
 
             {/* Categories */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex gap-3 mb-8 overflow-x-auto pb-4 scrollbar-hide">
               {categories.map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`px-6 py-2.5 rounded-xl whitespace-nowrap font-bold transition-all shadow-sm border ${
+                  className={`px-8 py-3.5 rounded-2xl whitespace-nowrap font-black text-xs uppercase tracking-[0.15em] transition-all shadow-sm border-2 ${
                     activeCategory === cat.id 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200' 
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'bg-zinc-950 border-zinc-950 text-white shadow-xl shadow-black/10' 
+                      : 'bg-white dark:bg-zinc-900 border-zinc-50 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500 hover:border-zinc-200 dark:hover:border-zinc-700 hover:bg-zinc-50'
                   }`}
                 >
                   {cat.name}
@@ -490,18 +503,18 @@ const POSModule = () => {
       )}
 
       {/* Right Side: Order Sidebar */}
-      <div className="w-full lg:w-[400px] bg-white border-l border-slate-200 flex flex-col shadow-xl">
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Нарачка</h2>
+      <div className="w-full lg:w-[450px] bg-white dark:bg-zinc-950 border-l border-zinc-100 dark:border-zinc-800 flex flex-col shadow-2xl relative z-20">
+        <div className="p-8 border-b border-zinc-50 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/50 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tighter font-display italic">Нарачка</h2>
             {currentOrder && (
               <div className="flex gap-2">
                 {currentOrder.isSplit && (
-                  <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-black uppercase flex items-center gap-1">
-                    <Split size={12} /> Поделена
+                  <div className="px-3 py-1 bg-amber-500 text-white rounded-lg text-[10px] font-black uppercase flex items-center gap-1 shadow-lg shadow-amber-500/20">
+                    <Split size={12} strokeWidth={3} /> Поделена
                   </div>
                 )}
-                <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-black uppercase">
+                <div className="px-3 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-black uppercase shadow-lg shadow-emerald-500/20">
                   {currentOrder.orderType === 'dine_in' ? 'Ресторан' : currentOrder.orderType === 'takeaway' ? 'За носење' : 'Достава'}
                 </div>
               </div>

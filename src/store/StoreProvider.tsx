@@ -1,10 +1,11 @@
 import React, { useState, useCallback, ReactNode } from 'react';
-import { User, Product, Transaction, Invoice, Category, DashboardStats, InventoryCheck, Bundle, Restaurant, Supplier, PurchaseOrder } from '../types';
+import { User, Product, Transaction, Invoice, Category, DashboardStats, InventoryCheck, Bundle, Restaurant, Supplier, PurchaseOrder, Order } from '../types';
 import { authService } from '../services/authService';
 import { productService, categoryService } from '../services/productService';
 import { inventoryService, invoiceService, dashboardService, inventoryCheckService, bundleService } from '../services/inventoryService';
 import { restaurantService } from '../services/restaurantService';
 import { supplierService } from '../services/supplierService';
+import { posService } from '../services/posService';
 import { StoreContext } from './StoreContext';
 
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -19,6 +20,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [employees, setEmployees] = useState<User[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   
   const [loading, setLoading] = useState({
@@ -34,6 +36,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     suppliers: false,
     purchaseOrders: false,
     stats: false,
+    orders: false,
   });
 
   const fetchRestaurant = useCallback(async (id: string) => {
@@ -178,6 +181,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [activeRestaurant]);
 
+  const fetchOrders = useCallback(async () => {
+    if (!activeRestaurant) return;
+    setLoading(prev => ({ ...prev, orders: true }));
+    try {
+      const data = await posService.getAllOrders(activeRestaurant.id);
+      setOrders(data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, orders: false }));
+    }
+  }, [activeRestaurant]);
+
   const refreshAll = useCallback(async () => {
     await Promise.all([
       fetchProducts(),
@@ -190,8 +206,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       fetchSuppliers(),
       fetchPurchaseOrders(),
       fetchStats(),
+      fetchOrders(),
     ]);
-  }, [fetchProducts, fetchInventory, fetchInvoices, fetchCategories, fetchInventoryChecks, fetchBundles, fetchEmployees, fetchSuppliers, fetchPurchaseOrders, fetchStats]);
+  }, [fetchProducts, fetchInventory, fetchInvoices, fetchCategories, fetchInventoryChecks, fetchBundles, fetchEmployees, fetchSuppliers, fetchPurchaseOrders, fetchStats, fetchOrders]);
 
   // Listen for auth changes
   React.useEffect(() => {
@@ -224,6 +241,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     employees,
     suppliers,
     purchaseOrders,
+    orders,
     stats,
     loading,
     setUser,
@@ -239,6 +257,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     fetchSuppliers,
     fetchPurchaseOrders,
     fetchStats,
+    fetchOrders,
     refreshAll,
   };
 

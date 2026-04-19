@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { setupMockApi } from './mockApiAdapter';
 
 // Get API URL from environment falling back to current domain + /api
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -9,6 +10,10 @@ export const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Setup mock API Adapter for seamless offline demo experience
+// This intercepts requests that fail due to missing database and falls back to LocalStorage mock DB
+setupMockApi(apiClient);
 
 // Configure interceptor to attach JWT token
 apiClient.interceptors.request.use((config) => {

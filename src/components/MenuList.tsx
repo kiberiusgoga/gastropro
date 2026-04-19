@@ -3,17 +3,45 @@ import { motion } from 'motion/react';
 import { MenuItem, Category } from '../types';
 import { Plus, Search } from 'lucide-react';
 
+import { menuService } from '../services/menuService';
+import { toast } from 'sonner';
+
 interface MenuListProps {
-  items: MenuItem[];
-  categories: Category[];
-  onAddItem: (item: MenuItem) => void;
+  items?: MenuItem[];
+  categories?: string[]; // The type in types.ts for MenuCategory name is often string, but let's be safe
+  onAddItem?: (item: MenuItem) => void;
 }
 
-const MenuList: React.FC<MenuListProps> = ({ items, categories, onAddItem }) => {
-  const [selectedCategory, setSelectedCategory] = React.useState<Category | 'Сите'>('Сите');
+const MenuList: React.FC<MenuListProps> = ({ items: propsItems, categories: propsCategories, onAddItem }) => {
+  const [items, setItems] = React.useState<MenuItem[]>(propsItems || []);
+  const [categories, setCategories] = React.useState<string[]>(propsCategories || []);
+  const [loading, setLoading] = React.useState(!propsItems);
+  const [selectedCategory, setSelectedCategory] = React.useState<string | 'Сите'>('Сите');
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  const filteredItems = items.filter(item => {
+  React.useEffect(() => {
+    if (!propsItems || !propsCategories) {
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const [itemsData, categoriesData] = await Promise.all([
+            menuService.getItems(),
+            menuService.getCategories()
+          ]);
+          setItems(itemsData);
+          setCategories(categoriesData.map(c => c.name));
+        } catch (error) {
+          console.error('Error fetching menu data:', error);
+          toast.error('Грешка при вчитување на менито');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+    }
+  }, [propsItems, propsCategories]);
+
+  const filteredItems = (items || []).filter(item => {
     if (selectedCategory === 'Дневно мени') {
       return item.isDailyMenu && item.name.toLowerCase().includes(searchQuery.toLowerCase());
     }
@@ -22,14 +50,18 @@ const MenuList: React.FC<MenuListProps> = ({ items, categories, onAddItem }) => 
     return matchesCategory && matchesSearch;
   });
 
+  if (loading) {
+    return <div className="p-8 text-center animate-pulse text-zinc-500">Вчитување на мени...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-          {['Сите', 'Дневно мени', ...categories].map((cat) => (
+          {['Сите', 'Дневно мени', ...(categories || [])].map((cat) => (
             <button
               key={cat}
-              onClick={() => setSelectedCategory(cat as Category | 'Сите')}
+              onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                 selectedCategory === cat
                   ? 'bg-emerald-600 text-white shadow-md'
@@ -61,7 +93,7 @@ const MenuList: React.FC<MenuListProps> = ({ items, categories, onAddItem }) => 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredItems.map((item) => (
+        {(filteredItems || []).map((item) => (
           <motion.div
             key={item.id}
             layout
@@ -100,7 +132,7 @@ const MenuList: React.FC<MenuListProps> = ({ items, categories, onAddItem }) => 
                 {item.description || 'Вкусно јадење подготвено со свежи состојки.'}
               </p>
               <button
-                onClick={() => onAddItem(item)}
+                onClick={() => onAddItem?.(item)}
                 className="w-full flex items-center justify-center gap-2 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl hover:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors font-medium"
               >
                 <Plus size={18} />

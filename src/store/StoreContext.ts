@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import { User, Product, Transaction, Invoice, Category, DashboardStats, InventoryCheck, Bundle, Restaurant, Supplier, PurchaseOrder } from '../types';
+import { User, Product, Transaction, Invoice, Category, DashboardStats, InventoryCheck, Bundle, Restaurant, Supplier, PurchaseOrder, Order } from '../types';
 
 export interface StoreState {
   user: User | null;
@@ -13,6 +13,7 @@ export interface StoreState {
   employees: User[];
   suppliers: Supplier[];
   purchaseOrders: PurchaseOrder[];
+  orders: Order[];
   stats: DashboardStats | null;
   loading: {
     user: boolean;
@@ -27,6 +28,7 @@ export interface StoreState {
     suppliers: boolean;
     purchaseOrders: boolean;
     stats: boolean;
+    orders: boolean;
   };
 }
 
@@ -43,7 +45,8 @@ export interface StoreContextType extends StoreState {
   fetchEmployees: () => Promise<void>;
   fetchSuppliers: () => Promise<void>;
   fetchPurchaseOrders: () => Promise<void>;
-  fetchStats: () => Promise<void>;
+   fetchStats: () => Promise<void>;
+  fetchOrders: () => Promise<void>;
   refreshAll: () => Promise<void>;
 }
 

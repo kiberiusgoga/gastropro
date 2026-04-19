@@ -37,10 +37,10 @@ const ManagerDashboard = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    if (!employees.length) fetchEmployees();
-    if (!transactions.length) fetchInventory();
-    if (!products.length) fetchProducts();
-  }, [employees.length, transactions.length, products.length, fetchEmployees, fetchInventory, fetchProducts]);
+    if (!(employees || []).length) fetchEmployees();
+    if (!(transactions || []).length) fetchInventory();
+    if (!(products || []).length) fetchProducts();
+  }, [(employees || []).length, (transactions || []).length, (products || []).length, fetchEmployees, fetchInventory, fetchProducts]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -85,14 +85,14 @@ const ManagerDashboard = () => {
   };
 
   // Analytics Data
-  const stockValue = products.reduce((acc, p) => acc + (p.currentStock * (p.purchasePrice || 0)), 0);
-  const lowStockCount = products.filter(p => p.currentStock <= p.minStock).length;
+  const stockValue = (products || []).reduce((acc, p) => acc + (p.currentStock * (p.purchasePrice || 0)), 0);
+  const lowStockCount = (products || []).filter(p => p.currentStock <= p.minStock).length;
   
   const transactionsByType = [
-    { name: t('receipt'), value: transactions.filter(t => t.type === 'receipt').length },
-    { name: t('input'), value: transactions.filter(t => t.type === 'input').length },
-    { name: t('output'), value: transactions.filter(t => t.type === 'output').length },
-    { name: t('check'), value: transactions.filter(t => t.type === 'inventory_check').length },
+    { name: t('receipt'), value: (transactions || []).filter(t => t.type === 'receipt').length },
+    { name: t('input'), value: (transactions || []).filter(t => t.type === 'input').length },
+    { name: t('output'), value: (transactions || []).filter(t => t.type === 'output').length },
+    { name: t('check'), value: (transactions || []).filter(t => t.type === 'inventory_check').length },
   ];
 
   const COLORS = ['#3b82f6', '#10b981', '#f43f5e', '#f59e0b'];
@@ -153,7 +153,7 @@ const ManagerDashboard = () => {
               {t('staff')}
             </span>
           </div>
-          <p className="text-3xl font-black text-slate-900 mb-1">{employees.length}</p>
+          <p className="text-3xl font-black text-slate-900 mb-1">{(employees || []).length}</p>
           <p className="text-sm text-slate-500 font-medium">{t('active_team_members')}</p>
         </div>
 
@@ -166,7 +166,7 @@ const ManagerDashboard = () => {
               {t('activity')}
             </span>
           </div>
-          <p className="text-3xl font-black text-slate-900 mb-1">{transactions.length}</p>
+          <p className="text-3xl font-black text-slate-900 mb-1">{(transactions || []).length}</p>
           <p className="text-sm text-slate-500 font-medium">{t('total_movements')}</p>
         </div>
       </div>
@@ -189,7 +189,7 @@ const ManagerDashboard = () => {
             </div>
 
             <div className="space-y-4">
-              {employees.map((emp) => (
+              {(employees || []).map((emp) => (
                 <div key={emp.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl font-black text-blue-600 border border-slate-100">

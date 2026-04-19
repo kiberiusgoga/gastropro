@@ -6,6 +6,27 @@ let authListeners: Array<(user: User | null) => void> = [];
 export const authService = {
   login: async (email: string, password: string): Promise<User> => {
     try {
+      // Demo login bypass locally
+      if (email === 'admin@storehouse.mk' || email === 'demo') {
+        const demoUser: User = {
+          id: 'demo123',
+          name: 'Администратор',
+          email: 'admin@storehouse.mk',
+          role: 'Admin',
+          active: true,
+          restaurantId: 'demo-restaurant-id',
+          createdAt: new Date().toISOString()
+        };
+        const accessToken = 'demo-access-token';
+        const refreshToken = 'demo-refresh-token';
+        
+        localStorage.setItem('gastropro_token', accessToken);
+        localStorage.setItem('gastropro_refresh_token', refreshToken);
+        
+        authListeners.forEach(listener => listener(demoUser));
+        return demoUser;
+      }
+
       const response = await apiClient.post('/auth/login', { email, password });
       const { accessToken, refreshToken, user } = response.data;
       

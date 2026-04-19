@@ -124,7 +124,7 @@ const CustomerCRM: React.FC<CustomerCRMProps> = ({ customers: initialCustomers, 
               )}
               <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400 font-medium">
                 <Calendar size={16} />
-                <span>Последна посета: {new Date(customer.lastVisit).toLocaleDateString('mk-MK')}</span>
+                <span>Последна посета: {customer.lastVisit ? new Date(customer.lastVisit).toLocaleDateString('mk-MK') : 'Нема податок'}</span>
               </div>
             </div>
 

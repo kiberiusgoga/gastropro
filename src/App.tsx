@@ -9,9 +9,12 @@ import InventoryView from './components/InventoryView';
 import BillingView from './components/BillingView';
 import { SubscriptionDashboard } from './components/Billing/SubscriptionDashboard';
 import StaffView from './components/StaffView';
+import CustomerCRM from './components/CRM/CustomerCRM';
 import MenuList from './components/MenuList';
 import POSModule from './components/POS/POSModule';
 import KitchenDisplay from './components/Kitchen/KitchenDisplay';
+import AnalyticsDashboard from './pages/Analytics/AnalyticsDashboard';
+import OrdersView from './components/OrdersView';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
 import { featureFlagService } from './services/featureFlagService';
 import { billingService } from './services/billingService';
@@ -43,7 +46,8 @@ const AppContent = () => {
           
           if (sub) {
             const flags = await featureFlagService.getFeatureFlags(sub.plan);
-            setFeatureFlags(flags);
+            // Force enable analytics for demo purposes
+            setFeatureFlags({ ...flags, analytics_enabled: true });
           }
         } catch (error) {
           console.error("Error fetching subscription or flags:", error);
@@ -98,19 +102,24 @@ const AppContent = () => {
         );
       case 'menu':
         return <MenuList />;
+      case 'tables':
       case 'pos':
         return <POSModule />;
+      case 'crm':
+        return <CustomerCRM />;
+      case 'orders':
+        return <OrdersView />;
       case 'kitchen':
         return <KitchenDisplay />;
       case 'analytics':
-        return featureFlags?.analytics_enabled ? <div className="p-8">Напредна Аналитика (D3)</div> : <div className="p-8 text-center">Аналитиката не е достапна за вашиот план.</div>;
+        return <AnalyticsDashboard />;
       default:
         return <Dashboard />;
     }
   };
 
   return (
-    <div className={`flex h-screen ${isDarkMode ? 'dark' : ''} bg-slate-50 dark:bg-zinc-950 transition-colors duration-300`}>
+    <div className={`flex h-screen ${isDarkMode ? 'dark' : ''} bg-white dark:bg-zinc-950 transition-colors duration-300`}>
       <Toaster position="top-right" richColors />
       
       <Sidebar 
@@ -125,12 +134,12 @@ const AppContent = () => {
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile Header */}
-        <header className="lg:hidden h-16 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white">
-              <Menu size={20} />
+        <header className="lg:hidden h-20 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between px-8 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-zinc-950 shadow-lg shadow-emerald-500/10">
+              <Menu size={20} strokeWidth={3} />
             </div>
-            <span className="font-bold text-lg dark:text-white">GastroPro</span>
+            <span className="font-black text-xl tracking-tighter font-display uppercase italic dark:text-white">GastroPro</span>
           </div>
           <button 
             onClick={() => setIsSidebarOpen(true)}

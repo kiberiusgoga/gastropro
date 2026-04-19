@@ -1,15 +1,26 @@
 import React, { useState } from 'react';
-import { InventoryItem } from '../types';
+import { useStore } from '../store/useStore';
+import { Product } from '../types';
 import { Package, Plus, ArrowUpRight, ArrowDownLeft, AlertTriangle, Search, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface InventoryViewProps {
-  items: InventoryItem[];
-  onUpdateStock: (id: string, amount: number) => void;
-  onAddItem: (item: Omit<InventoryItem, 'id' | 'restaurantId'>) => void;
+  items?: Product[];
+  onUpdateStock?: (id: string, amount: number) => void;
+  onAddItem?: (item: Omit<Product, 'id' | 'restaurantId'>) => void;
 }
 
-const InventoryView: React.FC<InventoryViewProps> = ({ items, onUpdateStock, onAddItem }) => {
+const InventoryView: React.FC<InventoryViewProps> = ({ 
+  items: propsItems, 
+  onUpdateStock: propsOnUpdateStock, 
+  onAddItem: propsOnAddItem 
+}) => {
+  const store = useStore();
+  
+  const items = propsItems || store.products;
+  const onUpdateStock = propsOnUpdateStock || (() => console.warn('onUpdateStock not provided'));
+  const onAddItem = propsOnAddItem || (() => console.warn('onAddItem not provided'));
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItem, setNewItem] = useState({
@@ -20,7 +31,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ items, onUpdateStock, onA
     category: 'Општо'
   });
 
-  const filteredItems = items.filter(item => 
+  const filteredItems = (items || []).filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -73,8 +84,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ items, onUpdateStock, onA
               <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Акции</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {filteredItems.map((item) => (
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            {(filteredItems || []).map((item) => (
               <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">

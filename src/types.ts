@@ -95,6 +95,8 @@ export interface Customer {
   notes?: string;
   totalSpent: number;
   orderHistory: string[]; // Order IDs
+  loyaltyPoints?: number;
+  lastVisit?: string;
 }
 
 export interface Reservation {
