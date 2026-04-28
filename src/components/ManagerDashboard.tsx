@@ -156,74 +156,61 @@ const ManagerDashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card p-6 bg-blue-600 text-white border-none shadow-blue-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-white/20 rounded-2xl">
-              <DollarSign size={24} />
+        <div className="card p-8 bg-zinc-950 text-white border-none shadow-2xl relative overflow-hidden group">
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="p-3 bg-emerald-500 rounded-2xl text-zinc-950 shadow-lg shadow-emerald-500/20">
+                <DollarSign size={24} strokeWidth={3} />
+              </div>
+              <span className="text-[10px] font-black bg-white/10 px-2 py-1 rounded-lg uppercase tracking-widest text-emerald-500">
+                {t('total_value')}
+              </span>
             </div>
-            <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded-lg uppercase tracking-widest">
-              {t('total_value')}
-            </span>
+            <p className="text-3xl font-black mb-1 font-display tracking-tighter">{stockValue.toLocaleString()} <small className="text-xs opacity-50 uppercase">ден.</small></p>
+            <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">{t('inventory_asset_value')}</p>
           </div>
-          <p className="text-3xl font-black mb-1">{stockValue.toLocaleString()} ден.</p>
-          <p className="text-sm text-blue-100 font-medium">{t('inventory_asset_value')}</p>
+          <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700"></div>
         </div>
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
-              <AlertTriangle size={24} />
-            </div>
-            <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg uppercase tracking-widest">
-              {t('critical')}
-            </span>
-          </div>
-          <p className="text-3xl font-black text-slate-900 mb-1">{lowStockCount}</p>
-          <p className="text-sm text-slate-500 font-medium">{t('products_below_min')}</p>
-        </div>
+        <StatCard 
+          title={t('critical')} 
+          value={lowStockCount} 
+          icon={AlertTriangle} 
+          color="amber" 
+        />
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-              <Users size={24} />
-            </div>
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg uppercase tracking-widest">
-              {t('staff')}
-            </span>
-          </div>
-          <p className="text-3xl font-black text-slate-900 mb-1">{employees.length}</p>
-          <p className="text-sm text-slate-500 font-medium">{t('active_team_members')}</p>
-        </div>
+        <StatCard 
+          title={t('staff')} 
+          value={employees.length} 
+          icon={Users} 
+          color="blue" 
+        />
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-              <BarChart3 size={24} />
-            </div>
-            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg uppercase tracking-widest">
-              {t('activity')}
-            </span>
-          </div>
-          <p className="text-3xl font-black text-slate-900 mb-1">{transactions.length}</p>
-          <p className="text-sm text-slate-500 font-medium">{t('total_movements')}</p>
-        </div>
+        <StatCard 
+          title={t('activity')} 
+          value={transactions.length} 
+          icon={BarChart3} 
+          color="indigo" 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Employee List */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="card p-6">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Users size={24} className="text-blue-600" />
-                {t('employee_management')}
-              </h3>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <div className="card p-8 glass-thick border-white/40 dark:border-white/5">
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex flex-col">
+                <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight font-display italic">
+                  {t('employee_management')}
+                </h3>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Тим и Овластувања</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="relative group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-emerald-500 transition-colors" size={16} />
                   <input 
                     type="text" 
-                    className="input py-2 pl-10 text-sm w-48" 
+                    className="pl-10 pr-4 py-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-xl text-xs font-bold w-48 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all" 
                     placeholder={t('search')} 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

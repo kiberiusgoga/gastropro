@@ -24,26 +24,37 @@ import { useStore } from '../store/useStore';
 import { cn } from '../utils/cn';
 import { seedService } from '../services/seedService';
 
-const StatCard = ({ title, value, icon: Icon, color, trend, trendValue }: { title: string, value: string | number, icon: React.ElementType, color: string, trend?: 'up' | 'down', trendValue?: string }) => (
-  <div className="card group p-8 flex flex-col gap-6 relative overflow-hidden">
-    <div className="flex items-center justify-between relative z-10">
-      <div className={`w-16 h-16 rounded-[2rem] flex items-center justify-center text-white shadow-xl shadow-${color}-500/20 bg-${color}-500 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6`}>
-        <Icon size={32} />
-      </div>
-      {trend && (
-        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' : 'bg-rose-50 text-rose-600 dark:bg-rose-900/20'}`}>
-          {trend === 'up' ? <ArrowUpRight size={14} strokeWidth={3} /> : <ArrowDownRight size={14} strokeWidth={3} />}
-          {trendValue}
+const StatCard = ({ title, value, icon: Icon, color, trend, trendValue }: { title: string, value: string | number, icon: React.ElementType, color: string, trend?: 'up' | 'down', trendValue?: string }) => {
+  const colorClasses = {
+    blue: "bg-blue-500 shadow-blue-500/20 text-white",
+    emerald: "bg-emerald-500 shadow-emerald-500/20 text-white",
+    amber: "bg-amber-500 shadow-amber-500/20 text-white",
+    indigo: "bg-indigo-500 shadow-indigo-500/20 text-white",
+  };
+
+  return (
+    <div className="card group p-8 flex flex-col gap-6 relative overflow-hidden glass-thick border-white/40 dark:border-white/5">
+      <div className="flex items-center justify-between relative z-10">
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl ${colorClasses[color as keyof typeof colorClasses]} transition-all duration-500 group-hover:scale-110 group-hover:rotate-6`}>
+          <Icon size={28} strokeWidth={2.5} />
         </div>
-      )}
+        {trend && (
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider ${trend === 'up' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+            {trend === 'up' ? <ArrowUpRight size={14} strokeWidth={3} /> : <ArrowDownRight size={14} strokeWidth={3} />}
+            {trendValue}
+          </div>
+        )}
+      </div>
+      <div className="relative z-10">
+        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-2">{title}</p>
+        <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-100 font-display tracking-tighter">{value}</h3>
+      </div>
+      
+      {/* Decorative Glow */}
+      <div className={`absolute -right-8 -bottom-8 w-32 h-32 bg-${color}-500/10 blur-3xl rounded-full transition-all duration-700 group-hover:scale-150 group-hover:bg-${color}-500/20`}></div>
     </div>
-    <div className="relative z-10">
-      <p className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em] mb-2">{title}</p>
-      <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-100 font-display">{value}</h3>
-    </div>
-    <div className={`absolute -right-4 -bottom-4 w-32 h-32 bg-${color}-500/[0.03] rounded-full group-hover:scale-150 transition-transform duration-700`}></div>
-  </div>
-);
+  );
+};
 
 const Dashboard = () => {
   const { user, products, transactions, stats, loading, fetchProducts, fetchInventory, fetchStats } = useStore();
@@ -85,14 +96,18 @@ const Dashboard = () => {
   return (
     <div className="space-y-10 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <h2 className="text-4xl font-black text-zinc-900 dark:text-zinc-100 tracking-tighter font-display uppercase italic">
-            {t('dashboard')}
-          </h2>
-          <div className="flex items-center gap-2 text-zinc-500 font-bold">
-            <span className="w-8 h-[2px] bg-emerald-500 rounded-full"></span>
-            {t('welcome')}, <span className="text-zinc-900 dark:text-zinc-100">{user.name}</span>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-zinc-950 shadow-lg shadow-emerald-500/20">
+                <Activity size={20} strokeWidth={3} />
+             </div>
+             <h2 className="text-4xl font-black text-zinc-900 dark:text-zinc-100 tracking-tighter font-display uppercase italic">
+               {t('dashboard')}
+             </h2>
           </div>
+          <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest ml-13">
+             {t('welcome')}, <span className="text-emerald-500">{user.name}</span>
+          </p>
         </div>
         {user.role === 'Admin' && (
           <button
@@ -108,9 +123,9 @@ const Dashboard = () => {
                 }
               }
             }}
-            className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+            className="flex items-center gap-3 px-8 py-4 bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-black/20"
           >
-            <Database size={18} />
+            <Database size={18} strokeWidth={2.5} />
             Генерирај Демо Податоци
           </button>
         )}

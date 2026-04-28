@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Toaster } from 'sonner';
 import { StoreProvider } from './store/StoreProvider';
 import { useStore } from './store/useStore';
@@ -30,6 +31,7 @@ const AppContent = () => {
     setUser
   } = useStore();
   
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -149,8 +151,37 @@ const AppContent = () => {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        {/* Desktop TopBar */}
+        <header className="hidden lg:flex h-20 bg-white/50 dark:bg-zinc-950/50 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-800/50 items-center justify-between px-10 shrink-0 relative z-30">
+          <div className="flex items-center gap-6">
+            <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
+              {t(activeTab)}
+            </h2>
+            <div className="h-6 w-[1px] bg-zinc-200 dark:bg-zinc-800" />
+            <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-widest">
+              <span className="text-emerald-500">PRO</span>
+              <span>Account</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col items-end">
+              <span className="text-sm font-black text-zinc-900 dark:text-zinc-100">{user.name}</span>
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{user.role}</span>
+            </div>
+            <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+               <div className="w-full h-full bg-gradient-to-br from-emerald-400 to-blue-500 opacity-20" />
+               <span className="absolute font-black text-zinc-600 dark:text-zinc-300 text-xs">{user.name.charAt(0)}</span>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
+          {/* Subtle Background Pattern */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]" 
+               style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+          
+          <div className="max-w-7xl mx-auto relative z-10">
             {renderContent()}
           </div>
         </div>
