@@ -58,7 +58,8 @@ const InventoryCheck = () => {
         items: items.map(item => ({
           productId: item.productId,
           systemQty: item.systemQty,
-          realQty: item.realQty
+          realQty: item.realQty,
+          diff: item.realQty - item.systemQty
         }))
       });
 

@@ -23,12 +23,16 @@ const InventoryView: React.FC<InventoryViewProps> = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newItem, setNewItem] = useState({
+  const [newItem, setNewItem] = useState<Omit<Product, 'id' | 'restaurantId'>>({
     name: '',
-    unit: 'кг',
+    barcode: '',
+    unit: 'kg',
+    purchasePrice: 0,
+    sellingPrice: 0,
+    categoryId: '',
     currentStock: 0,
     minStock: 0,
-    category: 'Општо'
+    active: true
   });
 
   const filteredItems = (items || []).filter(item => 
@@ -41,10 +45,14 @@ const InventoryView: React.FC<InventoryViewProps> = ({
     setShowAddModal(false);
     setNewItem({
       name: '',
-      unit: 'кг',
+      barcode: '',
+      unit: 'kg',
+      purchasePrice: 0,
+      sellingPrice: 0,
+      categoryId: '',
       currentStock: 0,
       minStock: 0,
-      category: 'Општо'
+      active: true
     });
   };
 
@@ -186,15 +194,13 @@ const InventoryView: React.FC<InventoryViewProps> = ({
                     </label>
                     <select
                       value={newItem.unit}
-                      onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                      onChange={(e) => setNewItem({ ...newItem, unit: e.target.value as Product['unit'] })}
                       className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-zinc-900 dark:text-zinc-100"
                     >
-                      <option value="кг">кг</option>
-                      <option value="гр">гр</option>
-                      <option value="л">л</option>
-                      <option value="мл">мл</option>
-                      <option value="парче">парче</option>
-                      <option value="пакување">пакување</option>
+                      <option value="kg">кг</option>
+                      <option value="l">л</option>
+                      <option value="pcs">парче</option>
+                      <option value="box">пакување</option>
                     </select>
                   </div>
                   <div>
@@ -203,8 +209,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={newItem.category}
-                      onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                      value={newItem.categoryId}
+                      onChange={(e) => setNewItem({ ...newItem, categoryId: e.target.value })}
                       className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-zinc-900 dark:text-zinc-100"
                       placeholder="пр. Месо"
                     />

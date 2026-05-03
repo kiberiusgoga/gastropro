@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Customer } from '../types';
+import { Customer } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, UserPlus, Search, Star, Phone, Mail, Calendar, X } from 'lucide-react';
 import { crmService } from '../../services/crmService';
 
 interface CustomerCRMProps {
   customers?: Customer[];
-  onAddCustomer?: (customer: Omit<Customer, 'id' | 'loyaltyPoints' | 'lastVisit'>) => void;
+  onAddCustomer?: (customer: Partial<Customer> & { name: string }) => void;
 }
 
 const CustomerCRM: React.FC<CustomerCRMProps> = ({ customers: initialCustomers, onAddCustomer: initialOnAddCustomer }) => {

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { DailyStats, MenuItem, Category } from '../types';
+import { DailyStats, MenuItem } from '../../types';
 
 interface D3CategoryChartProps {
   stats: DailyStats[];
@@ -15,13 +15,14 @@ const D3CategoryChart: React.FC<D3CategoryChartProps> = ({ stats, menu, isDarkMo
     if (!svgRef.current || stats.length === 0) return;
 
     // Aggregate data by category
-    const categorySales: { [key in Category]?: number } = {};
-    
+    const categorySales: Record<string, number> = {};
+
     stats.forEach(day => {
       day.topItems.forEach(item => {
         const menuItem = menu.find(m => m.name === item.name);
         if (menuItem) {
-          categorySales[menuItem.category] = (categorySales[menuItem.category] || 0) + item.count;
+          const cat = menuItem.categoryName || 'Other';
+          categorySales[cat] = (categorySales[cat] || 0) + item.count;
         }
       });
     });

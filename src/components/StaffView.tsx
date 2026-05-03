@@ -48,6 +48,8 @@ const StaffView: React.FC<StaffViewProps> = ({
       canTransferTable: false,
       canDeleteOrder: false,
       canSeeReports: false,
+      canApplyDiscount: false,
+      canVoidItems: false,
       canSeeClosedBills: false,
       canTakeOrder: true,
       canProcessPayment: true
@@ -74,6 +76,8 @@ const StaffView: React.FC<StaffViewProps> = ({
         canTransferTable: false,
         canDeleteOrder: false,
         canSeeReports: false,
+        canApplyDiscount: false,
+        canVoidItems: false,
         canSeeClosedBills: false,
         canTakeOrder: true,
         canProcessPayment: true
@@ -82,7 +86,7 @@ const StaffView: React.FC<StaffViewProps> = ({
   };
 
   const updatePermissionsByRole = (role: StaffRole) => {
-    const isAdmin = role === 'Admin' || role === 'Manager';
+    const isAdmin = role === 'Admin' || role === 'manager';
     setNewStaff(prev => ({
       ...prev,
       role,
@@ -90,6 +94,8 @@ const StaffView: React.FC<StaffViewProps> = ({
         canTransferTable: isAdmin,
         canDeleteOrder: isAdmin,
         canSeeReports: isAdmin,
+        canApplyDiscount: isAdmin,
+        canVoidItems: isAdmin,
         canSeeClosedBills: isAdmin,
         canTakeOrder: true,
         canProcessPayment: true
@@ -138,7 +144,7 @@ const StaffView: React.FC<StaffViewProps> = ({
                         {notif.type === 'call_waiter' ? t('call_waiter') : t('request_bill')}
                       </p>
                       <p className="text-[10px] text-zinc-500 font-bold">
-                        {new Date(notif.createdAt?.toDate?.() || notif.createdAt).toLocaleTimeString()}
+                        {new Date(notif.createdAt).toLocaleTimeString()}
                       </p>
                     </div>
                   </div>

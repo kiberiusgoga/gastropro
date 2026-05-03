@@ -15,7 +15,7 @@ const Employees: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'waiter' as UserRole,
+    role: 'Waiter' as UserRole,
     active: true,
     phone: ''
   });
@@ -53,7 +53,7 @@ const Employees: React.FC = () => {
       }
       setIsModalOpen(false);
       setEditingEmployee(null);
-      setFormData({ name: '', email: '', role: 'waiter', active: true, phone: '' });
+      setFormData({ name: '', email: '', role: 'Waiter' as UserRole, active: true, phone: '' });
       loadEmployees();
     } catch {
       toast.error(t('error'));
@@ -189,14 +189,14 @@ const Employees: React.FC = () => {
               <div>
                 <label className="label">{t('role')}</label>
                 <div className="grid grid-cols-2 gap-3">
-                  {(['admin', 'manager', 'waiter', 'kitchen', 'cashier', 'delivery'] as const).map((r) => (
+                  {(['Admin', 'Manager', 'Waiter', 'Chef', 'Cashier', 'Driver'] as UserRole[]).map((r) => (
                     <button
                       key={r}
                       type="button"
-                      onClick={() => setFormData({...formData, role: r})}
+                      onClick={() => setFormData({...formData, role: r as UserRole})}
                       className={cn(
                         "py-3 rounded-2xl border-2 transition-all text-[10px] font-bold uppercase tracking-widest",
-                        formData.role === r 
+                        (formData.role as string) === r
                           ? "border-blue-600 bg-blue-50 text-blue-700" 
                           : "border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200"
                       )}

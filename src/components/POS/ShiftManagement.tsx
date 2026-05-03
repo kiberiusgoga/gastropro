@@ -14,6 +14,7 @@ import { useStore } from '../../store/useStore';
 import { format } from 'date-fns';
 import { mk } from 'date-fns/locale';
 import { toast } from 'sonner';
+import ShiftReport, { ShiftReportData } from './ShiftReport';
 
 const ShiftManagement: React.FC = () => {
   const { user } = useStore();
@@ -23,6 +24,7 @@ const ShiftManagement: React.FC = () => {
   const [endingCash, setEndingCash] = useState<number>(0);
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [reportData, setReportData] = useState<ShiftReportData | null>(null);
 
   useEffect(() => {
     loadActiveShift();
@@ -31,7 +33,7 @@ const ShiftManagement: React.FC = () => {
   const loadActiveShift = async () => {
     setLoading(true);
     try {
-      const shift = await shiftService.getActiveShift();
+      const shift = await shiftService.getActiveShift(user?.id || '');
       setActiveShift(shift || null);
     } catch (error) {
       console.error('Error loading shift:', error);
@@ -58,9 +60,14 @@ const ShiftManagement: React.FC = () => {
     if (!activeShift) return;
     try {
       await shiftService.closeShift(activeShift.id, endingCash);
+      const report = await shiftService.getShiftReport(activeShift.id);
       setActiveShift(null);
       setShowCloseModal(false);
-      toast.success('Смената е успешно затворена');
+      if (report) {
+        setReportData(report);
+      } else {
+        toast.success('Смената е успешно затворена');
+      }
     } catch {
       toast.error('Грешка при затворање на смена');
     }
@@ -183,6 +190,11 @@ const ShiftManagement: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Shift Report */}
+      {reportData && (
+        <ShiftReport data={reportData} onClose={() => setReportData(null)} />
       )}
 
       {/* Close Shift Modal */}

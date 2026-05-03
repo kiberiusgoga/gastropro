@@ -56,7 +56,7 @@ function handleMockRequest(config: InternalAxiosRequestConfig): AxiosResponse {
     else if (url.includes('/tables')) responseData = mockDb.get('tables');
     else if (url.includes('/transactions')) responseData = mockDb.get('transactions');
     else if (url.includes('/users')) responseData = mockDb.get('users');
-    else if (url.match(/\/shifts\/active/)) responseData = mockDb.get('shifts').find(s => s.status === 'open') || null;
+    else if (url.match(/\/shifts\/active/)) responseData = (mockDb.get('shifts') as { status: string }[]).find(s => s.status === 'open') || null;
     else if (url.includes('/shifts')) responseData = mockDb.get('shifts');
     else if (url.includes('/orders')) responseData = mockDb.get('orders');
     else if (url.includes('/customers')) responseData = mockDb.get('customers');

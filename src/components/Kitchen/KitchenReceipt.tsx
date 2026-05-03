@@ -1,5 +1,5 @@
 import React from 'react';
-import { Order, MenuItem, Table } from '../types';
+import { Order, MenuItem, Table } from '../../types';
 
 interface KitchenReceiptProps {
   order: Order;
@@ -24,15 +24,15 @@ const KitchenReceipt: React.FC<KitchenReceiptProps> = ({ order, menu, tables }) 
 
       <div className="space-y-3">
         {order.items.map((item, i) => {
-          const menuItem = menu.find(m => m.id === item.menuItemId);
+          const menuItem = menu.find(m => m.id === item.productId);
           return (
             <div key={i} className="flex flex-col border-b border-zinc-200 pb-2">
               <div className="flex justify-between items-center">
                 <span className="text-xl font-bold">{item.quantity}x {menuItem?.name}</span>
               </div>
-              {item.notes && (
+              {item.note && (
                 <div className="bg-zinc-100 p-1 mt-1 text-xs italic">
-                  Забелешка: {item.notes}
+                  Забелешка: {item.note}
                 </div>
               )}
             </div>

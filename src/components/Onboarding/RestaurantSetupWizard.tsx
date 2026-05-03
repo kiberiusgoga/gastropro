@@ -37,18 +37,24 @@ const steps: SetupStep[] = [
   { id: 7, title: 'Завршување', description: 'Преглед и активирање', icon: CheckCircle2 },
 ];
 
-const RestaurantSetupWizard = () => {
-  const { user, setRestaurant } = useStore();
+interface RestaurantSetupWizardProps {
+  onBack?: () => void;
+}
+
+const RestaurantSetupWizard = ({ onBack }: RestaurantSetupWizardProps) => {
+  const { setRestaurant, setUser } = useStore();
   const [currentStep, setCurrentStep] = useState(1);
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   const [restaurantData, setRestaurantData] = useState({
     name: '',
     address: '',
     subscriptionPlan: 'pro' as Restaurant['subscriptionPlan'],
-    settings: {
-      currency: 'MKD',
-      timezone: 'Europe/Skopje'
-    }
+    settings: { currency: 'MKD', timezone: 'Europe/Skopje' }
+  });
+  const [adminCredentials, setAdminCredentials] = useState({
+    userName: '',
+    email: '',
+    password: '',
   });
 
   const [createdRestaurant, setCreatedRestaurant] = useState<Restaurant | null>(null);
@@ -61,27 +67,34 @@ const RestaurantSetupWizard = () => {
   const [printers, setPrinters] = useState<{ name: string; type: string; station?: string }[]>([]);
 
   const handleCreateRestaurant = async () => {
-    if (!user) return;
-    
     try {
       const result = await restaurantService.create({
         ...restaurantData,
-        ownerId: user.id,
+        ownerId: '',
+        active: true,
+        userName: adminCredentials.userName,
+        email: adminCredentials.email,
+        password: adminCredentials.password,
       });
-      
+
       if (result) {
         setCreatedRestaurant(result as Restaurant);
         setRestaurant(result as Restaurant);
+
+        const userStr = localStorage.getItem('gastropro_user');
+        if (userStr) setUser(JSON.parse(userStr));
+
         toast.success('Ресторанот е успешно креиран!');
         setCurrentStep(2);
       }
-    } catch {
-      toast.error('Грешка при креирање на ресторан');
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || 'Грешка при креирање на ресторан';
+      toast.error(msg);
     }
   };
 
   const handleGenerateDemoData = async () => {
-    if (!createdRestaurant || !user) return;
+    if (!createdRestaurant) return;
     
     setIsGeneratingDemo(true);
     try {
@@ -129,62 +142,88 @@ const RestaurantSetupWizard = () => {
     switch (currentStep) {
       case 1:
         return (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
+            className="space-y-5"
           >
             <div className="space-y-4">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">За ресторанот</p>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Име на ресторан</label>
-                <input 
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ime на ресторан *</label>
+                <input
                   type="text"
                   value={restaurantData.name}
                   onChange={(e) => setRestaurantData({ ...restaurantData, name: e.target.value })}
                   className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                  placeholder="Внесете го името на вашиот ресторан"
+                  placeholder="пр. Скопски Гриљ"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Адреса</label>
-                <input 
+                <label className="block text-sm font-medium text-slate-700 mb-1">Адреса *</label>
+                <input
                   type="text"
                   value={restaurantData.address}
                   onChange={(e) => setRestaurantData({ ...restaurantData, address: e.target.value })}
                   className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                  placeholder="Внесете ја адресата"
+                  placeholder="пр. ул. Македонија 1, Скопје"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Вашата сметка (администратор)</p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ваше Име *</label>
+                <input
+                  type="text"
+                  value={adminCredentials.userName}
+                  onChange={(e) => setAdminCredentials({ ...adminCredentials, userName: e.target.value })}
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  placeholder="пр. Јован Јовановски"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">План на претплата</label>
-                <div className="grid grid-cols-3 gap-4">
-                  {(['basic', 'pro', 'enterprise'] as const).map((plan) => (
-                    <button
-                      key={plan}
-                      onClick={() => setRestaurantData({ ...restaurantData, subscriptionPlan: plan })}
-                      className={`p-4 rounded-xl border-2 transition-all text-center ${
-                        restaurantData.subscriptionPlan === plan 
-                          ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                          : 'border-slate-100 hover:border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      <span className="block font-bold uppercase text-xs mb-1">{plan}</span>
-                      <span className="text-sm">
-                        {plan === 'basic' ? 'Основа' : plan === 'pro' ? 'Про' : 'Елит'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Е-пошта *</label>
+                <input
+                  type="email"
+                  value={adminCredentials.email}
+                  onChange={(e) => setAdminCredentials({ ...adminCredentials, email: e.target.value })}
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  placeholder="admin@mojrestoran.mk"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Лозинка * (мин. 6 знаци)</label>
+                <input
+                  type="password"
+                  value={adminCredentials.password}
+                  onChange={(e) => setAdminCredentials({ ...adminCredentials, password: e.target.value })}
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  placeholder="••••••••"
+                />
               </div>
             </div>
-            <button
-              onClick={handleCreateRestaurant}
-              disabled={!restaurantData.name || !restaurantData.address}
-              className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-            >
-              Креирај ресторан <ChevronRight size={20} />
-            </button>
+
+            <div className="flex gap-3 pt-2">
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="px-6 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all flex items-center gap-2"
+                >
+                  <ChevronLeft size={18} /> Назад
+                </button>
+              )}
+              <button
+                onClick={handleCreateRestaurant}
+                disabled={!restaurantData.name || !restaurantData.address || !adminCredentials.userName || !adminCredentials.email || adminCredentials.password.length < 6}
+                className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                Креирај ресторан <ChevronRight size={20} />
+              </button>
+            </div>
           </motion.div>
         );
 

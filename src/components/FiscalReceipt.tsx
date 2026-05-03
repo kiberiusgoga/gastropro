@@ -35,7 +35,7 @@ const FiscalReceipt: React.FC<FiscalReceiptProps> = ({ order, menu }) => {
           <span className="w-1/3 text-right">Цена</span>
         </div>
         {order.items.map((item, i) => {
-          const menuItem = menu.find(m => m.id === item.menuItemId);
+          const menuItem = menu.find(m => m.id === item.productId);
           return (
             <div key={i} className="flex justify-between">
               <span className="w-1/2 truncate">{menuItem?.name || 'Непознато'}</span>

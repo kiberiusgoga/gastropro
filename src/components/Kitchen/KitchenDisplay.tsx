@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Order, Table, OrderItem, PreparationStation, OrderPriority } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { printService } from '../../services/printService';
@@ -73,24 +74,24 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
   const handleUpdateItemStatus = async (orderId: string, itemId: string, newStatus: OrderItem['status']) => {
     if (initialOnUpdateItemStatus) {
       initialOnUpdateItemStatus(orderId, itemId, newStatus);
-    } else {
-      await posService.updateOrderItemStatus(orderId, itemId, newStatus);
-      // Local update for immediate feedback if needed, 
-      // though subscription should handle it
-      setInternalOrders(prev => prev.map(order => {
-        if (order.id === orderId) {
-          return {
-            ...order,
-            items: order.items.map(item => {
-              if (item.id === itemId) {
-                return { ...item, status: newStatus };
-              }
-              return item;
-            })
-          };
-        }
-        return order;
-      }));
+      return;
+    }
+    // Optimistic local update for instant UI feedback
+    setInternalOrders(prev => prev.map(order =>
+      order.id !== orderId ? order : {
+        ...order,
+        items: order.items.map(item =>
+          item.id === itemId ? { ...item, status: newStatus } : item
+        )
+      }
+    ));
+    // SSE ke ja potvrdi promenata od serverot avtomatski
+    const result = await posService.updateOrderItemStatus(orderId, itemId, newStatus);
+    // Prikazi gi warningite za niska zaliha ako gi ima
+    if (result?.deductionWarnings?.length) {
+      for (const w of result.deductionWarnings) {
+        toast.warning(`⚠ Залихата на ${w.ingredientName} е под нула. Провери магацин.`, { duration: 8000 });
+      }
     }
   };
 

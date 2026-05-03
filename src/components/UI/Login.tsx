@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Warehouse, Mail, Lock, ArrowRight, User as UserIcon } from 'lucide-react';
+import { Warehouse, Mail, Lock, ArrowRight } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { useStore } from '../../store/useStore';
 
-const Login = () => {
+interface LoginProps {
+  onNewRestaurant?: () => void;
+}
+
+const Login = ({ onNewRestaurant }: LoginProps) => {
   const { setUser } = useStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
 
@@ -32,20 +34,12 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      let user;
-      if (isLogin) {
-        user = await authService.login(email, password);
-        toast.success(t('login_success'));
-      } else {
-        user = await authService.register(name, email, password);
-        toast.success(t('registration_success'));
-      }
+      const user = await authService.login(email, password);
+      toast.success(t('login_success'));
       setUser(user);
     } catch (error: unknown) {
       const err = error as Error;
-      console.error('Auth error:', err);
       const errorMessage = err?.message || t('invalid_credentials');
       toast.error(errorMessage);
     } finally {
@@ -55,16 +49,12 @@ const Login = () => {
 
   const handleDemoLogin = async () => {
     setLoading(true);
-    const demoEmail = 'admin@storehouse.mk';
-    const demoPassword = 'password123';
-    
     try {
-      const user = await authService.login(demoEmail, demoPassword);
+      const user = await authService.login('admin@gastropro.mk', 'kiberius123');
       toast.success(t('login_success') + ' (Demo)');
       setUser(user);
     } catch (error: unknown) {
-      const err = error as { code?: string; message?: string };
-      console.error('Demo Auth error:', err);
+      const err = error as Error;
       toast.error(err?.message || 'Demo Login failed');
     } finally {
       setLoading(false);
@@ -84,7 +74,7 @@ const Login = () => {
             <Warehouse size={40} strokeWidth={2.5} />
           </div>
           <h1 className="text-5xl font-black text-white tracking-tighter mb-4 font-display uppercase italic">GastroPro</h1>
-          <p className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-xs">{isLogin ? t('welcome_back') : t('create_account')}</p>
+          <p className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-xs">{t('welcome_back')}</p>
         </div>
 
         <div className="bg-zinc-900/50 backdrop-blur-3xl p-10 lg:p-14 rounded-[3.5rem] border border-zinc-800 shadow-2xl relative overflow-hidden">
@@ -116,23 +106,6 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!isLogin && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4">{t('name')}</label>
-                <div className="relative">
-                  <UserIcon className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-600" size={18} />
-                  <input 
-                    type="text" 
-                    className="w-full pl-14 pr-6 py-4 rounded-2xl bg-zinc-950/50 border border-zinc-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/50 text-white font-bold transition-all placeholder:text-zinc-700" 
-                    placeholder="Јован Јовановски"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
             <div className="space-y-2">
               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-4">{t('email')}</label>
               <div className="relative">
@@ -163,8 +136,8 @@ const Login = () => {
               </div>
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={loading}
               className="w-full py-5 mt-4 bg-white text-zinc-950 rounded-[2rem] font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-3 shadow-2xl shadow-white/5 disabled:bg-zinc-700 disabled:text-zinc-400 group"
             >
@@ -172,7 +145,7 @@ const Login = () => {
                 <div className="w-6 h-6 border-4 border-zinc-950 border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  {isLogin ? t('login') : t('register')}
+                  {t('login')}
                   <ArrowRight size={20} strokeWidth={3} className="group-hover:translate-x-2 transition-transform" />
                 </>
               )}
@@ -180,11 +153,12 @@ const Login = () => {
           </form>
 
           <div className="mt-10 pt-10 border-t border-zinc-800 text-center">
-            <button 
-              onClick={() => setIsLogin(!isLogin)}
+            <button
+              type="button"
+              onClick={onNewRestaurant}
               className="text-zinc-400 font-extrabold uppercase tracking-widest text-xs hover:text-emerald-400 transition-colors"
             >
-              {isLogin ? t('need_account') : t('already_have_account')}
+              {t('need_account')}
             </button>
           </div>
           

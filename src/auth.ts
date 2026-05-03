@@ -6,7 +6,7 @@ import { AuthenticationError, ForbiddenError } from './lib/errors';
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_access_secret';
-const REFRESH_SECRET = process.env.REFRESH_SECRET || 'fallback_refresh_secret';
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -18,7 +18,7 @@ export interface AuthRequest extends Request {
 }
 
 export const generateAccessToken = (user: { id: string; email: string; role: string; restaurantId: string }) => {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: '15m' });
+  return jwt.sign(user, JWT_SECRET, { expiresIn: '8h' });
 };
 
 export const generateRefreshToken = (user: { id: string; email: string; role: string; restaurantId: string }) => {
@@ -33,6 +33,14 @@ export const verifyRefreshToken = (token: string) => {
   }
 };
 
+export const verifyAccessToken = (token: string) => {
+  try {
+    return jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string; restaurantId: string };
+  } catch {
+    return null;
+  }
+};
+
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -40,7 +48,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
   if (!token) throw new AuthenticationError('Unauthorized');
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return next(new ForbiddenError('Invalid or expired token'));
+    if (err) return next(new AuthenticationError('Invalid or expired token'));
     req.user = user as { id: string; email: string; role: string; restaurantId: string };
     next();
   });

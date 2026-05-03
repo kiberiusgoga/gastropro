@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
@@ -8,7 +9,7 @@ import router from "./src/api";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 4000;
 
   app.use(cors());
   app.use(express.json());
@@ -19,8 +20,16 @@ async function startServer() {
 
 
   // API Health Check
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  app.get("/api/health", async (req, res) => {
+    let dbStatus = "disconnected";
+    try {
+      const { default: pool } = await import("./src/db");
+      await pool.query("SELECT 1");
+      dbStatus = "connected";
+    } catch (e) {
+      dbStatus = `error: ${(e as Error).message}`;
+    }
+    res.json({ status: "ok", database: dbStatus, timestamp: new Date().toISOString() });
   });
 
   // Vite middleware for development
@@ -39,7 +48,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`RoadTrip Architect server running on http://localhost:${PORT}`);
+    console.log(`GastroPro server running on http://localhost:${PORT}`);
   });
 }
 

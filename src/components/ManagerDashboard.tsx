@@ -30,6 +30,18 @@ import {
 } from 'recharts';
 import { cn } from '../utils/cn';
 
+const StatCard: React.FC<{ title: string; value: number; icon: React.ElementType; color: string }> = ({ title, value, icon: Icon, color }) => (
+  <div className={`card p-8 bg-${color}-50 dark:bg-${color}-900/10 border border-${color}-100 dark:border-${color}-800/30`}>
+    <div className="flex items-center justify-between mb-4">
+      <div className={`p-3 bg-${color}-100 dark:bg-${color}-800/30 rounded-2xl text-${color}-600 dark:text-${color}-400`}>
+        <Icon size={24} />
+      </div>
+      <span className={`text-[10px] font-black uppercase tracking-widest text-${color}-500`}>{title}</span>
+    </div>
+    <p className="text-3xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight">{value}</p>
+  </div>
+);
+
 const ManagerDashboard = () => {
   const { employees, transactions, products, loading, fetchEmployees, fetchInventory, fetchProducts } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -256,7 +268,7 @@ const ManagerDashboard = () => {
                       {emp.active ? <UserCheck size={20} /> : <UserX size={20} />}
                     </button>
                     <button 
-                      onClick={() => { setEditingEmployee(emp); setFormData({ name: emp.name, email: emp.email, role: emp.role, active: emp.active }); setIsModalOpen(true); }}
+                      onClick={() => { setEditingEmployee(emp); setFormData({ name: emp.name, email: emp.email, role: emp.role as 'Admin' | 'Manager' | 'Warehouse Worker', active: emp.active }); setIsModalOpen(true); }}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                     >
                       <Edit2 size={20} />

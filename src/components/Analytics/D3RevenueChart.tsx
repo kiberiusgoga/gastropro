@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { DailyStats } from '../types';
+import { DailyStats } from '../../types';
 
 interface D3RevenueChartProps {
   stats: DailyStats[];

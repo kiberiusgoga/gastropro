@@ -6,8 +6,13 @@ const mapCategory = (row: any): MenuCategory => ({
   id: row.id,
   restaurantId: row.restaurant_id,
   name: row.name,
-  sortOrder: row.sort_order,
-  active: row.active
+  sortOrder: row.sort_order ?? 0,
+  active: row.active,
+  type: row.type ?? 'system',
+  icon: row.icon ?? undefined,
+  color: row.color ?? undefined,
+  itemCount: row.item_count !== undefined ? Number(row.item_count) : undefined,
+  nameTranslations: row.name_translations ?? undefined,
 });
 
 const mapMenuItem = (row: any): MenuItem => ({
@@ -16,18 +21,25 @@ const mapMenuItem = (row: any): MenuItem => ({
   name: row.name,
   description: row.description,
   price: Number(row.price),
+  displayedPrice: row.displayed_price !== undefined ? Number(row.displayed_price) : undefined,
   menuCategoryId: row.menu_category_id,
+  categoryIds: Array.isArray(row.category_ids) ? row.category_ids : [],
+  categoryName: row.category_name,
   bundleId: row.bundle_id,
   imageUrl: row.image_url,
   active: row.active,
-  preparationStation: row.preparation_station
+  available: row.available !== false,
+  preparationStation: row.preparation_station,
 });
 
 // Helper functions to map camelCase back to snake_case for payloads
 const toCategoryPayload = (data: Partial<MenuCategory>) => ({
   name: data.name,
   sort_order: data.sortOrder,
-  active: data.active !== false
+  active: data.active !== false,
+  icon: data.icon,
+  color: data.color,
+  name_translations: data.nameTranslations,
 });
 
 const toMenuItemPayload = (data: Partial<MenuItem>) => ({
@@ -67,6 +79,42 @@ export const menuService = {
       console.error('Error creating category', error);
       throw error;
     }
+  },
+
+  updateCategory: async (id: string, data: Partial<MenuCategory>) => {
+    try {
+      const payload = toCategoryPayload(data);
+      const response = await apiClient.put(`/menu-categories/${id}`, payload);
+      return mapCategory(response.data);
+    } catch (error) {
+      console.error('Error updating category', error);
+      throw error;
+    }
+  },
+
+  deleteCategory: async (id: string) => {
+    await apiClient.delete(`/menu-categories/${id}`);
+  },
+
+  reorderCategories: async (order: Array<{ id: string; sort_order: number }>) => {
+    await apiClient.patch('/menu-categories/reorder', { order });
+  },
+
+  // Item ↔ Category assignments (junction table)
+  getItemCategories: async (itemId: string): Promise<Array<{ category_id: string; price_override: number | null }>> => {
+    const res = await apiClient.get(`/menu-items/${itemId}/categories`);
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  assignItemCategory: async (itemId: string, categoryId: string, priceOverride: number | null): Promise<void> => {
+    await apiClient.post(`/menu-items/${itemId}/categories`, {
+      category_id: categoryId,
+      price_override: priceOverride,
+    });
+  },
+
+  removeItemCategory: async (itemId: string, categoryId: string): Promise<void> => {
+    await apiClient.delete(`/menu-items/${itemId}/categories/${categoryId}`);
   },
 
   // Items

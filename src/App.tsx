@@ -16,6 +16,7 @@ import POSModule from './components/POS/POSModule';
 import KitchenDisplay from './components/Kitchen/KitchenDisplay';
 import AnalyticsDashboard from './pages/Analytics/AnalyticsDashboard';
 import OrdersView from './components/OrdersView';
+import SettingsPage from './pages/Settings/SettingsPage';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
 import { featureFlagService } from './services/featureFlagService';
 import { billingService } from './services/billingService';
@@ -23,19 +24,25 @@ import { FeatureFlags } from './types';
 import { Menu } from 'lucide-react';
 
 const AppContent = () => {
-  const { 
-    user, 
-    activeRestaurant, 
+  const {
+    user,
+    activeRestaurant,
     employees,
     setRestaurant,
     setUser
   } = useStore();
-  
+
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    const initial = saved ? saved === 'true' : false;
+    document.documentElement.classList.toggle('dark', initial);
+    return initial;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags | null>(null);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   useEffect(() => {
     const fetchSubAndFlags = async () => {
@@ -59,17 +66,17 @@ const AppContent = () => {
     fetchSubAndFlags();
   }, [user?.restaurantId]);
 
-  if (!user) {
-    return <Login />;
-  }
-
-  if (!user.restaurantId) {
+  if (showSetupWizard || (user && !user.restaurantId)) {
     return (
       <>
         <Toaster position="top-right" richColors />
-        <RestaurantSetupWizard />
+        <RestaurantSetupWizard onBack={() => setShowSetupWizard(false)} />
       </>
     );
+  }
+
+  if (!user) {
+    return <Login onNewRestaurant={() => setShowSetupWizard(true)} />;
   }
 
   const renderContent = () => {
@@ -94,9 +101,9 @@ const AppContent = () => {
         );
       case 'staff':
         return (
-          <StaffView 
-            staff={employees} 
-            shifts={[]} 
+          <StaffView
+            staff={employees as any}
+            shifts={[]}
             onAssignWaiter={() => {}} 
             onReleaseWaiter={() => {}} 
             onAddStaff={() => {}} 
@@ -115,6 +122,8 @@ const AppContent = () => {
         return <KitchenDisplay />;
       case 'analytics':
         return <AnalyticsDashboard />;
+      case 'settings':
+        return <SettingsPage />;
       default:
         return <Dashboard />;
     }
@@ -128,7 +137,12 @@ const AppContent = () => {
         activeTab={activeTab} 
         setActiveTab={setActiveTab}
         isDarkMode={isDarkMode}
-        toggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        toggleDarkMode={() => {
+            const next = !isDarkMode;
+            setIsDarkMode(next);
+            document.documentElement.classList.toggle('dark', next);
+            localStorage.setItem('darkMode', String(next));
+          }}
         onLogout={() => setUser(null)}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}

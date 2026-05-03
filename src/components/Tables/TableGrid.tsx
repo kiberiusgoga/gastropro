@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Table } from '../types';
+import { Table } from '../../types';
 import { Users, CheckCircle2, Clock, AlertCircle, QrCode } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -39,8 +39,7 @@ const TableGrid: React.FC<TableGridProps> = ({ tables, onTableClick, onShowQRCod
 
   const getStatusColor = (status: Table['status']) => {
     switch (status) {
-      case 'free':
-      case 'available': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      case 'free': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
       case 'occupied': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
       case 'reserved': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       default: return 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20';
@@ -49,8 +48,7 @@ const TableGrid: React.FC<TableGridProps> = ({ tables, onTableClick, onShowQRCod
 
   const getStatusIcon = (status: Table['status']) => {
     switch (status) {
-      case 'free':
-      case 'available': return <CheckCircle2 size={16} />;
+      case 'free': return <CheckCircle2 size={16} />;
       case 'occupied': return <Clock size={16} />;
       case 'reserved': return <AlertCircle size={16} />;
     }
@@ -58,8 +56,7 @@ const TableGrid: React.FC<TableGridProps> = ({ tables, onTableClick, onShowQRCod
 
   const getStatusLabel = (status: Table['status']) => {
     switch (status) {
-      case 'free':
-      case 'available': return t('free');
+      case 'free': return t('free');
       case 'occupied': return t('occupied');
       case 'reserved': return t('reserved');
     }
@@ -95,7 +92,7 @@ const TableGrid: React.FC<TableGridProps> = ({ tables, onTableClick, onShowQRCod
             <QrCode size={18} />
           </button>
           <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-            table.status === 'free' || table.status === 'available' ? 'bg-emerald-50 dark:bg-emerald-900/20' : 
+            table.status === 'free' ? 'bg-emerald-50 dark:bg-emerald-900/20' :
             table.status === 'occupied' ? 'bg-orange-50 dark:bg-orange-900/20' : 'bg-blue-50 dark:bg-blue-900/20'
           }`}>
             <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{table.number}</span>

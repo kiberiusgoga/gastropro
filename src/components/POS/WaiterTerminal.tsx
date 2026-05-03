@@ -51,7 +51,7 @@ const WaiterTerminal = () => {
     setSelectedTable(table);
     if (table.currentOrderId) {
       try {
-        const order = await posService.getOrderById(table.currentOrderId);
+        const order = await posService.getOpenOrderForTable(table.id);
         setCurrentOrder(order);
       } catch (error) {
         console.error('Error loading order:', error);
@@ -61,7 +61,7 @@ const WaiterTerminal = () => {
       setCurrentOrder({
         tableId: table.id,
         items: [],
-        status: 'open',
+        status: 'order_created',
         orderType: 'dine_in',
         totalAmount: 0,
         userId: user?.id || ''
@@ -81,6 +81,7 @@ const WaiterTerminal = () => {
     } else {
       const newItem: OrderItem = {
         id: Math.random().toString(36).substring(7),
+        restaurantId: user?.restaurantId || '',
         orderId: currentOrder.id || '',
         productId: item.id,
         name: item.name,
@@ -88,7 +89,7 @@ const WaiterTerminal = () => {
         price: item.price,
         status: 'pending',
         isBundle: !!item.bundleId,
-        preparationStation: item.bundleId ? 'kitchen' : 'bar' // Simplified logic
+        preparationStation: item.bundleId ? 'kitchen' : 'bar'
       };
       newItems.push(newItem);
     }
@@ -102,11 +103,18 @@ const WaiterTerminal = () => {
     
     try {
       if (!currentOrder.id) {
-        const order = await posService.createOrder(currentOrder as Omit<Order, 'id' | 'createdAt'>);
-        await tableService.updateStatus(selectedTable.id, 'occupied', order.id);
+        const order = await posService.createOrder(
+          selectedTable.id,
+          user?.id || '',
+          user?.restaurantId,
+          currentOrder.orderType || 'dine_in'
+        );
+        if (order) {
+          await tableService.update(selectedTable.id, { status: 'occupied', currentOrderId: order.id });
+        }
         toast.success('Нарачката е испратена во кујна');
       } else {
-        await posService.updateOrderItems(currentOrder.id, currentOrder.items || []);
+        await posService.sendToKitchen(currentOrder.id);
         toast.success('Нарачката е ажурирана');
       }
       setSelectedTable(null);

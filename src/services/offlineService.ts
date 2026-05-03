@@ -1,37 +1,56 @@
-import Dexie, { Table } from 'dexie';
-import { Order } from '../types';
+import Dexie, { Table as DexieTable } from 'dexie';
+import { Order, Payment } from '../types';
 
-export class AppDatabase extends Dexie {
-  orders!: Table<Order & { isSynced: boolean }>;
+// ─── Schema ───────────────────────────────────────────────────────────────────
+
+export interface QueuedOrder {
+  localId: string;
+  isLocal: boolean;      // true = never reached server, needs full create+close
+  order: Order;
+  payments: Omit<Payment, 'id'>[];
+  shiftId: string;
+  queuedAt: string;
+  attempts: number;
+}
+
+class OfflineDB extends Dexie {
+  queue!: DexieTable<QueuedOrder, string>;
 
   constructor() {
-    super('StoreHouseDB');
-    this.version(1).stores({
-      orders: '++id, tableId, status, isSynced, createdAt'
-    });
+    super('GastroProOfflineDB');
+    this.version(1).stores({ queue: 'localId, queuedAt' });
   }
 }
 
-export const db_local = new AppDatabase();
+const db = new OfflineDB();
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 export const offlineService = {
-  saveOrder: async (order: Order) => {
-    try {
-      await db_local.orders.put({ ...order, isSynced: false });
-      return true;
-    } catch (error) {
-      console.error('Error saving order offline:', error);
-      return false;
-    }
-  },
+  enqueue: (
+    order: Order,
+    payments: Omit<Payment, 'id'>[],
+    shiftId: string,
+    isLocal: boolean,
+  ): Promise<string> =>
+    db.queue.put({
+      localId: order.id,
+      isLocal,
+      order,
+      payments,
+      shiftId,
+      queuedAt: new Date().toISOString(),
+      attempts: 0,
+    }),
 
-  getUnsyncedOrders: async () => {
-    return await db_local.orders.where('isSynced').equals(0).toArray(); // dexie uses 0/1 for boolean sometimes, but let's use false
-  },
+  getPending: (): Promise<QueuedOrder[]> => db.queue.toArray(),
 
-  markAsSynced: async (orderId: string) => {
-    await db_local.orders.update(orderId, { isSynced: true });
-  },
+  dequeue: (localId: string): Promise<void> => db.queue.delete(localId),
 
-  isOnline: () => navigator.onLine
+  pendingCount: (): Promise<number> => db.queue.count(),
+
+  incrementAttempts: async (localId: string): Promise<void> => {
+    const item = await db.queue.get(localId);
+    if (item) await db.queue.put({ ...item, attempts: item.attempts + 1 });
+  },
 };

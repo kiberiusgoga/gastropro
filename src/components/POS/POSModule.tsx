@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { FixedSizeGrid as Grid } from 'react-window';
-import { 
-  Users, 
-  Plus, 
-  List, 
-  CreditCard, 
-  Banknote, 
-  ChefHat, 
-  X, 
-  CheckCircle2, 
+import {
+  Users,
+  Plus,
+  List,
+  CreditCard,
+  Banknote,
+  ChefHat,
+  X,
+  CheckCircle2,
   Minus,
   Split,
   Utensils,
@@ -19,7 +19,9 @@ import {
   Search,
   AlertCircle,
   WifiOff,
-  Tag
+  Tag,
+  Calendar,
+  Clock,
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { tableService, posService } from '../../services/posService';
@@ -28,7 +30,9 @@ import { crmService } from '../../services/crmService';
 import { shiftService } from '../../services/shiftService';
 import { offlineService } from '../../services/offlineService';
 import { printService } from '../../services/printService';
-import { Table, Order, OrderItem, MenuItem, MenuCategory, Customer, Shift, Discount } from '../../types';
+import { reservationService } from '../../services/reservationService';
+import apiClient from '../../lib/apiClient';
+import { Table, Order, OrderItem, MenuItem, MenuCategory, Customer, Shift, Discount, Reservation } from '../../types';
 import { useStore } from '../../store/useStore';
 import BillSplitModal from './BillSplitModal';
 import DiscountModal from './DiscountModal';
@@ -56,7 +60,13 @@ const POSModule = () => {
   const [cardAmount, setCardAmount] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [todayReservations, setTodayReservations] = useState<Reservation[]>([]);
+  const [now, setNow] = useState(() => new Date());
+  // Refs so the minute-ticker closure always reads fresh state without re-registering
+  const stateRef = useRef({ tables, todayReservations });
+  const autoBlockedRef = useRef(new Set<string>());
+  useEffect(() => { stateRef.current = { tables, todayReservations }; }, [tables, todayReservations]);
 
   // Performance Optimization: Memoized filtered items
   const filteredItems = useMemo(() => {
@@ -67,24 +77,57 @@ const POSModule = () => {
     );
   }, [menuItems, activeCategory, searchTerm]);
 
-  // Network status monitoring
+  // Minute ticker — updates `now` for badge display + auto-blocks tables at T-15
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    const tick = () => {
+      const current = new Date();
+      setNow(current);
+
+      const { tables: currentTables, todayReservations: currentRes } = stateRef.current;
+      for (const res of currentRes) {
+        if (res.status !== 'reserved') continue;
+        const resAt = new Date(`${res.date}T${res.time}`);
+        const minutesUntil = (resAt.getTime() - current.getTime()) / 60_000;
+
+        if (minutesUntil <= 15 && minutesUntil > -60 && !autoBlockedRef.current.has(res.tableId)) {
+          const table = currentTables.find(t => t.id === res.tableId);
+          if (table && table.status === 'free') {
+            autoBlockedRef.current.add(res.tableId);
+            tableService.update(res.tableId, { status: 'reserved' });
+            setTables(prev =>
+              prev.map(t => t.id === res.tableId ? { ...t, status: 'reserved' } : t)
+            );
+            toast.warning(
+              `Маса ${res.tableNumber} блокирана — резервација за ${res.time} (${res.customerName})`,
+              { duration: 8000 },
+            );
+          }
+        }
+      }
+    };
+
+    const id = setInterval(tick, 60_000);
+    tick(); // run immediately on mount
+    return () => clearInterval(id);
+  }, []); // empty deps — reads state via stateRef
+
+  // Network status monitoring + sync on reconnect
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncPendingOrders();
+    };
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Load pending count on mount
+    offlineService.pendingCount().then(setPendingCount);
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
-
-  // WebSocket setup
-  useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${window.location.host}`);
-    setWs(socket);
-    return () => socket.close();
   }, []);
 
   useEffect(() => {
@@ -97,18 +140,20 @@ const POSModule = () => {
     if (!user?.restaurantId) return;
     setLoading(true);
     try {
-      const [tData, mData, cData, custData, sData] = await Promise.all([
+      const [tData, mData, cData, custData, sData, resData] = await Promise.all([
         tableService.getAll(user.restaurantId),
         menuService.getItems(user.restaurantId),
         menuService.getCategories(user.restaurantId),
         crmService.getAll(user.restaurantId),
-        shiftService.getActiveShift(user.id, user.restaurantId)
+        shiftService.getActiveShift(user.id, user.restaurantId),
+        reservationService.getTodayUpcoming(),
       ]);
       setTables(tData);
       setMenuItems(mData);
       setCategories(cData);
       setCustomers(custData);
       setActiveShift(sData || null);
+      setTodayReservations(resData);
       if (cData.length > 0) setActiveCategory(cData[0].id);
     } catch (error) {
       console.error('Error fetching POS data:', error);
@@ -116,6 +161,73 @@ const POSModule = () => {
       setLoading(false);
     }
   };
+
+  const syncPendingOrders = async () => {
+    const pending = await offlineService.getPending();
+    if (!pending.length) return;
+
+    let synced = 0;
+    for (const entry of pending) {
+      try {
+        let serverId: string;
+
+        if (entry.isLocal) {
+          // Order was never on the server — create it now
+          const res = await apiClient.post('/orders', {
+            table_id: entry.order.tableId,
+            customer_id: entry.order.customerId,
+            shift_id: entry.shiftId,
+            order_type: entry.order.orderType,
+            guest_count: 1,
+          });
+          serverId = res.data.id;
+
+          for (const item of entry.order.items) {
+            await apiClient.post(`/orders/${serverId}/items`, {
+              menu_item_id: item.productId,
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              preparation_station: item.preparationStation,
+              is_bundle: item.isBundle,
+              note: item.note ?? null,
+            });
+          }
+        } else {
+          // Order exists on server — just close it
+          serverId = entry.order.id;
+        }
+
+        await apiClient.put(`/orders/${serverId}`, { status: 'paid' });
+        await offlineService.dequeue(entry.localId);
+        synced++;
+      } catch (err) {
+        console.error('[Offline Sync] Failed for', entry.localId, err);
+        await offlineService.incrementAttempts(entry.localId);
+      }
+    }
+
+    const remaining = await offlineService.pendingCount();
+    setPendingCount(remaining);
+
+    if (synced > 0) {
+      toast.success(`${synced} нарачк${synced === 1 ? 'а' : 'и'} синхронизиран${synced === 1 ? 'а' : 'и'} успешно`);
+      fetchData();
+    }
+  };
+
+  // Returns the most imminent reservation for a table (within ±4 hours window)
+  const getTableReservation = useCallback((tableId: string): { res: Reservation; minutesUntil: number } | null => {
+    let best: { res: Reservation; minutesUntil: number } | null = null;
+    for (const res of todayReservations) {
+      if (res.tableId !== tableId || res.status !== 'reserved') continue;
+      const resAt = new Date(`${res.date}T${res.time}`);
+      const minutesUntil = (resAt.getTime() - now.getTime()) / 60_000;
+      if (minutesUntil < -30 || minutesUntil > 240) continue;
+      if (!best || minutesUntil < best.minutesUntil) best = { res, minutesUntil };
+    }
+    return best;
+  }, [todayReservations, now]);
 
   const handleTableSelect = useCallback(async (table: Table) => {
     if (!user?.restaurantId) return;
@@ -133,12 +245,37 @@ const POSModule = () => {
       toast.error('Мора да имате активна смена за да започнете нарачка');
       return;
     }
-    
+
+    if (!isOnline) {
+      const localOrder: Order = {
+        id: `local-${crypto.randomUUID()}`,
+        restaurantId: user.restaurantId,
+        tableId: selectedTable?.id,
+        customerId: selectedCustomer?.id,
+        userId: user.id,
+        shiftId: activeShift.id,
+        status: 'order_created',
+        orderType,
+        guestCount: 1,
+        totalAmount: 0,
+        subtotal: 0,
+        discountAmount: 0,
+        createdAt: new Date().toISOString(),
+        items: [],
+      };
+      setCurrentOrder(localOrder);
+      if (selectedTable) {
+        setTables(prev => prev.map(t => t.id === selectedTable.id ? { ...t, status: 'occupied' } : t));
+      }
+      toast.info('Офлајн режим — нарачката е локална');
+      return;
+    }
+
     const order = await posService.createOrder(
-      selectedTable?.id || null, 
-      user.id, 
-      orderType, 
+      selectedTable?.id || null,
+      user.id,
       user.restaurantId,
+      orderType,
       selectedCustomer?.id,
       activeShift.id
     );
@@ -147,16 +284,6 @@ const POSModule = () => {
       setCurrentOrder(order);
       if (selectedTable) {
         setTables(prev => prev.map(t => t.id === selectedTable.id ? { ...t, status: 'occupied', currentOrderId: order.id } : t));
-      }
-      
-      // Notify KDS
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'NEW_ORDER',
-          tableId: selectedTable?.id,
-          tableNumber: selectedTable?.number,
-          orderId: order.id
-        }));
       }
     }
   };
@@ -195,44 +322,42 @@ const POSModule = () => {
 
   const handleAddItem = useCallback(async (item: MenuItem) => {
     if (!currentOrder) return;
-    
-    const orderItem: Omit<OrderItem, 'id'> = {
+
+    const baseItem: Omit<OrderItem, 'id'> = {
       orderId: currentOrder.id,
+      restaurantId: user?.restaurantId ?? '',
       productId: item.id,
       name: item.name,
       quantity: 1,
       price: item.price,
       status: 'pending',
       preparationStation: 'kitchen',
-      isBundle: !!item.bundleId
+      isBundle: !!item.bundleId,
     };
 
-    const newItem = await posService.addItemToOrder(currentOrder.id, orderItem);
-    if (newItem) {
+    const addToState = (newItem: OrderItem) => {
       setCurrentOrder(prev => {
         if (!prev) return null;
-        const newItems = [...prev.items, newItem as OrderItem];
-        const subtotal = newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        const newItems = [...prev.items, newItem];
+        const subtotal = newItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
         let discountAmount = 0;
         if (prev.discountId) {
-          if (prev.discountType === 'percentage') {
-            discountAmount = (subtotal * (prev.discountValue || 0)) / 100;
-          } else {
-            discountAmount = prev.discountValue || 0;
-          }
+          discountAmount = prev.discountType === 'percentage'
+            ? (subtotal * (prev.discountValue || 0)) / 100
+            : prev.discountValue || 0;
         }
-        const totalAmount = subtotal - discountAmount;
-        
-        return {
-          ...prev,
-          items: newItems,
-          subtotal,
-          totalAmount,
-          discountAmount
-        };
+        return { ...prev, items: newItems, subtotal, totalAmount: subtotal - discountAmount, discountAmount };
       });
+    };
+
+    if (!isOnline || currentOrder.id.startsWith('local-')) {
+      addToState({ ...baseItem, id: `local-${crypto.randomUUID()}` });
+      return;
     }
-  }, [currentOrder]);
+
+    const newItem = await posService.addItemToOrder(currentOrder.id, baseItem);
+    if (newItem) addToState(newItem as OrderItem);
+  }, [currentOrder, isOnline]);
 
   const handleUpdateQuantity = useCallback(async (itemId: string, delta: number) => {
     if (!currentOrder) return;
@@ -285,16 +410,18 @@ const POSModule = () => {
     }
 
     if (!isOnline) {
-      // Save offline
-      await offlineService.saveOrderOffline({
-        ...currentOrder,
-        status: 'paid',
+      const isLocal = currentOrder.id.startsWith('local-');
+      await offlineService.enqueue(
+        { ...currentOrder, status: 'paid', closedAt: new Date().toISOString() },
         payments,
-        closedAt: new Date().toISOString()
-      });
-      toast.warning('Нарачката е зачувана локално (Офлајн режим)');
+        activeShift.id,
+        isLocal,
+      );
+      const count = await offlineService.pendingCount();
+      setPendingCount(count);
+      toast.warning(`Нарачката е зачувана локално (${count} чекаат синхронизација)`);
     } else {
-      await posService.closeOrder(currentOrder.id, payments, activeShift.id, user.restaurantId);
+      await posService.closeOrder(currentOrder.id, payments, activeShift.id);
       toast.success('Нарачката е успешно затворена!');
     }
 
@@ -339,7 +466,7 @@ const POSModule = () => {
         >
           <div>
             <div className="font-black text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 transition-colors line-clamp-2 uppercase tracking-tight text-sm">{item.name}</div>
-            <div className="text-[10px] font-black text-zinc-400 mt-1 uppercase tracking-widest">{item.category}</div>
+            <div className="text-[10px] font-black text-zinc-400 mt-1 uppercase tracking-widest">{item.categoryName ?? ''}</div>
           </div>
           <div className="mt-4 flex items-center justify-between relative z-10">
             <span className="text-xl font-black text-zinc-900 dark:text-zinc-100 tracking-tighter font-display">{item.price} <small className="text-[10px] opacity-50 uppercase">ден</small></span>
@@ -356,65 +483,147 @@ const POSModule = () => {
   if (loading) return <div className="p-8 text-center">Loading POS...</div>;
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col lg:flex-row overflow-hidden bg-slate-100">
+    <div className="h-[calc(100vh-64px)] flex flex-col lg:flex-row overflow-hidden bg-zinc-50 dark:bg-zinc-950">
       {/* Left Side: Table Map or Menu */}
       <div className="flex-1 overflow-y-auto p-4 lg:p-6">
         {!selectedTable && orderType === 'dine_in' ? (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">Избери Маса</h2>
-              <div className="flex bg-white rounded-lg p-1 shadow-sm border border-slate-200">
-                <button 
-                  onClick={() => setOrderType('dine_in')}
-                  className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all ${orderType === 'dine_in' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                  <Utensils size={18} />
-                  Во ресторан
-                </button>
-                <button 
-                  onClick={() => { setOrderType('takeaway'); setSelectedTable(null); }}
-                  className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all ${orderType === 'takeaway' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                  <Package size={18} />
-                  За носење
-                </button>
-                <button 
-                  onClick={() => { setOrderType('delivery'); setSelectedTable(null); }}
-                  className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-bold transition-all ${orderType === 'delivery' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                  <Truck size={18} />
-                  Достава
-                </button>
+          <div className="space-y-8">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase font-display italic">
+                  План на Сала
+                </h2>
+                <div className="flex items-center gap-5 mt-2.5">
+                  <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+                    {tables.filter(t => t.status === 'free').length} слободни
+                  </span>
+                  <span className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
+                  <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-rose-500">
+                    <div className="w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_6px_rgba(244,63,94,0.8)] animate-pulse" />
+                    {tables.filter(t => t.status === 'occupied').length} зафатени
+                  </span>
+                  <span className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
+                  <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-amber-500">
+                    <div className="w-2 h-2 bg-amber-400 rounded-full" />
+                    {tables.filter(t => t.status === 'reserved').length} резервирани
+                  </span>
+                </div>
+              </div>
+
+              {/* Order type tabs */}
+              <div className="flex bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-1.5 gap-1 border border-zinc-200 dark:border-zinc-800 shadow-inner shrink-0">
+                {([
+                  { type: 'dine_in' as const, icon: Utensils, label: 'Во ресторан' },
+                  { type: 'takeaway' as const, icon: Package, label: 'За носење' },
+                  { type: 'delivery' as const, icon: Truck, label: 'Достава' },
+                ] as const).map(({ type, icon: Icon, label }) => (
+                  <button
+                    key={type}
+                    onClick={() => { setOrderType(type); if (type !== 'dine_in') setSelectedTable(null); }}
+                    className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all ${
+                      orderType === type
+                        ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-md'
+                        : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                    }`}
+                  >
+                    <Icon size={14} strokeWidth={2.5} />
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {tables.map(table => (
-                <button
-                  key={table.id}
-                  onClick={() => handleTableSelect(table)}
-                  className={`aspect-square p-6 rounded-[2.5rem] flex flex-col items-center justify-center gap-2 transition-all shadow-sm border-2 relative overflow-hidden group ${
-                    table.status === 'occupied' 
-                      ? 'bg-rose-50 border-rose-100 text-rose-700 dark:bg-rose-900/10 dark:border-rose-900/20' 
-                      : table.status === 'reserved'
-                      ? 'bg-amber-50 border-amber-100 text-amber-700 dark:bg-amber-900/10 dark:border-amber-900/20'
-                      : 'bg-white border-white dark:bg-zinc-900 dark:border-zinc-800 hover:border-emerald-200 dark:hover:border-emerald-800 text-zinc-700 dark:text-zinc-300'
-                  }`}
-                >
-                  <div className="text-4xl font-black font-display tracking-tighter">#{table.number}</div>
-                  <div className="text-[10px] uppercase font-black tracking-widest opacity-50">{table.zone}</div>
-                  <div className="flex items-center gap-1.5 text-xs mt-2 font-bold px-3 py-1 bg-black/5 dark:bg-white/5 rounded-full">
-                    <Users size={12} />
-                    <span>{table.capacity}</span>
-                  </div>
-                  {table.status === 'occupied' && (
-                    <div className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
-                  )}
-                  <div className={`absolute -bottom-2 -right-2 w-16 h-16 rounded-full opacity-10 group-hover:scale-150 transition-transform duration-700 ${
-                    table.status === 'occupied' ? 'bg-rose-500' : 'bg-emerald-500'
-                  }`}></div>
-                </button>
-              ))}
+            {/* Table grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {tables.map(table => {
+                const upcoming = getTableReservation(table.id);
+                const isUrgent  = upcoming !== null && upcoming.minutesUntil <= 15;
+                const isWarning = upcoming !== null && upcoming.minutesUntil > 15 && upcoming.minutesUntil <= 90;
+                const isOccupied = table.status === 'occupied';
+                const isReserved = table.status === 'reserved' || isUrgent;
+                const minsLabel = upcoming
+                  ? (upcoming.minutesUntil <= 0
+                      ? 'ДОЦНИ'
+                      : upcoming.minutesUntil < 60
+                        ? `${Math.round(upcoming.minutesUntil)}min`
+                        : upcoming.res.time)
+                  : null;
+
+                return (
+                  <button
+                    key={table.id}
+                    onClick={() => handleTableSelect(table)}
+                    className={`relative flex flex-col rounded-2xl p-5 transition-all duration-200 hover:-translate-y-1 text-left group border overflow-hidden ${
+                      isOccupied
+                        ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/50 hover:shadow-lg hover:shadow-rose-200/60 dark:hover:shadow-rose-900/40'
+                        : isReserved
+                        ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-700/50 hover:shadow-lg hover:shadow-amber-200/60'
+                        : isWarning
+                        ? 'bg-yellow-50/60 dark:bg-yellow-950/20 border-yellow-200/80 dark:border-yellow-800/30 hover:shadow-md hover:shadow-yellow-100'
+                        : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-700/60 hover:shadow-lg hover:shadow-emerald-100/60 dark:hover:shadow-emerald-900/20'
+                    }`}
+                  >
+                    {/* Status accent strip at top */}
+                    <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
+                      isOccupied ? 'bg-rose-500'
+                      : isReserved ? 'bg-amber-500'
+                      : isWarning ? 'bg-yellow-400'
+                      : 'bg-emerald-400'
+                    }`} />
+
+                    {/* Top row: number + status dot */}
+                    <div className="flex items-start justify-between mb-1 mt-1">
+                      <span className={`text-4xl font-black font-display tracking-tighter leading-none ${
+                        isOccupied ? 'text-rose-600 dark:text-rose-400'
+                        : isReserved ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-zinc-900 dark:text-zinc-100'
+                      }`}>
+                        {table.number}
+                      </span>
+                      <div className={`w-2.5 h-2.5 rounded-full mt-1 ${
+                        isOccupied ? 'bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]'
+                        : isReserved ? 'bg-amber-400 animate-pulse'
+                        : isWarning ? 'bg-yellow-400'
+                        : 'bg-emerald-400'
+                      }`} />
+                    </div>
+
+                    {/* Zone */}
+                    <div className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-600 mb-3">
+                      {table.zone}
+                    </div>
+
+                    {/* Reservation badge */}
+                    {upcoming && minsLabel && (
+                      <div className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide rounded-lg px-2.5 py-1 mb-2 ${
+                        isUrgent
+                          ? 'bg-amber-500 text-white shadow-sm shadow-amber-400/50 animate-pulse'
+                          : 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-700/40'
+                      }`}>
+                        {isUrgent ? <Clock size={9} strokeWidth={3} /> : <Calendar size={9} />}
+                        <span className="truncate">{upcoming.res.customerName} · {minsLabel}</span>
+                      </div>
+                    )}
+
+                    {/* Capacity */}
+                    <div className={`flex items-center gap-1.5 text-xs font-bold mt-auto ${
+                      isOccupied ? 'text-rose-400 dark:text-rose-500'
+                      : isReserved ? 'text-amber-500'
+                      : 'text-zinc-400 dark:text-zinc-600'
+                    }`}>
+                      <Users size={12} strokeWidth={2.5} />
+                      <span>{table.capacity} места</span>
+                    </div>
+
+                    {/* Hover glow orb */}
+                    <div className={`absolute -bottom-4 -right-4 w-20 h-20 rounded-full blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500 ${
+                      isOccupied ? 'bg-rose-500' : isReserved ? 'bg-amber-500' : 'bg-emerald-400'
+                    }`} />
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -495,10 +704,24 @@ const POSModule = () => {
       </div>
 
       {/* Offline Indicator */}
-      {!isOnline && (
-        <div className="fixed bottom-4 left-4 bg-red-600 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg z-[60] animate-pulse">
-          <WifiOff size={18} />
-          <span className="text-sm font-bold">Офлајн режим</span>
+      {(!isOnline || pendingCount > 0) && (
+        <div className="fixed bottom-4 left-4 flex flex-col gap-2 z-[60]">
+          {!isOnline && (
+            <div className="bg-red-600 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg animate-pulse">
+              <WifiOff size={18} />
+              <span className="text-sm font-bold">Офлајн режим</span>
+            </div>
+          )}
+          {pendingCount > 0 && (
+            <button
+              onClick={syncPendingOrders}
+              disabled={!isOnline}
+              className="bg-amber-500 disabled:opacity-60 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg hover:bg-amber-600 transition-colors"
+            >
+              <WifiOff size={16} />
+              <span className="text-sm font-bold">{pendingCount} чекаат синхронизација</span>
+            </button>
+          )}
         </div>
       )}
 

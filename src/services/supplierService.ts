@@ -22,7 +22,7 @@ export const supplierService = {
     }
   },
 
-  async createSupplier(supplier: Omit<Supplier, 'id' | 'restaurantId'>): Promise<string> {
+  async createSupplier(supplier: Omit<Supplier, 'id'> & { restaurantId?: string }): Promise<string> {
     try {
       const response = await apiClient.post('/suppliers', {
         name: supplier.name,
@@ -76,7 +76,7 @@ export const supplierService = {
     }
   },
 
-  async createPurchaseOrder(order: Omit<PurchaseOrder, 'id' | 'restaurantId'>): Promise<string> {
+  async createPurchaseOrder(order: Partial<PurchaseOrder> & Pick<PurchaseOrder, 'supplierId' | 'supplierName' | 'orderDate' | 'items' | 'totalCost' | 'status'>): Promise<string> {
     try {
       const response = await apiClient.post('/purchase-orders', {
         supplier_id: order.supplierId,

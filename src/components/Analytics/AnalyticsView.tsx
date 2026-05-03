@@ -1,5 +1,5 @@
 import React from 'react';
-import { DailyStats, MenuItem } from '../types';
+import { DailyStats, MenuItem } from '../../types';
 import { 
   BarChart, 
   Bar, 

@@ -35,8 +35,8 @@ export const errorMiddleware = (
     return res.status(400).json({
       status: 'error',
       message: 'Validation failed',
-      errors: err.errors.map((e) => ({
-        path: e.path.join('.'),
+      errors: (err.issues ?? []).map((e: { path: PropertyKey[]; message: string }) => ({
+        path: e.path.map(String).join('.'),
         message: e.message,
       })),
     });

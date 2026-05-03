@@ -43,8 +43,19 @@ export const reservationService = {
 
   getByDate: async (date: string): Promise<Reservation[]> => {
     try {
-      const all = await reservationService.getAll();
-      return all.filter(r => r.date === date);
+      const response = await apiClient.get(`/reservations?date=${encodeURIComponent(date)}`);
+      return response.data.map(mapReservation);
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  },
+
+  getTodayUpcoming: async (): Promise<Reservation[]> => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const all = await reservationService.getByDate(today);
+      return all.filter(r => r.status === 'reserved' || r.status === 'arrived');
     } catch (error) {
       console.error(error);
       return [];

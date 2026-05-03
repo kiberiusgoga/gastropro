@@ -1,4 +1,4 @@
-import { Product, MenuCategory, MenuItem, Table, Transaction, User, Shift, Order } from '../types';
+import { Product, MenuCategory, MenuItem, Table, Transaction, User, Shift, Order, Customer } from '../types';
 
 interface MockDB {
   products: Product[];
@@ -45,21 +45,21 @@ const defaultDB: MockDB = {
     { id: 'mc7', restaurantId: '1', name: 'Десерти', sortOrder: 7, active: true },
   ],
   menuItems: [
-    { id: 'mi1', restaurantId: '1', name: 'Еспресо', price: 70, menuCategoryId: 'mc1', active: true, preparationStation: 'bar', description: 'Кратки еспресо од 100% Арабика' },
-    { id: 'mi2', restaurantId: '1', name: 'Капучино', price: 100, menuCategoryId: 'mc1', active: true, preparationStation: 'bar' },
-    { id: 'mi3', restaurantId: '1', name: 'Фреш од Портокал', price: 150, menuCategoryId: 'mc2', active: true, preparationStation: 'bar' },
-    { id: 'mi4', restaurantId: '1', name: 'Брускет со Лосос', price: 240, menuCategoryId: 'mc3', active: true, preparationStation: 'kitchen' },
-    { id: 'mi5', restaurantId: '1', name: 'Пица Маргарита', price: 320, menuCategoryId: 'mc4', active: true, preparationStation: 'kitchen', description: 'Класична пица со моцарела и домашен сос' },
-    { id: 'mi6', restaurantId: '1', name: 'Пица Капричиоза', price: 380, menuCategoryId: 'mc4', active: true, preparationStation: 'kitchen' },
-    { id: 'mi7', restaurantId: '1', name: 'Пица Кватро Формаџи', price: 420, menuCategoryId: 'mc4', active: true, preparationStation: 'kitchen' },
-    { id: 'mi8', restaurantId: '1', name: 'Паста Карбонара', price: 350, menuCategoryId: 'mc5', active: true, preparationStation: 'kitchen' },
-    { id: 'mi9', restaurantId: '1', name: 'Рижото со Пилешко', price: 340, menuCategoryId: 'mc5', active: true, preparationStation: 'kitchen' },
-    { id: 'mi10', restaurantId: '1', name: 'Пилешки Стек', price: 360, menuCategoryId: 'mc6', active: true, preparationStation: 'grill' },
-    { id: 'mi11', restaurantId: '1', name: 'Печен Лосос', price: 850, menuCategoryId: 'mc6', active: true, preparationStation: 'kitchen' },
-    { id: 'mi12', restaurantId: '1', name: 'Чизкејк Боровинка', price: 180, menuCategoryId: 'mc7', active: true, preparationStation: 'dessert' },
-    { id: 'mi13', restaurantId: '1', name: 'Лава Колач', price: 210, menuCategoryId: 'mc7', active: true, preparationStation: 'dessert' },
-    { id: 'mi14', restaurantId: '1', name: 'Тирамису', price: 190, menuCategoryId: 'mc7', active: true, preparationStation: 'dessert' },
-    { id: 'mi15', restaurantId: '1', name: 'Шопска Салата', price: 160, menuCategoryId: 'mc3', active: true, preparationStation: 'kitchen' },
+    { id: 'mi1', restaurantId: '1', name: 'Еспресо', price: 70, menuCategoryId: 'mc1', active: true, available: true, preparationStation: 'bar', description: 'Кратки еспресо од 100% Арабика' },
+    { id: 'mi2', restaurantId: '1', name: 'Капучино', price: 100, menuCategoryId: 'mc1', active: true, available: true, preparationStation: 'bar' },
+    { id: 'mi3', restaurantId: '1', name: 'Фреш од Портокал', price: 150, menuCategoryId: 'mc2', active: true, available: true, preparationStation: 'bar' },
+    { id: 'mi4', restaurantId: '1', name: 'Брускет со Лосос', price: 240, menuCategoryId: 'mc3', active: true, available: true, preparationStation: 'kitchen' },
+    { id: 'mi5', restaurantId: '1', name: 'Пица Маргарита', price: 320, menuCategoryId: 'mc4', active: true, available: true, preparationStation: 'kitchen', description: 'Класична пица со моцарела и домашен сос' },
+    { id: 'mi6', restaurantId: '1', name: 'Пица Капричиоза', price: 380, menuCategoryId: 'mc4', active: true, available: true, preparationStation: 'kitchen' },
+    { id: 'mi7', restaurantId: '1', name: 'Пица Кватро Формаџи', price: 420, menuCategoryId: 'mc4', active: true, available: true, preparationStation: 'kitchen' },
+    { id: 'mi8', restaurantId: '1', name: 'Паста Карбонара', price: 350, menuCategoryId: 'mc5', active: true, available: true, preparationStation: 'kitchen' },
+    { id: 'mi9', restaurantId: '1', name: 'Рижото со Пилешко', price: 340, menuCategoryId: 'mc5', active: true, available: true, preparationStation: 'kitchen' },
+    { id: 'mi10', restaurantId: '1', name: 'Пилешки Стек', price: 360, menuCategoryId: 'mc6', active: true, available: true, preparationStation: 'grill' },
+    { id: 'mi11', restaurantId: '1', name: 'Печен Лосос', price: 850, menuCategoryId: 'mc6', active: true, available: true, preparationStation: 'kitchen' },
+    { id: 'mi12', restaurantId: '1', name: 'Чизкејк Боровинка', price: 180, menuCategoryId: 'mc7', active: true, available: true, preparationStation: 'dessert' },
+    { id: 'mi13', restaurantId: '1', name: 'Лава Колач', price: 210, menuCategoryId: 'mc7', active: true, available: true, preparationStation: 'dessert' },
+    { id: 'mi14', restaurantId: '1', name: 'Тирамису', price: 190, menuCategoryId: 'mc7', active: true, available: true, preparationStation: 'dessert' },
+    { id: 'mi15', restaurantId: '1', name: 'Шопска Салата', price: 160, menuCategoryId: 'mc3', active: true, available: true, preparationStation: 'kitchen' },
   ],
   tables: [
     { id: 't1', restaurantId: '1', number: 1, capacity: 4, status: 'free', zone: 'Сала' },
@@ -103,10 +103,10 @@ const defaultDB: MockDB = {
         restaurantId: '1',
         tableId: `t${(i % 8) + 1}`,
         items: [
-          { id: `oi_${i}_1`, restaurantId: '1', orderId: `old_o_${i}`, productId: `mi${(i % 15) + 1}`, name: 'Demo Item', quantity: 2, price: amount / 2, status: 'paid', isBundle: false }
+          { id: `oi_${i}_1`, restaurantId: '1', orderId: `old_o_${i}`, productId: `mi${(i % 15) + 1}`, name: 'Demo Item', quantity: 2, price: amount / 2, status: 'served' as const, isBundle: false }
         ],
-        status: 'paid',
-        orderType: i % 5 === 0 ? 'takeaway' : 'dine_in',
+        status: 'paid' as const,
+        orderType: (i % 5 === 0 ? 'takeaway' : 'dine_in') as Order['orderType'],
         totalAmount: amount,
         subtotal: amount,
         createdAt: orderDate.toISOString(),

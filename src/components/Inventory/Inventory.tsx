@@ -43,7 +43,7 @@ const Inventory = () => {
 
     try {
       await inventoryService.recordMovement({
-        product_id: formData.productId,
+        productId: formData.productId,
         type: modalType,
         quantity: formData.quantity,
         note: formData.note

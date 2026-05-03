@@ -36,13 +36,52 @@ export interface User {
   email: string;
   role: UserRole;
   active: boolean;
-  createdAt: string;
+  createdAt?: string;
   permissions?: string[];
   salary?: number;
 }
 
 export interface Employee extends User {
+  phone?: string;
   shiftHistory?: string[];
+}
+
+export type StaffRole = 'waiter' | 'Admin' | 'manager' | 'chef' | 'bartender' | 'cashier';
+
+export interface StaffPermissions {
+  canTransferTable: boolean;
+  canDeleteOrder: boolean;
+  canSeeReports: boolean;
+  canApplyDiscount: boolean;
+  canVoidItems: boolean;
+  canSeeClosedBills?: boolean;
+  canTakeOrder?: boolean;
+  canProcessPayment?: boolean;
+}
+
+export interface Staff {
+  id: string;
+  restaurantId: string;
+  name: string;
+  email: string;
+  role: StaffRole;
+  pin: string;
+  permissions: StaffPermissions;
+  active: boolean;
+  status: 'active' | 'on_break' | 'off';
+}
+
+export interface WaiterShift {
+  id: string;
+  restaurantId: string;
+  waiterId: string;
+  waiterName: string;
+  startTime: string;
+  endTime?: string;
+  initialCash: number;
+  finalCash?: number;
+  totalSales?: number;
+  status: 'open' | 'closed';
 }
 
 export interface Shift {
@@ -64,6 +103,11 @@ export interface MenuCategory {
   name: string;
   sortOrder: number;
   active?: boolean;
+  type?: 'system' | 'custom';
+  icon?: string;
+  color?: string;
+  itemCount?: number;
+  nameTranslations?: { mk?: string; en?: string; sq?: string };
 }
 
 export interface Category {
@@ -79,10 +123,14 @@ export interface MenuItem {
   name: string;
   description?: string;
   price: number;
+  displayedPrice?: number;
   menuCategoryId: string;
-  bundleId?: string; // Link to inventory normative
+  categoryIds?: string[];
+  categoryName?: string;
+  bundleId?: string;
   imageUrl?: string;
   active: boolean;
+  available: boolean;
   preparationStation?: PreparationStation;
 }
 
@@ -176,11 +224,19 @@ export interface Notification {
   restaurantId: string;
   title: string;
   message: string;
-  type: 'info' | 'warning' | 'error' | 'success';
+  type: 'info' | 'warning' | 'error' | 'success' | 'call_waiter' | 'request_bill';
   category: 'low_stock' | 'new_order' | 'reservation' | 'system';
   read: boolean;
   createdAt: string;
   link?: string;
+  tableNumber?: number;
+}
+
+export interface DailyStats {
+  date: string;
+  revenue: number;
+  ordersCount: number;
+  topItems: { name: string; count: number }[];
 }
 
 export interface Product {
@@ -241,6 +297,7 @@ export interface Bundle {
   name: string;
   sellingPrice: number;
   active: boolean;
+  items?: { product_id: string; product_name: string; quantity: number; unit: string }[];
 }
 
 export interface BundleItem {
@@ -309,6 +366,7 @@ export interface Order {
   createdAt: string;
   closedAt?: string;
   userId: string;
+  waiterId?: string;
   shiftId?: string;
   payments?: Payment[];
   priority?: OrderPriority;
@@ -326,7 +384,7 @@ export interface Order {
 
 export interface SplitPayment {
   id: string;
-  restaurantId: string;
+  restaurantId?: string;
   guestIndex?: number;
   amount: number;
   method: 'cash' | 'card';
@@ -336,7 +394,7 @@ export interface SplitPayment {
 
 export interface Payment {
   id: string;
-  restaurantId: string;
+  restaurantId?: string;
   orderId: string;
   shiftId?: string;
   amount: number;

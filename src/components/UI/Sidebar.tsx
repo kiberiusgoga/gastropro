@@ -43,14 +43,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const menuGroups = [
     {
-      title: i18n.language === 'mk' ? 'ГЛАВНО' : 'MAIN',
+      title: t('nav_main'),
       items: [
         { id: 'dashboard', icon: LayoutDashboard, label: t('dashboard') },
         { id: 'analytics', icon: BarChart3, label: t('analytics') },
       ]
     },
     {
-      title: i18n.language === 'mk' ? 'СЕРВИС' : 'SERVICE',
+      title: t('nav_service'),
       items: [
         { id: 'tables', icon: Users, label: t('tables') },
         { id: 'orders', icon: ClipboardList, label: t('orders') },
@@ -59,12 +59,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      title: i18n.language === 'mk' ? 'МЕНАЏМЕНТ' : 'MANAGEMENT',
+      title: t('nav_management'),
       items: [
         { id: 'inventory', icon: Package, label: t('inventory') },
         { id: 'staff', icon: UserCog, label: t('staff'), badge: notificationCount > 0 ? notificationCount : undefined },
         { id: 'crm', icon: Heart, label: t('crm') },
-        { id: 'billing', icon: CreditCard, label: i18n.language === 'mk' ? 'Претплата' : 'Billing' },
+        { id: 'billing', icon: CreditCard, label: t('billing') },
         { id: 'settings', icon: Settings, label: t('settings') },
       ]
     }
@@ -144,27 +144,20 @@ const Sidebar: React.FC<SidebarProps> = ({
           </nav>
 
           <div className="mt-8 pt-8 border-t border-zinc-800/50 space-y-4">
-            <div className="flex items-center gap-2 p-1.5 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
-              <button 
-                onClick={() => i18n.changeLanguage('mk')}
-                className={`flex-1 flex items-center justify-center py-2 rounded-xl transition-all font-black text-[10px] tracking-widest ${
-                  i18n.language === 'mk' 
-                    ? 'bg-zinc-800 text-emerald-500 shadow-lg' 
-                    : 'text-zinc-600 hover:text-zinc-400'
-                }`}
-              >
-                MK
-              </button>
-              <button 
-                onClick={() => i18n.changeLanguage('en')}
-                className={`flex-1 flex items-center justify-center py-2 rounded-xl transition-all font-black text-[10px] tracking-widest ${
-                  i18n.language === 'en' 
-                    ? 'bg-zinc-800 text-emerald-500 shadow-lg' 
-                    : 'text-zinc-600 hover:text-zinc-400'
-                }`}
-              >
-                EN
-              </button>
+            <div className="flex items-center gap-1 p-1.5 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
+              {(['mk', 'en', 'sq'] as const).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => i18n.changeLanguage(lang)}
+                  className={`flex-1 flex items-center justify-center py-2 rounded-xl transition-all font-black text-[10px] tracking-widest ${
+                    i18n.language === lang
+                      ? 'bg-zinc-800 text-emerald-500 shadow-lg'
+                      : 'text-zinc-600 hover:text-zinc-400'
+                  }`}
+                >
+                  {lang.toUpperCase()}
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center gap-2">

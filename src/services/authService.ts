@@ -7,7 +7,7 @@ export const authService = {
   login: async (email: string, password: string): Promise<User> => {
     try {
       // Demo login bypass locally
-      if (email === 'admin@storehouse.mk' || email === 'demo') {
+      if (email === 'admin@storehouse.mk' || email === 'admin@gastropro.mk' || email === 'demo') {
         const demoUser: User = {
           id: 'demo123',
           name: 'Администратор',
@@ -22,7 +22,8 @@ export const authService = {
         
         localStorage.setItem('gastropro_token', accessToken);
         localStorage.setItem('gastropro_refresh_token', refreshToken);
-        
+        localStorage.setItem('gastropro_user', JSON.stringify(demoUser));
+
         authListeners.forEach(listener => listener(demoUser));
         return demoUser;
       }
@@ -68,20 +69,7 @@ export const authService = {
 
   getCurrentUser: (): User | null => {
     const userStr = localStorage.getItem('gastropro_user');
-    if (!userStr) {
-      if (process.env.NODE_ENV !== "production") {
-        return {
-          id: 'test-admin-id',
-          name: 'Аднан (Test Admin)',
-          email: 'admin@storehouse.mk',
-          role: 'Admin',
-          restaurantId: 'test-restaurant-id',
-          active: true,
-          createdAt: new Date().toISOString()
-        };
-      }
-      return null;
-    }
+    if (!userStr) return null;
     try {
       return JSON.parse(userStr);
     } catch {

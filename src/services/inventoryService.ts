@@ -2,7 +2,7 @@ import apiClient from '../lib/apiClient';
 import { Transaction, Invoice, InventoryCheck, Bundle, DashboardStats } from '../types';
 
 export const inventoryService = {
-  recordMovement: async (data: Omit<Transaction, 'id' | 'date'> & { restaurantId?: string }) => {
+  recordMovement: async (data: Pick<Transaction, 'productId' | 'type' | 'quantity'> & Partial<Omit<Transaction, 'id' | 'date'>>) => {
     try {
       const response = await apiClient.post('/inventory/movement', {
         product_id: data.productId,
@@ -59,7 +59,7 @@ export const inventoryCheckService = {
     }
   },
 
-  create: async (data: Omit<InventoryCheck, 'id' | 'date'> & { restaurantId?: string }) => {
+  create: async (data: { items: InventoryCheck['items']; status?: InventoryCheck['status']; restaurantId?: string }) => {
     try {
       const response = await apiClient.post('/inventory-checks', {
         items: data.items.map(item => ({

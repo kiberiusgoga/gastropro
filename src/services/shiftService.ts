@@ -1,5 +1,6 @@
 import apiClient from '../lib/apiClient';
 import { Shift } from '../types';
+import { ShiftReportData } from '../components/POS/ShiftReport';
 
 export const shiftService = {
   openShift: async (userId: string, userName: string, startingCash: number, restaurantId?: string): Promise<Shift | null> => {
@@ -52,5 +53,15 @@ export const shiftService = {
     } catch (error) {
       console.error(error);
     }
-  }
+  },
+
+  getShiftReport: async (shiftId: string): Promise<ShiftReportData | null> => {
+    try {
+      const response = await apiClient.get(`/shifts/${shiftId}/report`);
+      return response.data as ShiftReportData;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  },
 };

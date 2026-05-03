@@ -287,6 +287,8 @@ CREATE TABLE IF NOT EXISTS printers (
   name TEXT NOT NULL,
   type TEXT CHECK (type IN ('receipt', 'kitchen', 'bar')),
   connection_type TEXT DEFAULT 'browser',
+  ip_address TEXT,
+  port INTEGER,
   station TEXT,
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

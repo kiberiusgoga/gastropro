@@ -141,11 +141,13 @@ export const posService = {
     }
   },
 
-  updateOrderItemStatus: async (orderId: string, itemId: string, status: OrderItem['status']) => {
+  updateOrderItemStatus: async (orderId: string, itemId: string, status: OrderItem['status']): Promise<{ deductionWarnings?: Array<{ ingredientName: string; inventoryUnit: string }> }> => {
     try {
-      await apiClient.put(`/orders/${orderId}/items/${itemId}`, { status });
+      const res = await apiClient.put(`/orders/${orderId}/items/${itemId}`, { status });
+      return res.data ?? {};
     } catch (error) {
       console.error(error);
+      return {};
     }
   },
 

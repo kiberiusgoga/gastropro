@@ -1,7 +1,5 @@
 import axios from 'axios';
-import { setupMockApi } from './mockApiAdapter';
 
-// Get API URL from environment falling back to current domain + /api
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const apiClient = axios.create({
@@ -11,11 +9,6 @@ export const apiClient = axios.create({
   },
 });
 
-// Setup mock API Adapter for seamless offline demo experience
-// This intercepts requests that fail due to missing database and falls back to LocalStorage mock DB
-setupMockApi(apiClient);
-
-// Configure interceptor to attach JWT token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('gastropro_token');
   if (token && config.headers) {
@@ -26,15 +19,55 @@ apiClient.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-// Handle global 401s (token expire) etc.
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+const onTokenRefreshed = (token: string) => {
+  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers = [];
+};
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      // Possible token expiration, could do refresh logic here
-      // localStorage.removeItem('gastropro_token');
-      // window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+
+    if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      const refreshToken = localStorage.getItem('gastropro_refresh_token');
+      if (!refreshToken || refreshToken === 'demo-refresh-token') {
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          refreshSubscribers.push((token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(apiClient(originalRequest));
+          });
+        });
+      }
+
+      isRefreshing = true;
+      try {
+        const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+        const { accessToken } = res.data;
+        localStorage.setItem('gastropro_token', accessToken);
+        onTokenRefreshed(accessToken);
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return apiClient(originalRequest);
+      } catch {
+        localStorage.removeItem('gastropro_token');
+        localStorage.removeItem('gastropro_refresh_token');
+        localStorage.removeItem('gastropro_user');
+        window.location.href = '/';
+        return Promise.reject(error);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
     return Promise.reject(error);
   }
 );
