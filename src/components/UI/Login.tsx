@@ -50,7 +50,7 @@ const Login = ({ onNewRestaurant }: LoginProps) => {
   const handleDemoLogin = async () => {
     setLoading(true);
     try {
-      const user = await authService.login('admin@gastropro.mk', 'kiberius123');
+      const user = await authService.login('admin@gastropro.mk', 'admin123');
       toast.success(t('login_success') + ' (Demo)');
       setUser(user);
     } catch (error: unknown) {

@@ -1,6 +1,6 @@
-# Deployment Architecture: StoreHouse MK
+# Deployment Architecture: GastroPro
 
-This document outlines the recommended production deployment architecture for the StoreHouse MK inventory system.
+This document outlines the recommended production deployment architecture for the GastroPro restaurant management system.
 
 ## 1. High-Level Architecture
 
@@ -9,7 +9,6 @@ graph TD
     User((User)) -->|HTTPS| Frontend[Frontend: Vercel / Netlify]
     Frontend -->|API Calls| Backend[Backend: Render / Railway / Cloud Run]
     Backend -->|SQL| DB[(PostgreSQL: Supabase / Neon / RDS)]
-    Backend -->|Auth| Firebase[Firebase Auth]
 ```
 
 ## 2. Component Details
@@ -31,8 +30,8 @@ graph TD
 *   **Reasoning**: These providers offer managed backups, connection pooling (PgBouncer), and easy scaling. Neon is excellent for "serverless" Postgres that scales with the backend.
 
 ### D. Authentication
-*   **Provider**: [Firebase Authentication](https://firebase.google.com/docs/auth).
-*   **Reasoning**: Already integrated into the app. It handles secure token management, social logins, and user sessions without requiring backend state.
+*   **Provider**: JWT (JSON Web Tokens) via Express (`src/auth.ts`).
+*   **Reasoning**: Access tokens (short-lived) and refresh tokens (long-lived) are issued by the Express backend and stored in `localStorage`. The token refresh flow is handled transparently by the Axios interceptor in `src/lib/apiClient.ts`. No third-party auth service is required.
 
 ---
 
@@ -53,9 +52,6 @@ You will need to configure these variables in your hosting provider's dashboard:
 | Variable | Description |
 | :--- | :--- |
 | `VITE_API_URL` | URL of your deployed backend |
-| `VITE_FIREBASE_API_KEY` | Firebase Config |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Config |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase Config |
 
 ---
 

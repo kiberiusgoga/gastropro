@@ -6,29 +6,15 @@ let authListeners: Array<(user: User | null) => void> = [];
 export const authService = {
   login: async (email: string, password: string): Promise<User> => {
     try {
-      // Demo login bypass locally
-      if (email === 'admin@storehouse.mk' || email === 'admin@gastropro.mk' || email === 'demo') {
-        const demoUser: User = {
-          id: 'demo123',
-          name: 'Администратор',
-          email: 'admin@storehouse.mk',
-          role: 'Admin',
-          active: true,
-          restaurantId: 'demo-restaurant-id',
-          createdAt: new Date().toISOString()
-        };
-        const accessToken = 'demo-access-token';
-        const refreshToken = 'demo-refresh-token';
-        
-        localStorage.setItem('gastropro_token', accessToken);
-        localStorage.setItem('gastropro_refresh_token', refreshToken);
-        localStorage.setItem('gastropro_user', JSON.stringify(demoUser));
+      // Demo shortcut — redirect to real API with seeded credentials
+      const resolvedEmail = (email === 'demo' || email === 'admin@storehouse.mk')
+        ? 'admin@gastropro.mk'
+        : email;
+      const resolvedPassword = (email === 'demo' || email === 'admin@storehouse.mk')
+        ? 'admin123'
+        : password;
 
-        authListeners.forEach(listener => listener(demoUser));
-        return demoUser;
-      }
-
-      const response = await apiClient.post('/auth/login', { email, password });
+      const response = await apiClient.post('/auth/login', { email: resolvedEmail, password: resolvedPassword });
       const { accessToken, refreshToken, user } = response.data;
       
       localStorage.setItem('gastropro_token', accessToken);
@@ -79,15 +65,21 @@ export const authService = {
 
   onAuthChange: (callback: (user: User | null) => void) => {
     authListeners.push(callback);
-    // trigger immediately with current state
+
+    // Clear stale demo sessions that used fake tokens
+    const token = localStorage.getItem('gastropro_token');
+    if (token === 'demo-access-token') {
+      localStorage.removeItem('gastropro_token');
+      localStorage.removeItem('gastropro_refresh_token');
+      localStorage.removeItem('gastropro_user');
+      localStorage.removeItem('active_shift');
+      setTimeout(() => callback(null), 100);
+      return () => { authListeners = authListeners.filter(l => l !== callback); };
+    }
+
     const current = authService.getCurrentUser();
-    
-    // Simulate async resolution to match previous firebase behavior
-    setTimeout(() => {
-        callback(current);
-    }, 100);
-    
-    // Return unsubscribe function
+    setTimeout(() => callback(current), 100);
+
     return () => {
       authListeners = authListeners.filter(l => l !== callback);
     };

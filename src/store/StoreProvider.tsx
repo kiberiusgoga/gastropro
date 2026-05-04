@@ -215,20 +215,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const unsubscribe = authService.onAuthChange(async (u) => {
       setUser(u);
       if (u && u.restaurantId) {
-        if (u.restaurantId === 'demo-restaurant-id') {
-          setActiveRestaurant({
-            id: 'demo-restaurant-id',
-            name: 'GastroPro Demo',
-            address: 'Бул. Партизански одреди бб, Скопје',
-            ownerId: 'demo123',
-            subscriptionPlan: 'pro',
-            createdAt: new Date().toISOString(),
-            active: true,
-            settings: { currency: 'MKD', timezone: 'Europe/Skopje' }
-          });
-        } else {
-          await fetchRestaurant(u.restaurantId);
-        }
+        await fetchRestaurant(u.restaurantId);
       } else {
         setActiveRestaurant(null);
       }

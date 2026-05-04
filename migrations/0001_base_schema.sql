@@ -1,10 +1,10 @@
--- PostgreSQL Schema for Storehouse Management System
--- Production Ready Migration Script
+-- Migration: 0001_base_schema
+-- Description: Full base schema — 29 tables, indexes, triggers
+-- Safe to re-run: all DDL uses IF NOT EXISTS
 
--- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Restaurants (New Table for Multi-Tenancy)
+-- Restaurants
 CREATE TABLE IF NOT EXISTS restaurants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Categories
+-- Categories (inventory)
 CREATE TABLE IF NOT EXISTS categories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Products
+-- Products (inventory items)
 CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE NOT NULL,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS invoice_items (
   total NUMERIC(15, 2) NOT NULL
 );
 
--- Transactions (Audit Trail)
+-- Transactions (inventory audit trail)
 CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE NOT NULL,
@@ -128,56 +128,8 @@ CREATE TABLE IF NOT EXISTS inventory_check_items (
   diff NUMERIC(15, 3) NOT NULL
 );
 
--- Indexes for performance optimization
-CREATE INDEX IF NOT EXISTS idx_categories_restaurant_id ON categories(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_users_restaurant_id ON users(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_products_restaurant_id ON products(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_restaurant_id ON invoices(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_restaurant_id ON transactions(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_bundles_restaurant_id ON bundles(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_inventory_checks_restaurant_id ON inventory_checks(restaurant_id);
-
-CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
-CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
-CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
-
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
-
-CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number);
-CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
-
-CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
-CREATE INDEX IF NOT EXISTS idx_invoice_items_product_id ON invoice_items(product_id);
-
-CREATE INDEX IF NOT EXISTS idx_transactions_product_id ON transactions(product_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
-
-CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle_id ON bundle_items(bundle_id);
-CREATE INDEX IF NOT EXISTS idx_bundle_items_product_id ON bundle_items(product_id);
-
-CREATE INDEX IF NOT EXISTS idx_inventory_check_items_check_id ON inventory_check_items(check_id);
-CREATE INDEX IF NOT EXISTS idx_inventory_check_items_product_id ON inventory_check_items(product_id);
-
--- Trigger to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-DROP TRIGGER IF EXISTS update_products_updated_at ON products;
-CREATE TRIGGER update_products_updated_at
-    BEFORE UPDATE ON products
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
 -- ==========================================
--- POS System Tables (Frontend Migration)
+-- POS System Tables
 -- ==========================================
 
 -- Menu Categories
@@ -200,7 +152,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
   price NUMERIC(15, 2) NOT NULL DEFAULT 0,
   active BOOLEAN NOT NULL DEFAULT TRUE,
   available BOOLEAN NOT NULL DEFAULT TRUE,
-  preparation_station TEXT, -- e.g., 'kitchen', 'bar', 'grill'
+  preparation_station TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -294,31 +246,8 @@ CREATE TABLE IF NOT EXISTS printers (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for POS tables
-CREATE INDEX IF NOT EXISTS idx_menu_categories_restaurant_id ON menu_categories(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_menu_items_restaurant_id ON menu_items(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_restaurant_tables_restaurant_id ON restaurant_tables(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_customers_restaurant_id ON customers(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_shifts_restaurant_id ON shifts(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_orders_restaurant_id ON orders(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-CREATE INDEX IF NOT EXISTS idx_printers_restaurant_id ON printers(restaurant_id);
-
-DROP TRIGGER IF EXISTS update_menu_items_updated_at ON menu_items;
-CREATE TRIGGER update_menu_items_updated_at
-    BEFORE UPDATE ON menu_items
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_order_items_updated_at ON order_items;
-DROP TRIGGER IF EXISTS update_order_items_updated_at ON order_items;
-CREATE TRIGGER update_order_items_updated_at
-    BEFORE UPDATE ON order_items
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
 -- ==========================================
--- SAAS Secondary Modules (Phase 4)
+-- SaaS Modules
 -- ==========================================
 
 -- Suppliers
@@ -399,11 +328,6 @@ CREATE TABLE IF NOT EXISTS deliveries (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TRIGGER update_deliveries_updated_at
-    BEFORE UPDATE ON deliveries
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
 -- Reservations
 CREATE TABLE IF NOT EXISTS reservations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -432,7 +356,7 @@ CREATE TABLE IF NOT EXISTS discounts (
   active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Feature Flags & Subscriptions
+-- Feature Flags
 CREATE TABLE IF NOT EXISTS feature_flags (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plan_id TEXT NOT NULL,
@@ -442,6 +366,7 @@ CREATE TABLE IF NOT EXISTS feature_flags (
   multi_restaurant_enabled BOOLEAN DEFAULT FALSE
 );
 
+-- Subscriptions
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE NOT NULL,
@@ -453,3 +378,82 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   end_date TIMESTAMP WITH TIME ZONE,
   trial_end_date TIMESTAMP WITH TIME ZONE
 );
+
+-- ==========================================
+-- Restaurants: extra columns added post-MVP
+-- ==========================================
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS tax_number TEXT;
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'MKD';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'Europe/Skopje';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'pro';
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES users(id) ON DELETE SET NULL;
+
+-- ==========================================
+-- Indexes
+-- ==========================================
+CREATE INDEX IF NOT EXISTS idx_categories_restaurant_id         ON categories(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_users_restaurant_id              ON users(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_users_email                      ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_active                     ON users(active);
+CREATE INDEX IF NOT EXISTS idx_products_restaurant_id           ON products(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_products_category_id             ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_barcode                 ON products(barcode);
+CREATE INDEX IF NOT EXISTS idx_products_active                  ON products(active);
+CREATE INDEX IF NOT EXISTS idx_invoices_restaurant_id           ON invoices(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number          ON invoices(invoice_number);
+CREATE INDEX IF NOT EXISTS idx_invoices_user_id                 ON invoices(user_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_date                    ON invoices(date);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id         ON invoice_items(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_product_id         ON invoice_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_restaurant_id       ON transactions(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_product_id          ON transactions(product_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id             ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_date                ON transactions(date);
+CREATE INDEX IF NOT EXISTS idx_bundles_restaurant_id            ON bundles(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle_id           ON bundle_items(bundle_id);
+CREATE INDEX IF NOT EXISTS idx_bundle_items_product_id          ON bundle_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_checks_restaurant_id   ON inventory_checks(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_check_items_check_id   ON inventory_check_items(check_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_check_items_product_id ON inventory_check_items(product_id);
+CREATE INDEX IF NOT EXISTS idx_menu_categories_restaurant_id    ON menu_categories(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_menu_items_restaurant_id         ON menu_items(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_restaurant_tables_restaurant_id  ON restaurant_tables(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_customers_restaurant_id          ON customers(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_shifts_restaurant_id             ON shifts(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_orders_restaurant_id             ON orders(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id             ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_printers_restaurant_id           ON printers(restaurant_id);
+
+-- ==========================================
+-- Triggers
+-- ==========================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_products_updated_at    ON products;
+DROP TRIGGER IF EXISTS update_menu_items_updated_at  ON menu_items;
+DROP TRIGGER IF EXISTS update_order_items_updated_at ON order_items;
+DROP TRIGGER IF EXISTS update_deliveries_updated_at  ON deliveries;
+
+CREATE TRIGGER update_products_updated_at
+  BEFORE UPDATE ON products FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_menu_items_updated_at
+  BEFORE UPDATE ON menu_items FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_order_items_updated_at
+  BEFORE UPDATE ON order_items FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_deliveries_updated_at
+  BEFORE UPDATE ON deliveries FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();

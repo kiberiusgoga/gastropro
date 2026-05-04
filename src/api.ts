@@ -114,7 +114,20 @@ router.get('/restaurants/:id', authenticateToken, asyncHandler(async (req: AuthR
   }
   const result = await pool.query('SELECT * FROM restaurants WHERE id = $1', [req.params.id]);
   if (result.rowCount === 0) throw new NotFoundError('Restaurant not found');
-  res.json(result.rows[0]);
+  const r = result.rows[0];
+  res.json({
+    id: r.id,
+    name: r.name,
+    address: r.address ?? '',
+    ownerId: r.owner_id ?? '',
+    subscriptionPlan: r.subscription_plan ?? 'pro',
+    createdAt: r.created_at,
+    active: r.active,
+    settings: {
+      currency: r.currency ?? 'MKD',
+      timezone: r.timezone ?? 'Europe/Skopje',
+    },
+  });
 }));
 
 router.put('/restaurants/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
@@ -973,7 +986,7 @@ router.get('/menu-items', authenticateToken, asyncHandler(async (req: AuthReques
       LEFT JOIN menu_categories mc ON mc.id = mi.menu_category_id
       LEFT JOIN menu_item_categories mic ON mic.menu_item_id = mi.id
       WHERE mi.restaurant_id = $1
-      GROUP BY mi.id, mc.name
+      GROUP BY mi.id, mc.name, mc.sort_order
       ORDER BY mc.sort_order, mi.name`;
     params = [req.user?.restaurantId];
   }
