@@ -47,27 +47,41 @@ beforeEach(() => {
 })
 
 // ---------------------------------------------------------------------------
-// authService.login — demo bypass
+// authService.login — alias redirect
+// "demo" and "admin@storehouse.mk" are legacy aliases that resolve to
+// admin@gastropro.mk / admin123 and go through the real API.
 // ---------------------------------------------------------------------------
 
-describe('authService.login — demo bypass', () => {
-  it('bypasses API for admin@storehouse.mk', async () => {
-    const user = await authService.login('admin@storehouse.mk', 'any')
-    expect(user.id).toBe('demo123')
-    expect(user.role).toBe('Admin')
-    expect(mockPost).not.toHaveBeenCalled()
-  })
-
-  it('bypasses API for email "demo"', async () => {
-    const user = await authService.login('demo', 'any')
-    expect(user.id).toBe('demo123')
-    expect(mockPost).not.toHaveBeenCalled()
-  })
-
-  it('demo login stores tokens in localStorage', async () => {
+describe('authService.login — alias redirect', () => {
+  it('redirects admin@storehouse.mk to admin@gastropro.mk credentials', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: { accessToken: 'alias-acc', refreshToken: 'alias-ref', user: realUser },
+    } as never)
     await authService.login('admin@storehouse.mk', 'any')
-    expect(localStorage.getItem('gastropro_token')).toBe('demo-access-token')
-    expect(localStorage.getItem('gastropro_refresh_token')).toBe('demo-refresh-token')
+    expect(mockPost).toHaveBeenCalledWith('/auth/login', {
+      email: 'admin@gastropro.mk',
+      password: 'admin123',
+    })
+  })
+
+  it('redirects "demo" alias to admin@gastropro.mk credentials', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: { accessToken: 'alias-acc', refreshToken: 'alias-ref', user: realUser },
+    } as never)
+    await authService.login('demo', 'any')
+    expect(mockPost).toHaveBeenCalledWith('/auth/login', {
+      email: 'admin@gastropro.mk',
+      password: 'admin123',
+    })
+  })
+
+  it('alias login stores tokens returned by the API in localStorage', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: { accessToken: 'alias-acc', refreshToken: 'alias-ref', user: realUser },
+    } as never)
+    await authService.login('admin@storehouse.mk', 'any')
+    expect(localStorage.getItem('gastropro_token')).toBe('alias-acc')
+    expect(localStorage.getItem('gastropro_refresh_token')).toBe('alias-ref')
   })
 })
 
@@ -151,11 +165,9 @@ describe('authService.getCurrentUser', () => {
     expect(user?.role).toBe('Manager')
   })
 
-  it('returns a test admin user in non-production when localStorage is empty', () => {
-    // NODE_ENV is 'test' (not 'production'), so a default admin is returned
+  it('returns null when localStorage is empty', () => {
     const user = authService.getCurrentUser()
-    expect(user).not.toBeNull()
-    expect(user?.role).toBe('Admin')
+    expect(user).toBeNull()
   })
 
   it('returns null for corrupted JSON in localStorage', () => {

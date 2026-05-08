@@ -244,7 +244,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
 
                         {/* Item Actions */}
                         <div className="flex gap-1.5 mt-1">
-                          {item.status === 'pending' || item.status === 'sent_to_kitchen' ? (
+                          {item.status === 'pending' ? (
                             <button
                               onClick={() => handleUpdateItemStatus(order.id, item.id, 'preparing')}
                               className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-sm shadow-blue-100"

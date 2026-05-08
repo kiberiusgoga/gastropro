@@ -18,6 +18,8 @@ import AnalyticsDashboard from './pages/Analytics/AnalyticsDashboard';
 import OrdersView from './components/OrdersView';
 import SettingsPage from './pages/Settings/SettingsPage';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
+import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
 import { featureFlagService } from './services/featureFlagService';
 import { billingService } from './services/billingService';
 import { FeatureFlags } from './types';
@@ -65,6 +67,10 @@ const AppContent = () => {
     };
     fetchSubAndFlags();
   }, [user?.restaurantId]);
+
+  const path = window.location.pathname;
+  if (path === '/forgot-password') return <><Toaster position="top-right" richColors /><ForgotPasswordPage /></>;
+  if (path === '/reset-password') return <><Toaster position="top-right" richColors /><ResetPasswordPage /></>;
 
   if (showSetupWizard || (user && !user.restaurantId)) {
     return (

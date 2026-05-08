@@ -153,21 +153,15 @@ export const posService = {
 
   sendToKitchen: async (orderId: string, restaurantId?: string) => {
     try {
-      // 1. Update order status
-      await apiClient.put(`/orders/${orderId}`, { status: 'sent_to_kitchen' });
-
-      // 2. Fetch order to sync items status
+      // Fetch order items for inventory deduction — order status stays 'open'
       const response = await apiClient.get('/orders');
       const orders = response.data.map(mapOrder);
       const order = orders.find((o: Order) => o.id === orderId);
-      
+
       if (!order) throw new Error('Order not found');
-      
+
       for (const item of order.items) {
         if (item.status === 'pending') {
-          await apiClient.put(`/orders/${orderId}/items/${item.id}`, { status: 'sent_to_kitchen' });
-
-          // 3. Inventory Deduction (Deduct ingredients when sent to kitchen via inventoryService)
           if (item.isBundle) {
             const ingredients = await bundleService.getBundleItems(item.productId);
             for (const ingredient of ingredients) {
@@ -199,29 +193,6 @@ export const posService = {
         }
       }
 
-      console.log(`[WebSocket] Emitting order:new for order ${orderId}`);
-      return true;
-    } catch (error) {
-      console.error(error);
-      return false;
-    }
-  },
-
-  serveOrder: async (orderId: string) => {
-    try {
-      await apiClient.put(`/orders/${orderId}`, { status: 'served' });
-
-      const response = await apiClient.get('/orders');
-      const orders = response.data.map(mapOrder);
-      const order = orders.find((o: Order) => o.id === orderId);
-      
-      if (order) {
-        for (const item of order.items) {
-          if (item.status === 'ready') {
-            await apiClient.put(`/orders/${orderId}/items/${item.id}`, { status: 'served' });
-          }
-        }
-      }
       return true;
     } catch (error) {
       console.error(error);

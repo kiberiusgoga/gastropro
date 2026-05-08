@@ -44,12 +44,16 @@ export const authService = {
   },
 
   logout: async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Network error or already-expired token — still clear local state.
+      // Local logout always succeeds regardless of server response.
+    }
     localStorage.removeItem('gastropro_token');
     localStorage.removeItem('gastropro_refresh_token');
     localStorage.removeItem('gastropro_user');
-    localStorage.removeItem('active_shift'); // Clean up active shift as well
-    
-    // trigger listeners
+    localStorage.removeItem('active_shift');
     authListeners.forEach(listener => listener(null));
   },
 

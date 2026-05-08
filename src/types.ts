@@ -339,7 +339,7 @@ export interface OrderItem {
   name: string;
   quantity: number;
   price: number;
-  status: 'pending' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served' | 'cancelled';
+  status: 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled';
   preparationStation?: PreparationStation;
   isBundle: boolean;
   note?: string;
@@ -355,7 +355,7 @@ export interface Order {
   tableId?: string;
   customerId?: string;
   items: OrderItem[];
-  status: 'order_created' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served' | 'paid' | 'closed' | 'cancelled' | 'out_for_delivery' | 'delivered';
+  status: 'open' | 'paid' | 'cancelled';
   orderType: 'dine_in' | 'takeaway' | 'delivery';
   deliveryAddress?: string;
   deliveryPhone?: string;

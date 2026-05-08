@@ -26,7 +26,7 @@ import router from '../../src/api'
 import { errorMiddleware } from '../../src/middleware/errorMiddleware'
 import pool from '../../src/db'
 import bcrypt from 'bcryptjs'
-import { generateRefreshToken, generateAccessToken } from '../../src/auth'
+import { generateAccessToken } from '../../src/auth'
 
 const app = express()
 app.use(express.json())
@@ -102,6 +102,17 @@ describe('POST /api/auth/login', () => {
 // ---------------------------------------------------------------------------
 
 describe('POST /api/auth/refresh', () => {
+  // Rotation is DB-backed; set up a client that returns no rows (token not found → 401)
+  const refreshMockClient = { query: vi.fn(), release: vi.fn() }
+
+  beforeEach(() => {
+    refreshMockClient.query.mockReset()
+    refreshMockClient.release.mockReset()
+    mockPool.connect.mockResolvedValue(refreshMockClient)
+    // BEGIN / SELECT (empty) / ROLLBACK
+    refreshMockClient.query.mockResolvedValue({ rows: [], rowCount: 0 })
+  })
+
   it('returns 401 when refresh token is missing', async () => {
     const res = await request(app).post('/api/auth/refresh').send({})
     expect(res.status).toBe(401)
@@ -118,12 +129,7 @@ describe('POST /api/auth/refresh', () => {
     expect(res.status).toBe(401)
   })
 
-  it('returns 200 with a new accessToken for a valid refresh token', async () => {
-    const refreshToken = generateRefreshToken({ id: 'u1', email: 'a@b.com', role: 'Admin', restaurantId: 'r1' })
-    const res = await request(app).post('/api/auth/refresh').send({ refreshToken })
-    expect(res.status).toBe(200)
-    expect(res.body).toHaveProperty('accessToken')
-  })
+  // Full rotation success path is covered by tests/backend/refresh-rotation.test.ts test 1.
 })
 
 // ---------------------------------------------------------------------------

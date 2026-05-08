@@ -254,7 +254,7 @@ const POSModule = () => {
         customerId: selectedCustomer?.id,
         userId: user.id,
         shiftId: activeShift.id,
-        status: 'order_created',
+        status: 'open',
         orderType,
         guestCount: 1,
         totalAmount: 0,

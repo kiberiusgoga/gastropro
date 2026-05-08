@@ -41,9 +41,7 @@ const OrdersView: React.FC = () => {
     switch (status) {
       case 'paid': return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20';
       case 'cancelled': return 'text-red-500 bg-red-50 dark:bg-red-900/20';
-      case 'open':
-      case 'preparing': 
-      case 'sent_to_kitchen': return 'text-blue-500 bg-blue-50 dark:bg-blue-900/20';
+      case 'open': return 'text-blue-500 bg-blue-50 dark:bg-blue-900/20';
       default: return 'text-zinc-500 bg-zinc-50 dark:bg-zinc-900/20';
     }
   };

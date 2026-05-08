@@ -52,16 +52,20 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
       try {
         const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-        const { accessToken } = res.data;
+        const { accessToken, refreshToken: newRefreshToken } = res.data;
         localStorage.setItem('gastropro_token', accessToken);
+        if (newRefreshToken) localStorage.setItem('gastropro_refresh_token', newRefreshToken);
         onTokenRefreshed(accessToken);
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
-      } catch {
+      } catch (refreshError: unknown) {
+        const code = (refreshError as { response?: { data?: { code?: string } } })
+          ?.response?.data?.code;
         localStorage.removeItem('gastropro_token');
         localStorage.removeItem('gastropro_refresh_token');
         localStorage.removeItem('gastropro_user');
-        window.location.href = '/';
+        // TOKEN_THEFT gets a distinct redirect so the app can show a security notice
+        window.location.href = code === 'TOKEN_THEFT' ? '/?reason=security' : '/';
         return Promise.reject(error);
       } finally {
         isRefreshing = false;

@@ -61,7 +61,7 @@ const WaiterTerminal = () => {
       setCurrentOrder({
         tableId: table.id,
         items: [],
-        status: 'order_created',
+        status: 'open',
         orderType: 'dine_in',
         totalAmount: 0,
         userId: user?.id || ''

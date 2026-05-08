@@ -5,8 +5,23 @@ import { AuthenticationError, ForbiddenError } from './lib/errors';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_access_secret';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'fallback_refresh_secret';
+function requireSecret(name: string): string {
+  const val = process.env[name];
+  if (!val || val.length < 32) {
+    console.error(
+      `FATAL: Environment variable ${name} must be set and at least 32 characters long. ` +
+      `Refusing to start. Set it in your .env file or deployment environment.`
+    );
+    process.exit(1);
+  }
+  return val;
+}
+
+const JWT_SECRET = requireSecret('JWT_SECRET');
+const REFRESH_SECRET = requireSecret('JWT_REFRESH_SECRET');
+
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY = '7d';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -14,15 +29,16 @@ export interface AuthRequest extends Request {
     email: string;
     role: string;
     restaurantId: string;
+    mustChangePassword?: boolean;
   };
 }
 
-export const generateAccessToken = (user: { id: string; email: string; role: string; restaurantId: string }) => {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: '8h' });
+export const generateAccessToken = (user: { id: string; email: string; role: string; restaurantId: string; mustChangePassword?: boolean }) => {
+  return jwt.sign(user, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
 };
 
 export const generateRefreshToken = (user: { id: string; email: string; role: string; restaurantId: string }) => {
-  return jwt.sign(user, REFRESH_SECRET, { expiresIn: '7d' });
+  return jwt.sign(user, REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
 };
 
 export const verifyRefreshToken = (token: string) => {
@@ -49,7 +65,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return next(new AuthenticationError('Invalid or expired token'));
-    req.user = user as { id: string; email: string; role: string; restaurantId: string };
+    req.user = user as { id: string; email: string; role: string; restaurantId: string; mustChangePassword?: boolean };
     next();
   });
 };

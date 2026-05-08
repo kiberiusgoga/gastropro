@@ -152,7 +152,17 @@ const Login = ({ onNewRestaurant }: LoginProps) => {
             </button>
           </form>
 
-          <div className="mt-10 pt-10 border-t border-zinc-800 text-center">
+          <div className="mt-8 text-center">
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/forgot-password'; }}
+              className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] hover:text-emerald-400 transition-colors"
+            >
+              Заборавена лозинка?
+            </button>
+          </div>
+
+          <div className="mt-6 pt-8 border-t border-zinc-800 text-center">
             <button
               type="button"
               onClick={onNewRestaurant}

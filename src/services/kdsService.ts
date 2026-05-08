@@ -1,4 +1,5 @@
 import apiClient from '../lib/apiClient';
+import { authService } from './authService';
 import { Order, OrderItem } from '../types';
 
 // ─── Order fetcher ─────────────────────────────────────────────────────────────
@@ -67,34 +68,47 @@ export const kdsService = {
       pollInterval = setInterval(refresh, 10000);
     };
 
-    const connectSSE = () => {
+    const connectSSE = async () => {
       if (destroyed) return;
-      const token = localStorage.getItem('gastropro_token');
-      if (!token) { startPollingFallback(); return; }
+      try {
+        // Exchange a fresh short-lived ticket — JWT never appears in the URL
+        const { data } = await apiClient.post<{ ticket: string }>('/auth/sse-ticket');
+        if (destroyed) return; // destroyed while awaiting ticket
 
-      evtSource = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
+        evtSource = new EventSource(`/api/events?ticket=${data.ticket}`);
 
-      evtSource.addEventListener('orders_updated', () => refresh());
+        evtSource.addEventListener('orders_updated', () => refresh());
 
-      evtSource.onopen = () => {
-        // Clear polling fallback if SSE reconnected
-        if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
-      };
+        // Server pushes this when the user's account is deactivated mid-session
+        evtSource.addEventListener('forced_logout', () => {
+          evtSource?.close();
+          evtSource = null;
+          authService.logout();
+          window.location.href = '/';
+        });
 
-      evtSource.onerror = () => {
-        evtSource?.close();
-        evtSource = null;
-        if (!destroyed) {
-          startPollingFallback();
-          // Attempt SSE reconnect after 5s
-          setTimeout(connectSSE, 5000);
-        }
-      };
+        evtSource.onopen = () => {
+          if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+        };
+
+        evtSource.onerror = () => {
+          evtSource?.close();
+          evtSource = null;
+          if (!destroyed) {
+            startPollingFallback();
+            // Get a new ticket for the reconnect attempt — old ticket is consumed
+            setTimeout(connectSSE, 5000);
+          }
+        };
+      } catch {
+        // /auth/sse-ticket failed (network error, 401) — fall back to polling
+        if (!destroyed) startPollingFallback();
+      }
     };
 
-    // Initial data load + SSE connection
+    // Initial data load + SSE connection (errors handled inside connectSSE)
     refresh();
-    connectSSE();
+    void connectSSE();
 
     return () => {
       destroyed = true;
