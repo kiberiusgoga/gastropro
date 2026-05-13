@@ -343,6 +343,33 @@ const mk = {
   generating_data: 'Генерирање податоци...',
   demo_data_success: 'Демо податоците се успешно генерирани!',
   demo_data_error: 'Грешка при генерирање податоци',
+
+  vat_rate: 'ДДВ стапка',
+  vat_exempt: 'Изземено',
+  vat_food_standard: 'Стандард за храна (10%)',
+  vat_alcohol_standard: 'Стандард за алкохол (18%)',
+
+  // Shifts & Z-report
+  close_shift: 'Затвори смена',
+  close_shift_subtitle: 'Внеси реален кеш и генерирај Z-извештај',
+  close_shift_warning: 'По затворањето, смената не може да се повторно отвори. Сите нарачки мора да бидат платени или откажани.',
+  close_and_generate_z: 'Затвори и генерирај Z',
+  shift_closed_success: 'Смената е затворена и Z-извештајот е генериран',
+  gross_revenue: 'Бруто приход',
+  order_count: 'Број на нарачки',
+  expected_cash: 'Очекуван кеш',
+  actual_cash: 'Реален кеш',
+  cash_difference: 'Разлика',
+  shortage: 'Манјак',
+  cash_reconciliation: 'Усогласување на каса',
+  financial_summary: 'Финансиско резиме',
+  vat_breakdown: 'ДДВ разбивање',
+  payment_breakdown: 'По начин на плаќање',
+  shift_history: 'Историја на смени',
+  no_shift_history: 'Нема затворени смени',
+  back: 'Назад',
+  print: 'Печати',
+  optional: 'опционално',
 };
 
 const en: Record<keyof typeof mk, string> = {
@@ -664,6 +691,33 @@ const en: Record<keyof typeof mk, string> = {
   generating_data: 'Generating data...',
   demo_data_success: 'Demo data generated successfully!',
   demo_data_error: 'Error generating demo data',
+
+  vat_rate: 'VAT rate',
+  vat_exempt: 'Exempt',
+  vat_food_standard: 'Standard for food (10%)',
+  vat_alcohol_standard: 'Standard for alcohol (18%)',
+
+  // Shifts & Z-report
+  close_shift: 'Close shift',
+  close_shift_subtitle: 'Enter actual cash and generate Z-report',
+  close_shift_warning: 'After closing, the shift cannot be reopened. All orders must be paid or cancelled.',
+  close_and_generate_z: 'Close & generate Z',
+  shift_closed_success: 'Shift closed and Z-report generated',
+  gross_revenue: 'Gross revenue',
+  order_count: 'Order count',
+  expected_cash: 'Expected cash',
+  actual_cash: 'Actual cash',
+  cash_difference: 'Difference',
+  shortage: 'Shortage',
+  cash_reconciliation: 'Cash reconciliation',
+  financial_summary: 'Financial summary',
+  vat_breakdown: 'VAT breakdown',
+  payment_breakdown: 'By payment method',
+  shift_history: 'Shift history',
+  no_shift_history: 'No closed shifts',
+  back: 'Back',
+  print: 'Print',
+  optional: 'optional',
 };
 
 const sq: Record<keyof typeof mk, string> = {
@@ -985,6 +1039,33 @@ const sq: Record<keyof typeof mk, string> = {
   generating_data: 'Duke gjeneruar të dhëna...',
   demo_data_success: 'Të dhënat demo u gjeneruan me sukses!',
   demo_data_error: 'Gabim gjatë gjenerimit të të dhënave',
+
+  vat_rate: 'Norma e TVSH-së',
+  vat_exempt: 'E liruar',
+  vat_food_standard: 'Standard për ushqim (10%)',
+  vat_alcohol_standard: 'Standard për alkool (18%)',
+
+  // Shifts & Z-report
+  close_shift: 'Mbyll turnin',
+  close_shift_subtitle: 'Shkruaj arkën reale dhe gjenero raportin Z',
+  close_shift_warning: 'Pas mbylljes, turni nuk mund të rihapet. Të gjitha porositë duhet të paguhen ose anulohen.',
+  close_and_generate_z: 'Mbyll dhe gjenero Z',
+  shift_closed_success: 'Turni u mbyll dhe raporti Z u gjenerua',
+  gross_revenue: 'Të ardhura bruto',
+  order_count: 'Numri i porosive',
+  expected_cash: 'Arka e pritur',
+  actual_cash: 'Arka reale',
+  cash_difference: 'Dallim',
+  shortage: 'Mungesë',
+  cash_reconciliation: 'Barazim i arkës',
+  financial_summary: 'Përmbledhje financiare',
+  vat_breakdown: 'Zbërthimi i TVSH-së',
+  payment_breakdown: 'Sipas mënyrës së pagesës',
+  shift_history: 'Historia e turneve',
+  no_shift_history: 'Nuk ka turne të mbyllura',
+  back: 'Kthehu',
+  print: 'Printo',
+  optional: 'opsional',
 };
 
 i18n

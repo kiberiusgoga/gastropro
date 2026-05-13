@@ -66,6 +66,8 @@ describe('Issue 1 — table status cross-tenant isolation', () => {
   it('POST /orders — UPDATE restaurant_tables must include restaurant_id in WHERE params', async () => {
     // Tenant A (r1) creates an order with table_id='table-r2' belonging to Tenant B.
     // The UPDATE restaurant_tables query must be scoped by restaurant_id ('r1').
+    // requireActiveShift uses pool.query (not client.query)
+    mockPool.query.mockResolvedValueOnce({ rows: [{ id: 'shift-1' }] })
     const mockClient = makeClient([
       { rows: [], rowCount: 0 },                                                 // BEGIN
       { rows: [{ id: 'order-1', restaurant_id: 'r1', table_id: 'table-r2' }] }, // INSERT orders

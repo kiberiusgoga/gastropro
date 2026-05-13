@@ -58,8 +58,8 @@ const BillingView: React.FC<BillingViewProps> = ({ restaurant, onUpgrade }) => {
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-sm">
+    <div className="space-y-4 md:space-y-8">
+      <div className="bg-white dark:bg-zinc-900 p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-sm">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-2xl">
             <CreditCard size={24} />
@@ -78,12 +78,12 @@ const BillingView: React.FC<BillingViewProps> = ({ restaurant, onUpgrade }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
         {plans.map((plan) => (
           <motion.div
             key={plan.id}
             whileHover={{ y: -5 }}
-            className={`bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border shadow-sm relative overflow-hidden flex flex-col ${
+            className={`bg-white dark:bg-zinc-900 p-5 md:p-8 rounded-2xl md:rounded-[2.5rem] border shadow-sm relative overflow-hidden flex flex-col ${
               plan.recommended ? 'border-emerald-500 dark:border-emerald-600 ring-4 ring-emerald-500/10' : 'border-zinc-100 dark:border-zinc-800'
             }`}
           >

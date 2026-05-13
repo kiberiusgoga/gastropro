@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { Staff, WaiterShift, Notification, StaffRole } from '../types';
-import { UserCog, LogIn, LogOut, Clock, Bell, Check, X, Users, UserPlus, ChevronRight } from 'lucide-react';
+import { UserCog, LogIn, Clock, Bell, Check, X, Users, UserPlus, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
+import CloseShiftModal from './Shifts/CloseShiftModal';
+import ShiftHistory from './Shifts/ShiftHistory';
+import ZReportView from './Shifts/ZReportView';
+import type { ZReportData } from '../services/zreportService';
 
 const generateRandomPin = () => Math.floor(1000 + Math.random() * 9000).toString();
 
@@ -24,11 +28,11 @@ const GROUPS: { id: StaffRole; label: string; icon: React.ElementType }[] = [
   { id: 'bartender', label: 'ШАНКЕРИ', icon: Users },
 ];
 
-const StaffView: React.FC<StaffViewProps> = ({ 
-  staff, 
-  shifts, 
+const StaffView: React.FC<StaffViewProps> = ({
+  staff,
+  shifts,
   notifications = [],
-  onAssignWaiter, 
+  onAssignWaiter,
   onReleaseWaiter,
   onCompleteNotification,
   onAddStaff
@@ -38,7 +42,11 @@ const StaffView: React.FC<StaffViewProps> = ({
   const [initialCash, setInitialCash] = useState<string>('0');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<StaffRole>('waiter');
-  
+
+  // Z-report / close shift state
+  const [closingShiftId, setClosingShiftId] = useState<string | null>(null);
+  const [lastZReport, setLastZReport] = useState<ZReportData | null>(null);
+
   const [newStaff, setNewStaff] = useState({
     name: '',
     email: '',
@@ -67,10 +75,10 @@ const StaffView: React.FC<StaffViewProps> = ({
   };
 
   const resetNewStaff = () => {
-    setNewStaff({ 
-      name: '', 
-      email: '', 
-      role: 'waiter', 
+    setNewStaff({
+      name: '',
+      email: '',
+      role: 'waiter',
       pin: '',
       permissions: {
         canTransferTable: false,
@@ -105,16 +113,26 @@ const StaffView: React.FC<StaffViewProps> = ({
 
   const filteredStaff = staff.filter(s => s.role === selectedGroup);
 
+  // Show Z-report after successful shift close
+  if (lastZReport) {
+    return (
+      <ZReportView
+        zreport={lastZReport}
+        onBack={() => setLastZReport(null)}
+      />
+    );
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 md:space-y-8">
       {/* Notifications Section */}
       <AnimatePresence>
         {notifications.length > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-red-100 dark:border-red-900/20 shadow-sm"
+            className="bg-white dark:bg-zinc-900 p-4 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-red-100 dark:border-red-900/20 shadow-sm"
           >
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-2xl animate-pulse">
@@ -161,7 +179,7 @@ const StaffView: React.FC<StaffViewProps> = ({
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
         {/* Waiter Assignment Form */}
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
           <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
@@ -171,7 +189,7 @@ const StaffView: React.FC<StaffViewProps> = ({
           <div className="space-y-4">
             <div>
               <label htmlFor="staff-select" className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">{t('select_waiter')}</label>
-              <select 
+              <select
                 id="staff-select"
                 name="staff-select"
                 value={selectedWaiter}
@@ -186,7 +204,7 @@ const StaffView: React.FC<StaffViewProps> = ({
             </div>
             <div>
               <label htmlFor="initial-cash" className="block text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">{t('initial_cash')} (ден.)</label>
-              <input 
+              <input
                 id="initial-cash"
                 name="initial-cash"
                 type="number"
@@ -195,7 +213,7 @@ const StaffView: React.FC<StaffViewProps> = ({
                 className="w-full p-3 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
-            <button 
+            <button
               onClick={() => {
                 if (selectedWaiter) {
                   onAssignWaiter(selectedWaiter, Number(initialCash));
@@ -221,7 +239,7 @@ const StaffView: React.FC<StaffViewProps> = ({
             {activeShifts.map((shift) => {
               const waiter = staff.find(s => s.id === shift.waiterId);
               return (
-                <motion.div 
+                <motion.div
                   key={shift.id}
                   layout
                   className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
@@ -238,7 +256,7 @@ const StaffView: React.FC<StaffViewProps> = ({
                     </div>
                     <div className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase rounded">{t('active')}</div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl">
                       <p className="text-[10px] text-zinc-500 dark:text-zinc-400 uppercase font-bold mb-1">{t('deposit')}</p>
@@ -250,12 +268,11 @@ const StaffView: React.FC<StaffViewProps> = ({
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => onReleaseWaiter(shift.id, shift.initialCash + shift.totalSales)}
-                    className="w-full py-2 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-xl font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
+                  <button
+                    onClick={() => setClosingShiftId(shift.id)}
+                    className="w-full py-2 border border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400 rounded-xl font-bold hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors flex items-center justify-center gap-2"
                   >
-                    <LogOut size={16} />
-                    {t('release_waiter')}
+                    {t('close_shift')}
                   </button>
                 </motion.div>
               );
@@ -269,8 +286,11 @@ const StaffView: React.FC<StaffViewProps> = ({
         </div>
       </div>
 
-      {/* Staff Management Section - R-Keeper Style */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      {/* Shift History */}
+      <ShiftHistory />
+
+      {/* Staff Management Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-8">
         {/* Groups Sidebar */}
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
@@ -282,8 +302,8 @@ const StaffView: React.FC<StaffViewProps> = ({
                 key={group.id}
                 onClick={() => setSelectedGroup(group.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  selectedGroup === group.id 
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' 
+                  selectedGroup === group.id
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
                     : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                 }`}
               >
@@ -303,7 +323,7 @@ const StaffView: React.FC<StaffViewProps> = ({
                 {GROUPS.find(g => g.id === selectedGroup)?.label}
               </h2>
             </div>
-            <button 
+            <button
               onClick={() => {
                 updatePermissionsByRole(selectedGroup);
                 setShowAddModal(true);
@@ -363,6 +383,22 @@ const StaffView: React.FC<StaffViewProps> = ({
         </div>
       </div>
 
+      {/* Close Shift Modal */}
+      <AnimatePresence>
+        {closingShiftId && (
+          <CloseShiftModal
+            shiftId={closingShiftId}
+            onClose={() => setClosingShiftId(null)}
+            onClosed={(zreport) => {
+              setClosingShiftId(null);
+              onReleaseWaiter(closingShiftId, 0);
+              setLastZReport(zreport);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Add Staff Modal */}
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -377,14 +413,14 @@ const StaffView: React.FC<StaffViewProps> = ({
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden"
+              className="relative bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-2xl md:rounded-[3rem] shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
             >
-              <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
+              <div className="p-4 md:p-8 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
                 <div>
-                  <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">НОВ ВРАБОТЕН</h2>
+                  <h2 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-zinc-100">НОВ ВРАБОТЕН</h2>
                   <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-1">Група: {GROUPS.find(g => g.id === newStaff.role)?.label}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowAddModal(false)}
                   className="p-3 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-2xl transition-colors text-zinc-500"
                 >
@@ -392,7 +428,7 @@ const StaffView: React.FC<StaffViewProps> = ({
                 </button>
               </div>
 
-              <form onSubmit={handleAddSubmit} className="p-8 space-y-8">
+              <form onSubmit={handleAddSubmit} className="p-4 md:p-8 space-y-5 md:space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-6">
                     <div>

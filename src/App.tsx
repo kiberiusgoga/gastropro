@@ -156,7 +156,7 @@ const AppContent = () => {
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile Header */}
-        <header className="lg:hidden h-20 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between px-8 shrink-0">
+        <header className="lg:hidden h-14 sm:h-16 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between px-4 sm:px-6 shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-zinc-950 shadow-lg shadow-emerald-500/10">
               <Menu size={20} strokeWidth={3} />
@@ -196,7 +196,7 @@ const AppContent = () => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 lg:p-10 relative">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-10 relative">
           {/* Subtle Background Pattern */}
           <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]" 
                style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '32px 32px' }} />

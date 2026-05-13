@@ -80,11 +80,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         onClick={onClose}
       />
 
-      <div className={`fixed lg:static inset-y-0 left-0 w-72 bg-zinc-950 text-zinc-400 h-screen flex flex-col border-r border-zinc-800/50 shrink-0 z-50 transition-transform duration-300 lg:translate-x-0 ${
+      <div className={`fixed lg:static inset-y-0 left-0 w-[280px] lg:w-72 bg-zinc-950 text-zinc-400 h-full flex flex-col border-r border-zinc-800/50 shrink-0 z-50 transition-transform duration-300 lg:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="p-8 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-10">
+        <div className="p-5 lg:p-8 flex flex-col h-full">
+          <div className="flex items-center justify-between mb-6 lg:mb-10">
             <div className="flex items-center gap-4 text-white">
               <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-500/10">
                 <UtensilsCrossed size={28} className="text-zinc-950" />
@@ -102,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          <nav className="space-y-8 flex-1 scrollbar-hide overflow-y-auto pr-2 -mr-2">
+          <nav className="space-y-5 lg:space-y-8 flex-1 scrollbar-hide overflow-y-auto pr-2 -mr-2">
             {menuGroups.map((group) => (
               <div key={group.title} className="space-y-3">
                 <h3 className="px-5 text-[10px] font-black text-zinc-600 tracking-[0.2em] uppercase">{group.title}</h3>
@@ -143,7 +143,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </nav>
 
-          <div className="mt-8 pt-8 border-t border-zinc-800/50 space-y-4">
+          <div className="mt-5 pt-5 lg:mt-8 lg:pt-8 border-t border-zinc-800/50 space-y-3 lg:space-y-4">
             <div className="flex items-center gap-1 p-1.5 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
               {(['mk', 'en', 'sq'] as const).map((lang) => (
                 <button

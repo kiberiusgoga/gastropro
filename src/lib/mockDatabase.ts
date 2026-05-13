@@ -121,9 +121,9 @@ const defaultDB: MockDB = {
       tableId: 't7', 
       items: [
         { id: 'oi_c1', restaurantId: '1', orderId: 'o_curr_1', productId: 'mi5', name: 'Пица Маргарита', quantity: 1, price: 320, status: 'served', isBundle: false },
-        { id: 'oi_c2', restaurantId: '1', orderId: 'o_curr_1', productId: 'mi2', name: 'Капучино', quantity: 2, price: 100, status: 'sent_to_kitchen', isBundle: false }
-      ], 
-      status: 'sent_to_kitchen', 
+        { id: 'oi_c2', restaurantId: '1', orderId: 'o_curr_1', productId: 'mi2', name: 'Капучино', quantity: 2, price: 100, status: 'pending' as const, isBundle: false }
+      ],
+      status: 'open' as const,
       orderType: 'dine_in', 
       totalAmount: 520, 
       createdAt: new Date().toISOString(), 

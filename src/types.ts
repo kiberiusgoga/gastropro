@@ -132,6 +132,7 @@ export interface MenuItem {
   active: boolean;
   available: boolean;
   preparationStation?: PreparationStation;
+  vatRate?: number;
 }
 
 export interface Customer {

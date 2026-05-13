@@ -107,7 +107,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
   const getFilteredOrders = () => {
     if (!orders) return [];
     return orders
-      .filter(o => o.status !== 'paid' && o.status !== 'closed' && o.status !== 'cancelled')
+      .filter(o => o.status !== 'paid' && o.status !== 'cancelled')
       .map(order => ({
         ...order,
         items: order.items.filter(item => 

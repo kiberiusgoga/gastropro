@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MenuItem, MenuCategory } from '../types';
 import { menuService } from '../services/menuService';
 import { recipeService, RecipeIngredient, InventoryProduct } from '../services/recipeService';
 import { useStore } from '../store/useStore';
 import { toast } from 'sonner';
-import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, X, ChefHat, FlaskConical, AlertTriangle, Trash } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, X, ChefHat, FlaskConical, AlertTriangle, Trash, Camera, ImageIcon } from 'lucide-react';
 
 const STATIONS = ['kitchen', 'bar', 'grill', 'pastry'];
 
@@ -229,6 +229,7 @@ const emptyForm = (): Partial<MenuItem> => ({
   available: true,
   active: true,
   preparationStation: 'kitchen',
+  vatRate: 0.10,
 });
 
 const MenuList: React.FC = () => {
@@ -248,6 +249,9 @@ const MenuList: React.FC = () => {
   const [catAssignments, setCatAssignments] = useState<Record<string, string>>({});
   // origCatIds: category IDs before editing — used for diff on save
   const [origCatIds, setOrigCatIds] = useState<string[]>([]);
+  const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -286,6 +290,7 @@ const MenuList: React.FC = () => {
     setForm(emptyForm());
     setCatAssignments({});
     setOrigCatIds([]);
+    setModalImageUrl(null);
     setModalTab('details');
     setShowModal(true);
   };
@@ -300,7 +305,9 @@ const MenuList: React.FC = () => {
       available: item.available,
       active: item.active,
       preparationStation: item.preparationStation,
+      vatRate: item.vatRate ?? 0.10,
     });
+    setModalImageUrl(item.imageUrl ?? null);
     setModalTab('details');
     setShowModal(true);
     // Load junction assignments
@@ -337,6 +344,38 @@ const MenuList: React.FC = () => {
     for (const [catId, priceStr] of Object.entries(assignments)) {
       const priceOverride = priceStr !== '' ? Number(priceStr) : null;
       await menuService.assignItemCategory(itemId, catId, priceOverride).catch(() => {});
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editItem) return;
+    setImageUploading(true);
+    try {
+      const imageUrl = await menuService.uploadImage(editItem.id, file);
+      setModalImageUrl(imageUrl);
+      setItems(prev => prev.map(i => i.id === editItem.id ? { ...i, imageUrl } : i));
+      toast.success('Сликата е прикачена');
+    } catch {
+      toast.error('Грешка при прикачување на слика');
+    } finally {
+      setImageUploading(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  const handleImageRemove = async () => {
+    if (!editItem) return;
+    setImageUploading(true);
+    try {
+      await menuService.deleteImage(editItem.id);
+      setModalImageUrl(null);
+      setItems(prev => prev.map(i => i.id === editItem.id ? { ...i, imageUrl: undefined } : i));
+      toast.success('Сликата е избришана');
+    } catch {
+      toast.error('Грешка при бришење на слика');
+    } finally {
+      setImageUploading(false);
     }
   };
 
@@ -437,22 +476,23 @@ const MenuList: React.FC = () => {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight dark:text-white">Мени</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{items.length} артикли · {categories.length} категории</p>
+          <h1 className="text-xl md:text-2xl font-black tracking-tight dark:text-white">Мени</h1>
+          <p className="text-xs md:text-sm text-zinc-500 mt-0.5">{items.length} артикли · {categories.length} категории</p>
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-zinc-950 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20"
+          className="flex items-center gap-2 px-3 sm:px-5 py-2.5 bg-emerald-500 text-zinc-950 rounded-xl font-black text-xs sm:text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 shrink-0"
         >
-          <Plus size={18} strokeWidth={3} />
-          Додај артикл
+          <Plus size={16} strokeWidth={3} />
+          <span className="hidden sm:inline">Додај артикл</span>
+          <span className="sm:hidden">Додај</span>
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3">
+      <div className="flex gap-2 md:gap-3">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide flex-1">
           <button
             onClick={() => setSelectedCategoryId('all')}
@@ -510,7 +550,7 @@ const MenuList: React.FC = () => {
             placeholder="Пребарај..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl w-56 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white transition-all"
+            className="pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl w-full sm:w-48 md:w-56 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white transition-all"
           />
         </div>
       </div>
@@ -555,6 +595,13 @@ const MenuList: React.FC = () => {
                   <div className="absolute top-2 right-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur px-2 py-1 rounded-lg text-sm font-black text-zinc-900 dark:text-zinc-100 shadow">
                     {item.displayedPrice ?? item.price} ден.
                   </div>
+                  <button
+                    onClick={() => openEdit(item)}
+                    className="absolute bottom-2 left-2 bg-zinc-900/70 hover:bg-zinc-900/90 backdrop-blur text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                    title="Уреди слика"
+                  >
+                    <Camera size={13} />
+                  </button>
                 </div>
 
                 {/* Content */}
@@ -608,14 +655,14 @@ const MenuList: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
             onClick={e => e.target === e.currentTarget && setShowModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto"
             >
               {/* Modal header */}
               <div className="flex items-center justify-between px-6 pt-6 pb-0">
@@ -658,6 +705,62 @@ const MenuList: React.FC = () => {
               <div className="p-6">
                 {modalTab === 'details' ? (
                   <div className="space-y-4">
+
+                    {/* Image upload */}
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Слика</label>
+                      {editItem ? (
+                        <div className="relative rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 h-40 group/img">
+                          {modalImageUrl ? (
+                            <img src={modalImageUrl} alt="Menu item" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-full gap-2 text-zinc-400">
+                              <ImageIcon size={28} className="opacity-40" />
+                              <span className="text-xs font-bold">Нема слика</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-zinc-900/0 group-hover/img:bg-zinc-900/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover/img:opacity-100">
+                            <button
+                              type="button"
+                              onClick={() => imageInputRef.current?.click()}
+                              disabled={imageUploading}
+                              className="px-3 py-1.5 bg-white text-zinc-900 rounded-lg text-xs font-black flex items-center gap-1.5 shadow disabled:opacity-50"
+                            >
+                              <Camera size={13} />
+                              {imageUploading ? 'Прикачување...' : modalImageUrl ? 'Замени' : 'Прикачи'}
+                            </button>
+                            {modalImageUrl && (
+                              <button
+                                type="button"
+                                onClick={handleImageRemove}
+                                disabled={imageUploading}
+                                className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-black flex items-center gap-1.5 shadow disabled:opacity-50"
+                              >
+                                <Trash2 size={13} />
+                                Избриши
+                              </button>
+                            )}
+                          </div>
+                          {imageUploading && (
+                            <div className="absolute inset-0 bg-zinc-900/60 flex items-center justify-center">
+                              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="h-16 rounded-xl bg-zinc-50 dark:bg-zinc-800 border-2 border-dashed border-zinc-200 dark:border-zinc-700 flex items-center justify-center">
+                          <p className="text-xs text-zinc-400 font-bold">Зачувај го артиклот прво за да додадеш слика</p>
+                        </div>
+                      )}
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                    </div>
+
                     <div>
                       <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Назив *</label>
                       <input
@@ -759,6 +862,20 @@ const MenuList: React.FC = () => {
                         className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white"
                       >
                         {STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">ДДВ стапка</label>
+                      <select
+                        value={form.vatRate ?? 0.10}
+                        onChange={e => setForm(f => ({ ...f, vatRate: Number(e.target.value) }))}
+                        className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white"
+                      >
+                        <option value={0}>0% – Изземено</option>
+                        <option value={0.05}>5%</option>
+                        <option value={0.10}>10% – Стандард за храна</option>
+                        <option value={0.18}>18% – Стандард за алкохол</option>
                       </select>
                     </div>
 

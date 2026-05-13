@@ -37,10 +37,10 @@ const ACCENT: Record<string, { icon: string; badge: string; glow: string }> = {
 const StatCard = ({ title, value, icon: Icon, accent, trend, trendValue, loading }: StatCardProps) => {
   const a = ACCENT[accent] ?? ACCENT.blue;
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 flex flex-col gap-4 group transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5">
+    <div className="relative overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 md:p-6 flex flex-col gap-3 md:gap-4 group transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5">
       <div className="flex items-start justify-between">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${a.icon} transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6`}>
-          <Icon size={22} strokeWidth={2.5} />
+        <div className={`w-9 h-9 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg ${a.icon} transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6`}>
+          <Icon size={18} strokeWidth={2.5} className="md:w-[22px] md:h-[22px]" />
         </div>
         {trend && trendValue && (
           <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider ${
@@ -56,7 +56,7 @@ const StatCard = ({ title, value, icon: Icon, accent, trend, trendValue, loading
         {loading ? (
           <div className="h-8 w-28 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
         ) : (
-          <h3 className="text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight font-display">{value}</h3>
+          <h3 className="text-xl md:text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight font-display">{value}</h3>
         )}
       </div>
       <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full blur-2xl opacity-60 ${a.glow} transition-all duration-700 group-hover:scale-150 group-hover:opacity-80`} />
@@ -110,7 +110,7 @@ const Dashboard = () => {
   const hasChartData = chartData.some(d => d.revenue > 0);
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-4 md:space-y-8 pb-10 md:pb-20">
 
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -119,7 +119,7 @@ const Dashboard = () => {
             <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
               <BarChart3 size={20} strokeWidth={2.5} />
             </div>
-            <h2 className="text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight font-display uppercase italic">
+            <h2 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight font-display uppercase italic">
               {t('dashboard')}
             </h2>
           </div>
@@ -151,7 +151,7 @@ const Dashboard = () => {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard
           title={t('total_products')}
           value={isStatsLoading ? '…' : (products || []).length}
@@ -189,8 +189,8 @@ const Dashboard = () => {
       </div>
 
       {/* ── Revenue Chart ── */}
-      <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 md:p-8">
+        <div className="flex items-center justify-between mb-4 md:mb-8">
           <div>
             <h3 className="text-base font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight font-display">
               {t('revenue_overview')}
@@ -206,14 +206,14 @@ const Dashboard = () => {
         </div>
 
         {chartLoading ? (
-          <div className="h-72 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl animate-pulse" />
+          <div className="h-48 md:h-72 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl animate-pulse" />
         ) : !hasChartData ? (
-          <div className="h-72 flex flex-col items-center justify-center text-zinc-300 dark:text-zinc-700 gap-3">
+          <div className="h-48 md:h-72 flex flex-col items-center justify-center text-zinc-300 dark:text-zinc-700 gap-3">
             <TrendingUp size={48} strokeWidth={1} />
             <p className="text-xs font-black uppercase tracking-widest">Нема податоци за прикажување</p>
           </div>
         ) : (
-          <div className="h-72">
+          <div className="h-48 md:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                 <defs>
@@ -256,11 +256,11 @@ const Dashboard = () => {
       </div>
 
       {/* ── Bottom Row ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
 
         {/* Low Stock Warning */}
-        <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-7">
-          <div className="flex items-center justify-between mb-6">
+        <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 md:p-7">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
             <div>
               <h3 className="text-base font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight font-display">
                 Ниска залиха
@@ -311,8 +311,8 @@ const Dashboard = () => {
         </div>
 
         {/* Audit Trail */}
-        <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-7">
-          <div className="flex items-center justify-between mb-6">
+        <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 md:p-7">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
             <div>
               <h3 className="text-base font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight font-display">
                 {t('audit_trail')}

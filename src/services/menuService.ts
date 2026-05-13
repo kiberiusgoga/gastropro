@@ -30,6 +30,7 @@ const mapMenuItem = (row: any): MenuItem => ({
   active: row.active,
   available: row.available !== false,
   preparationStation: row.preparation_station,
+  vatRate: row.vat_rate !== undefined ? Number(row.vat_rate) : undefined,
 });
 
 // Helper functions to map camelCase back to snake_case for payloads
@@ -51,7 +52,8 @@ const toMenuItemPayload = (data: Partial<MenuItem>) => ({
   image_url: data.imageUrl,
   active: data.active !== false,
   available: true,
-  preparation_station: data.preparationStation
+  preparation_station: data.preparationStation,
+  vat_rate: data.vatRate,
 });
 
 export const menuService = {
@@ -161,5 +163,18 @@ export const menuService = {
       console.error('Error deleting menu item', error);
       throw error;
     }
-  }
+  },
+
+  uploadImage: async (id: string, file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await apiClient.post(`/menu-items/${id}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.image_url as string;
+  },
+
+  deleteImage: async (id: string): Promise<void> => {
+    await apiClient.delete(`/menu-items/${id}/image`);
+  },
 };

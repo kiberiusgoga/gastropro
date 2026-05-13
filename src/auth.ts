@@ -29,6 +29,7 @@ export interface AuthRequest extends Request {
     email: string;
     role: string;
     restaurantId: string;
+    name?: string;
     mustChangePassword?: boolean;
   };
 }

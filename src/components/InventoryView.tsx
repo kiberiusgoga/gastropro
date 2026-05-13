@@ -58,7 +58,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
           <input
@@ -68,15 +68,16 @@ const InventoryView: React.FC<InventoryViewProps> = ({
             placeholder="Пребарај во магацин..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-zinc-900 dark:text-zinc-100"
+            className="pl-10 pr-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl w-full sm:w-64 md:w-80 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-zinc-900 dark:text-zinc-100"
           />
         </div>
-        <button 
+        <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+          className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-emerald-700 transition-colors shrink-0"
         >
-          <Plus size={20} />
-          Нов артикал во магацин
+          <Plus size={18} />
+          <span className="hidden sm:inline">Нов артикал во магацин</span>
+          <span className="sm:hidden">Нов артикал</span>
         </button>
       </div>
 
@@ -160,10 +161,10 @@ const InventoryView: React.FC<InventoryViewProps> = ({
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white dark:bg-zinc-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden p-8"
+              className="relative bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl md:rounded-[2.5rem] shadow-2xl overflow-hidden p-4 md:p-8 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">Нов артикал</h2>
+              <div className="flex justify-between items-center mb-5 md:mb-8">
+                <h2 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-zinc-100">Нов артикал</h2>
                 <button 
                   onClick={() => setShowAddModal(false)}
                   className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors text-zinc-500"

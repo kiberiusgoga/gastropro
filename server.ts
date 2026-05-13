@@ -23,9 +23,13 @@ async function startServer() {
   }));
 
   // 2. CORS — restrict to known origins only
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+  const defaultOrigins = process.env.NODE_ENV !== 'production'
+    ? `http://localhost:5173,http://localhost:${PORT}`
+    : '';
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || defaultOrigins)
     .split(',')
-    .map(s => s.trim());
+    .map(s => s.trim())
+    .filter(Boolean);
 
   app.use(cors({
     origin: (origin, callback) => {
@@ -41,6 +45,7 @@ async function startServer() {
   // 3. Body size limits — prevent DoS via oversized payloads
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+  // multer handles multipart/form-data for image uploads; express.json only handles JSON
 
   // 4. Sanitize req.body/query/params keys (strips $ and . operator keys)
   app.use(mongoSanitize() as express.RequestHandler);
@@ -85,6 +90,12 @@ async function startServer() {
     message: { error: 'Too many requests, please try again in 15 minutes.' },
   });
   app.use('/api/auth/forgot-password', forgotPasswordLimiter);
+
+  // Serve locally-uploaded images (used when Cloudinary is not configured)
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
+    maxAge: '7d',
+    immutable: false,
+  }));
 
   // Routes
   app.use("/api", router);

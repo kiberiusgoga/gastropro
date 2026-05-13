@@ -15,6 +15,10 @@ import { logAuthEvent } from './services/authAudit';
 import { checkPasswordChangeRequired } from './middleware/passwordChangeRequired';
 import { issueTokenPair, rotateToken, revokeAllForUser } from './services/refreshTokenService';
 import { sendEmail } from './services/emailService';
+import { computeZReport } from './services/zreportService';
+import { requireActiveShift } from './utils/shiftValidator';
+import { getImageStorage } from './services/imageStorage';
+import multer from 'multer';
 
 const router = express.Router();
 
@@ -286,7 +290,7 @@ router.post('/auth/refresh', asyncHandler(async (req, res) => {
     req.headers['user-agent']?.slice(0, 500),
   );
 
-  if (!result.ok) {
+  if (result.ok === false) {
     if (result.reason === 'theft_detected') {
       return res.status(401).json({
         error: 'Session security violation detected. Please log in again.',
@@ -1285,19 +1289,35 @@ router.get('/menu-items', authenticateToken, asyncHandler(async (req: AuthReques
 }));
 
 router.post('/menu-items', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { menu_category_id, name, price, active, available, preparation_station } = req.body;
+  const { menu_category_id, name, price, active, available, preparation_station, vat_rate } = req.body;
+  if (vat_rate !== undefined && (typeof vat_rate !== 'number' || vat_rate < 0 || vat_rate > 1)) {
+    return res.status(400).json({ error: 'vat_rate must be a number between 0 and 1' });
+  }
   const result = await pool.query(
-    'INSERT INTO menu_items (restaurant_id, menu_category_id, name, price, active, available, preparation_station) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-    [req.user?.restaurantId, menu_category_id, name, price, active !== false, available !== false, preparation_station]
+    'INSERT INTO menu_items (restaurant_id, menu_category_id, name, price, active, available, preparation_station, vat_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+    [req.user?.restaurantId, menu_category_id, name, price, active !== false, available !== false, preparation_station, vat_rate ?? 0.10]
   );
   res.status(201).json(result.rows[0]);
 }));
 
 router.put('/menu-items/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { menu_category_id, name, price, active, available, preparation_station } = req.body;
+  const { menu_category_id, name, price, active, available, preparation_station, vat_rate } = req.body;
+  if (vat_rate !== undefined && (typeof vat_rate !== 'number' || vat_rate < 0 || vat_rate > 1)) {
+    return res.status(400).json({ error: 'vat_rate must be a number between 0 and 1' });
+  }
+  const setClauses = [
+    'menu_category_id = $1', 'name = $2', 'price = $3', 'active = $4',
+    'available = $5', 'preparation_station = $6', 'updated_at = CURRENT_TIMESTAMP',
+  ];
+  const params: unknown[] = [menu_category_id, name, price, active, available, preparation_station];
+  if (vat_rate !== undefined) {
+    setClauses.push(`vat_rate = $${params.length + 1}`);
+    params.push(vat_rate);
+  }
+  params.push(req.params.id, req.user?.restaurantId);
   const result = await pool.query(
-    'UPDATE menu_items SET menu_category_id = $1, name = $2, price = $3, active = $4, available = $5, preparation_station = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7 AND restaurant_id = $8 RETURNING *',
-    [menu_category_id, name, price, active, available, preparation_station, req.params.id, req.user?.restaurantId]
+    `UPDATE menu_items SET ${setClauses.join(', ')} WHERE id = $${params.length - 1} AND restaurant_id = $${params.length} RETURNING *`,
+    params
   );
   res.json(result.rows[0]);
 }));
@@ -1419,6 +1439,100 @@ router.delete('/menu-items/:id/recipe/:rid', authenticateToken, asyncHandler(asy
     [req.params.rid, req.user?.restaurantId],
   );
   if (result.rowCount === 0) throw new NotFoundError('Recipe ingredient not found');
+  res.json({ deleted: true });
+}));
+
+// --- MENU ITEM IMAGES ---
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8 MB cap
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
+
+// POST /menu-items/:id/image — upload or replace image
+router.post('/menu-items/:id/image', authenticateToken, imageUpload.single('image'), asyncHandler(async (req: AuthRequest, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No image file provided or file type not allowed (jpeg/png/webp/gif only)' });
+
+  await assertOwns('menu_items', req.params.id, req.user!.restaurantId);
+
+  // Delete previous image if it had a public_id
+  const existing = await pool.query(
+    'SELECT image_public_id FROM menu_items WHERE id = $1',
+    [req.params.id],
+  );
+  const prevPublicId = existing.rows[0]?.image_public_id;
+
+  const storage = getImageStorage();
+  if (prevPublicId) {
+    await storage.delete(prevPublicId).catch(err => logger.warn('[IMAGES] Failed to delete previous image:', err));
+  }
+
+  const uploaded = await storage.upload(req.file.buffer, req.file.mimetype, {
+    restaurantId: req.user!.restaurantId,
+    folder: 'menu-items',
+  });
+
+  const result = await pool.query(
+    `UPDATE menu_items
+     SET image_url = $1, image_public_id = $2, image_uploaded_at = NOW(),
+         image_size_bytes = $3, image_width = $4, image_height = $5
+     WHERE id = $6 AND restaurant_id = $7
+     RETURNING id, image_url, image_public_id, image_uploaded_at, image_size_bytes, image_width, image_height`,
+    [uploaded.url, uploaded.public_id, uploaded.size_bytes, uploaded.width, uploaded.height,
+     req.params.id, req.user!.restaurantId],
+  );
+
+  logAuthEvent({
+    user_id: req.user!.id,
+    restaurant_id: req.user!.restaurantId,
+    action: 'menu_item_image_uploaded',
+    ip_address: req.ip,
+    user_agent: req.headers['user-agent']?.slice(0, 500),
+    metadata: { menu_item_id: req.params.id, size_bytes: uploaded.size_bytes, storage: prevPublicId ? 'replaced' : 'new' },
+    success: true,
+  });
+
+  res.json(result.rows[0]);
+}));
+
+// DELETE /menu-items/:id/image — remove image
+router.delete('/menu-items/:id/image', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  await assertOwns('menu_items', req.params.id, req.user!.restaurantId);
+
+  const existing = await pool.query(
+    'SELECT image_public_id FROM menu_items WHERE id = $1',
+    [req.params.id],
+  );
+  const publicId = existing.rows[0]?.image_public_id;
+
+  if (publicId) {
+    await getImageStorage().delete(publicId).catch(err =>
+      logger.warn('[IMAGES] Failed to delete image from storage:', err),
+    );
+  }
+
+  await pool.query(
+    `UPDATE menu_items
+     SET image_url = NULL, image_public_id = NULL, image_uploaded_at = NULL,
+         image_size_bytes = NULL, image_width = NULL, image_height = NULL
+     WHERE id = $1 AND restaurant_id = $2`,
+    [req.params.id, req.user!.restaurantId],
+  );
+
+  logAuthEvent({
+    user_id: req.user!.id,
+    restaurant_id: req.user!.restaurantId,
+    action: 'menu_item_image_deleted',
+    ip_address: req.ip,
+    user_agent: req.headers['user-agent']?.slice(0, 500),
+    metadata: { menu_item_id: req.params.id },
+    success: true,
+  });
+
   res.json({ deleted: true });
 }));
 
@@ -1675,14 +1789,15 @@ router.get('/orders', authenticateToken, asyncHandler(async (req: AuthRequest, r
 }));
 
 router.post('/orders', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { table_id, customer_id, shift_id, order_type, guest_count, items } = req.body;
+  const { table_id, customer_id, order_type, guest_count, items } = req.body;
+  const activeShiftId = await requireActiveShift(req.user!.id, req.user!.restaurantId);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const orderRes = await client.query(
-      `INSERT INTO orders (restaurant_id, table_id, user_id, customer_id, shift_id, order_type, guest_count, status) 
+      `INSERT INTO orders (restaurant_id, table_id, user_id, customer_id, shift_id, order_type, guest_count, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'open') RETURNING *`,
-      [req.user?.restaurantId, table_id, req.user?.id, customer_id, shift_id, order_type || 'dine_in', guest_count || 1]
+      [req.user?.restaurantId, table_id, req.user?.id, customer_id, activeShiftId, order_type || 'dine_in', guest_count || 1]
     );
     const order = orderRes.rows[0];
 
@@ -1691,8 +1806,8 @@ router.post('/orders', authenticateToken, asyncHandler(async (req: AuthRequest, 
       let subtotal = 0;
       for (const item of items) {
         await client.query(
-          `INSERT INTO order_items (order_id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          `INSERT INTO order_items (order_id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle, vat_rate)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE((SELECT vat_rate FROM menu_items WHERE id = $2), 0.10))`,
           [order.id, item.menu_item_id, item.name, item.quantity, item.price, item.preparation_station, item.note, item.is_bundle || false]
         );
         subtotal += item.price * item.quantity;
@@ -1843,8 +1958,8 @@ router.post('/orders/:id/items', authenticateToken, asyncHandler(async (req: Aut
   const orderRes = await pool.query('SELECT id FROM orders WHERE id = $1 AND restaurant_id = $2', [req.params.id, req.user?.restaurantId]);
   if (orderRes.rowCount === 0) throw new NotFoundError('Order not found');
   const itemRes = await pool.query(
-    `INSERT INTO order_items (order_id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    `INSERT INTO order_items (order_id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle, vat_rate)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE((SELECT vat_rate FROM menu_items WHERE id = $2), 0.10)) RETURNING *`,
     [req.params.id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle || false]
   );
   res.status(201).json(itemRes.rows[0]);
@@ -2024,6 +2139,191 @@ router.get('/shifts/:id/report', authenticateToken, asyncHandler(async (req: Aut
       topItems:   itemsRes.rows.map(r => ({ name: r.name, count: Number(r.count),   revenue: Number(r.revenue) })),
       orderTypes: typesRes.rows.map(r => ({ type: r.order_type, count: Number(r.count), revenue: Number(r.revenue) })),
     });
+}));
+
+// --- SHIFT CLOSE + Z-REPORT ---
+
+const closeShiftSchema = z.object({
+  actual_cash: z.number().min(0),
+  notes: z.string().max(1000).optional(),
+});
+
+// POST /shifts/:id/close — close shift + generate Z-report in one atomic step
+router.post('/shifts/:id/close', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const shiftId = req.params.id;
+  const { actual_cash } = closeShiftSchema.parse(req.body);
+  await assertOwns('shifts', shiftId, req.user!.restaurantId);
+
+  const shiftRes = await pool.query('SELECT * FROM shifts WHERE id = $1', [shiftId]);
+  const shift = shiftRes.rows[0];
+
+  if (shift.status === 'closed') {
+    return res.status(409).json({ error: 'Shift already closed', code: 'SHIFT_ALREADY_CLOSED' });
+  }
+
+  if (req.user!.role === 'Waiter' && shift.user_id !== req.user!.id) {
+    return res.status(403).json({ error: "Cannot close another waiter's shift" });
+  }
+
+  const openOrdersRes = await pool.query(
+    `SELECT COUNT(*) AS count FROM orders WHERE shift_id = $1 AND status = 'open'`,
+    [shiftId],
+  );
+  const openCount = parseInt(openOrdersRes.rows[0].count, 10);
+  if (openCount > 0) {
+    return res.status(409).json({
+      error: 'Cannot close shift with open orders',
+      code: 'SHIFT_HAS_OPEN_ORDERS',
+      open_order_count: openCount,
+    });
+  }
+
+  const closedBy = { id: req.user!.id, name: req.user!.name ?? req.user!.email };
+  const zreport = await computeZReport(shiftId, req.user!.restaurantId, closedBy, actual_cash);
+  const cashDifference = zreport.cash_difference;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE shifts
+       SET status = 'closed',
+           end_time = NOW(),
+           final_cash = $1,
+           expected_cash = $2,
+           cash_difference = $3,
+           zreport_data = $4,
+           zreport_generated_at = NOW(),
+           closed_by_user_id = $5
+       WHERE id = $6`,
+      [actual_cash, zreport.expected_cash, cashDifference,
+       JSON.stringify(zreport), req.user!.id, shiftId],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  logAuthEvent({
+    user_id: req.user!.id,
+    restaurant_id: req.user!.restaurantId,
+    action: 'shift_closed',
+    ip_address: req.ip,
+    user_agent: req.headers['user-agent']?.slice(0, 500),
+    metadata: {
+      shift_id: shiftId,
+      cash_difference: cashDifference,
+      gross_revenue: zreport.totals.gross_revenue,
+      order_count: zreport.totals.order_count,
+    },
+    success: true,
+  });
+
+  res.json({ shift_id: shiftId, zreport });
+}));
+
+// GET /shifts/:id/preview — same computation as close but does NOT persist; for pre-close display
+router.get('/shifts/:id/preview', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const shiftId = req.params.id;
+  await assertOwns('shifts', shiftId, req.user!.restaurantId);
+
+  const shiftRes = await pool.query('SELECT status, user_id FROM shifts WHERE id = $1', [shiftId]);
+  const shift = shiftRes.rows[0];
+
+  if (shift.status === 'closed') {
+    return res.status(409).json({ error: 'Shift already closed', code: 'SHIFT_ALREADY_CLOSED' });
+  }
+  if (req.user!.role === 'Waiter' && shift.user_id !== req.user!.id) {
+    return res.status(403).json({ error: "Cannot preview another waiter's shift" });
+  }
+
+  const closedBy = { id: req.user!.id, name: req.user!.name ?? req.user!.email };
+  const preview = await computeZReport(shiftId, req.user!.restaurantId, closedBy, 0);
+  res.json(preview);
+}));
+
+// GET /shifts/:id/zreport — retrieve frozen Z-report for a closed shift
+router.get('/shifts/:id/zreport', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  await assertOwns('shifts', req.params.id, req.user!.restaurantId);
+
+  const result = await pool.query(
+    'SELECT zreport_data, status, user_id FROM shifts WHERE id = $1',
+    [req.params.id],
+  );
+  const row = result.rows[0];
+
+  if (!row.zreport_data) {
+    return res.status(404).json({ error: 'Z-report not generated yet. Close the shift first.' });
+  }
+
+  if (req.user!.role === 'Waiter' && row.user_id !== req.user!.id) {
+    return res.status(403).json({ error: "Cannot view another waiter's Z-report" });
+  }
+
+  res.json(row.zreport_data);
+}));
+
+// GET /shifts — paginated list with filters
+router.get('/shifts', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { status, user_id, date_from, date_to, page = '1', limit = '20' } = req.query as Record<string, string>;
+  const pageNum = Math.max(1, parseInt(page, 10));
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+  const offset = (pageNum - 1) * limitNum;
+
+  const params: unknown[] = [req.user!.restaurantId];
+  const conditions: string[] = ['s.restaurant_id = $1'];
+
+  // Waiters see only their own shifts
+  if (req.user!.role === 'Waiter') {
+    params.push(req.user!.id);
+    conditions.push(`s.user_id = $${params.length}`);
+  } else if (user_id) {
+    params.push(user_id);
+    conditions.push(`s.user_id = $${params.length}`);
+  }
+
+  if (status) {
+    params.push(status);
+    conditions.push(`s.status = $${params.length}`);
+  }
+  if (date_from) {
+    params.push(date_from);
+    conditions.push(`s.start_time >= $${params.length}`);
+  }
+  if (date_to) {
+    params.push(date_to);
+    conditions.push(`s.start_time < ($${params.length}::date + interval '1 day')`);
+  }
+
+  const where = conditions.join(' AND ');
+
+  const countRes = await pool.query(
+    `SELECT COUNT(*) AS total FROM shifts s WHERE ${where}`, params,
+  );
+  const total = parseInt(countRes.rows[0].total, 10);
+
+  params.push(limitNum, offset);
+  const dataRes = await pool.query(
+    `SELECT
+       s.id, s.start_time, s.end_time, s.status,
+       s.initial_cash, s.final_cash, s.expected_cash, s.cash_difference,
+       s.zreport_generated_at,
+       u.id AS user_id, u.name AS user_name
+     FROM shifts s
+     JOIN users u ON u.id = s.user_id
+     WHERE ${where}
+     ORDER BY s.start_time DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params,
+  );
+
+  res.json({
+    data: dataRes.rows,
+    pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) },
+  });
 }));
 
 // --- SECONDARY MODULES (PHASE 4) ---

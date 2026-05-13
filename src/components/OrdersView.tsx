@@ -55,38 +55,38 @@ const OrdersView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 pb-20">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-4 md:space-y-8 pb-10 md:pb-20">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-3">
             <div className="p-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl">
-              <ShoppingBag size={24} />
+              <ShoppingBag size={20} />
             </div>
             НАРАЧКИ
           </h1>
-          <p className="text-zinc-500 font-medium mt-1">Преглед на сите деловни трансакции</p>
+          <p className="text-zinc-500 font-medium mt-1 text-sm">Преглед на сите деловни трансакции</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-zinc-900 dark:group-focus-within:text-zinc-100 transition-colors" size={18} />
-            <input 
+            <input
               type="text"
               placeholder="Пребарај нарачка..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-11 pr-6 py-3 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition-all shadow-sm font-medium"
+              className="pl-11 pr-6 py-3 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition-all shadow-sm font-medium"
             />
           </div>
-          
+
           <div className="flex bg-white dark:bg-zinc-900 rounded-2xl p-1 border border-zinc-100 dark:border-zinc-800 shadow-sm">
             {(['all', 'paid', 'open'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${
-                  filterStatus === status 
-                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-md' 
+                className={`flex-1 px-3 sm:px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${
+                  filterStatus === status
+                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-md'
                     : 'text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800'
                 }`}
               >
@@ -97,7 +97,7 @@ const OrdersView: React.FC = () => {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-8 items-start">
         {/* Orders List */}
         <div className="xl:col-span-2 space-y-4">
           <AnimatePresence mode="popLayout">
@@ -157,11 +157,11 @@ const OrdersView: React.FC = () => {
         </div>
 
         {/* Order Details Sidebar */}
-        <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 p-8 shadow-xl sticky top-8">
+        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] xl:rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 p-4 md:p-8 shadow-xl xl:sticky xl:top-8">
           {selectedOrder ? (
-            <div className="space-y-8">
-              <div className="pb-6 border-b border-zinc-100 dark:border-zinc-800">
-                <h3 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">ДЕТАЛИ ЗА НАРАЧКА</h3>
+            <div className="space-y-5 md:space-y-8">
+              <div className="pb-4 md:pb-6 border-b border-zinc-100 dark:border-zinc-800">
+                <h3 className="text-lg md:text-2xl font-black text-zinc-900 dark:text-zinc-100">ДЕТАЛИ ЗА НАРАЧКА</h3>
                 <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mt-1">Идентификатор: {selectedOrder.id}</p>
               </div>
 
@@ -184,7 +184,7 @@ const OrdersView: React.FC = () => {
                 ))}
               </div>
 
-              <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-3xl space-y-3">
+              <div className="p-4 md:p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl md:rounded-3xl space-y-3">
                 <div className="flex justify-between text-sm font-medium text-zinc-500">
                   <span>Меѓутотал</span>
                   <span>{selectedOrder.totalAmount} ден.</span>
@@ -194,8 +194,8 @@ const OrdersView: React.FC = () => {
                   <span>{(selectedOrder.totalAmount * 0.18).toFixed(0)} ден.</span>
                 </div>
                 <div className="pt-3 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
-                  <span className="text-lg font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Вкупно</span>
-                  <span className="text-2xl font-black text-zinc-900 dark:text-zinc-100">{selectedOrder.totalAmount} ден.</span>
+                  <span className="text-base md:text-lg font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Вкупно</span>
+                  <span className="text-xl md:text-2xl font-black text-zinc-900 dark:text-zinc-100">{selectedOrder.totalAmount} ден.</span>
                 </div>
               </div>
 
