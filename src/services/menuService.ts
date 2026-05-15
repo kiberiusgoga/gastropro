@@ -1,6 +1,25 @@
 import apiClient from '../lib/apiClient';
 import { MenuItem, MenuCategory } from '../types';
 
+export interface MarginBreakdown {
+  selling_price: number;
+  vat_rate: number;
+  net_revenue: number;
+  unit_cost: number;
+  vat_amount: number;
+  net_margin_amount: number;
+  net_margin_percent: number;
+}
+
+export interface MenuItemCostResponse {
+  menu_item_id: string;
+  has_recipe: boolean;
+  ingredients_count: number;
+  missing_purchase_price?: boolean;
+  cost: number | null;
+  margin: MarginBreakdown | null;
+}
+
 // Helper functions to map snake_case to camelCase
 const mapCategory = (row: any): MenuCategory => ({
   id: row.id,
@@ -176,5 +195,10 @@ export const menuService = {
 
   deleteImage: async (id: string): Promise<void> => {
     await apiClient.delete(`/menu-items/${id}/image`);
+  },
+
+  getCost: async (id: string): Promise<MenuItemCostResponse> => {
+    const res = await apiClient.get(`/menu-items/${id}/cost`);
+    return res.data as MenuItemCostResponse;
   },
 };

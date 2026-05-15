@@ -40,7 +40,8 @@ const Products = () => {
     categoryId: '',
     preparationStation: 'kitchen' as 'grill' | 'salad' | 'bar' | 'kitchen' | 'dessert',
     minStock: 5,
-    currentStock: 0
+    currentStock: 0,
+    defaultExpiryDays: null as number | null,
   });
 
   const handleOpenModal = (product?: Product) => {
@@ -55,7 +56,8 @@ const Products = () => {
         categoryId: product.categoryId,
         preparationStation: product.preparationStation || 'kitchen',
         minStock: product.minStock,
-        currentStock: product.currentStock
+        currentStock: product.currentStock,
+        defaultExpiryDays: product.defaultExpiryDays ?? null,
       });
     } else {
       setEditingProduct(null);
@@ -68,7 +70,8 @@ const Products = () => {
         categoryId: categories[0]?.id || '',
         preparationStation: 'kitchen',
         minStock: 5,
-        currentStock: 0
+        currentStock: 0,
+        defaultExpiryDays: null,
       });
     }
     setIsModalOpen(true);
@@ -297,10 +300,13 @@ const Products = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="label">{t('purchase_price')}</label>
-                    <input 
-                      type="number" 
-                      className="input" 
-                      value={formData.purchasePrice}
+                    <input
+                      type="number"
+                      className="input"
+                      step="0.01"
+                      min="0.01"
+                      placeholder={t('purchase_price_placeholder')}
+                      value={formData.purchasePrice || ''}
                       onChange={(e) => setFormData({...formData, purchasePrice: Number(e.target.value)})}
                       required
                     />
@@ -327,16 +333,34 @@ const Products = () => {
                   </div>
                   <div>
                     <label className="label">{t('current_stock')}</label>
-                    <input 
-                      type="number" 
-                      className="input" 
+                    <input
+                      type="number"
+                      className="input"
                       value={formData.currentStock}
                       onChange={(e) => setFormData({...formData, currentStock: Number(e.target.value)})}
-                      disabled={!!editingProduct} // Stock should be changed via transactions
+                      disabled={!!editingProduct}
                     />
+                  </div>
+                  <div>
+                    <label className="label">{t('default_expiry_days_label')}</label>
+                    <input
+                      type="number"
+                      className="input"
+                      min="1"
+                      max="3650"
+                      placeholder={t('default_expiry_days_placeholder')}
+                      value={formData.defaultExpiryDays ?? ''}
+                      onChange={(e) => setFormData({...formData, defaultExpiryDays: e.target.value ? Number(e.target.value) : null})}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">{t('default_expiry_days_help')}</p>
                   </div>
                 </div>
               </div>
+              {!editingProduct && formData.currentStock > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                  {t('initial_inventory_banner')}
+                </div>
+              )}
               <div className="mt-10 flex items-center justify-end gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
                   {t('cancel')}

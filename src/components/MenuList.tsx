@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { MenuItem, MenuCategory } from '../types';
-import { menuService } from '../services/menuService';
+import { menuService, MenuItemCostResponse } from '../services/menuService';
 import { recipeService, RecipeIngredient, InventoryProduct } from '../services/recipeService';
 import { useStore } from '../store/useStore';
 import { toast } from 'sonner';
-import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, X, ChefHat, FlaskConical, AlertTriangle, Trash, Camera, ImageIcon } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, X, ChefHat, FlaskConical, AlertTriangle, Trash, Camera, ImageIcon, TrendingUp } from 'lucide-react';
 
 const STATIONS = ['kitchen', 'bar', 'grill', 'pastry'];
 
@@ -25,15 +26,37 @@ function allowedUnitsFor(inventoryUnit: string): string[] {
 // ============================================================
 // RecipeTab — tab za normativ vnatre vo Add/Edit modalot
 // ============================================================
+function marginColorClass(pct: number): string {
+  if (pct >= 60) return 'text-emerald-600 dark:text-emerald-400';
+  if (pct >= 40) return 'text-amber-500 dark:text-amber-400';
+  if (pct >= 20) return 'text-orange-500 dark:text-orange-400';
+  return 'text-rose-600 dark:text-rose-400';
+}
+
 const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
+  const { t } = useTranslation();
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
   const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [addForm, setAddForm] = useState({ inventory_item_id: '', quantity: '', recipe_unit: '' });
   const [adding, setAdding] = useState(false);
+  const [costData, setCostData] = useState<MenuItemCostResponse | null>(null);
+  const [costLoading, setCostLoading] = useState(false);
 
   const selectedProduct = products.find(p => p.id === addForm.inventory_item_id) ?? null;
   const unitOptions = selectedProduct ? allowedUnitsFor(selectedProduct.unit) : [];
+
+  const loadCost = useCallback(async () => {
+    setCostLoading(true);
+    try {
+      const data = await menuService.getCost(menuItemId);
+      setCostData(data);
+    } catch {
+      setCostData(null);
+    } finally {
+      setCostLoading(false);
+    }
+  }, [menuItemId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,7 +79,8 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
     } finally {
       setLoading(false);
     }
-  }, [menuItemId]);
+    loadCost();
+  }, [menuItemId, loadCost]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -93,6 +117,7 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
     try {
       await recipeService.deleteIngredient(menuItemId, rid);
       setIngredients(prev => prev.filter(i => i.id !== rid));
+      loadCost();
       toast.success('Состојката е избришана');
     } catch {
       toast.error('Грешка при бришење');
@@ -216,6 +241,80 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
             <Plus size={16} strokeWidth={3} />
           </button>
         </div>
+      </div>
+
+      {/* Cost & Margin section */}
+      <div className="border-t border-zinc-100 dark:border-zinc-800 pt-5">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp size={14} className="text-zinc-400" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Кост и Маржа</p>
+        </div>
+
+        {costLoading ? (
+          <div className="flex items-center gap-2 py-4 text-zinc-400 text-sm">
+            <TrendingUp size={16} className="animate-pulse" />
+            <span className="font-bold">Се пресметува...</span>
+          </div>
+        ) : !costData || !costData.has_recipe ? (
+          <div className="text-center py-6 bg-zinc-50 dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-200 dark:border-zinc-700">
+            <TrendingUp size={24} className="mx-auto mb-2 text-zinc-300 dark:text-zinc-600" />
+            <p className="text-sm font-bold text-zinc-400">{t('cost_add_ingredients_hint')}</p>
+          </div>
+        ) : costData.margin ? (
+          <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+            {costData.missing_purchase_price && (
+              <div className="flex items-start gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
+                <AlertTriangle size={13} className="text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-xs font-bold text-amber-600 dark:text-amber-400">{t('cost_missing_price_warning')}</p>
+              </div>
+            )}
+            <table className="w-full text-sm">
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <tr>
+                  <td className="px-4 py-2.5 text-zinc-500 dark:text-zinc-400">
+                    Продажна цена (со ДДВ {Math.round(costData.margin.vat_rate * 100)}%)
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-800 dark:text-zinc-200">
+                    {costData.margin.selling_price.toFixed(2)} ден
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-2.5 text-zinc-500 dark:text-zinc-400">ДДВ ({Math.round(costData.margin.vat_rate * 100)}%)</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-zinc-500 dark:text-zinc-400">
+                    -{costData.margin.vat_amount.toFixed(2)} ден
+                  </td>
+                </tr>
+                <tr className="bg-zinc-50/60 dark:bg-zinc-800/30">
+                  <td className="px-4 py-2.5 font-bold text-zinc-700 dark:text-zinc-300">{t('net_revenue')}</td>
+                  <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-700 dark:text-zinc-300">
+                    {costData.margin.net_revenue.toFixed(2)} ден
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-2.5 text-zinc-500 dark:text-zinc-400">{t('cost_of_ingredients')}</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-zinc-500 dark:text-zinc-400">
+                    -{costData.margin.unit_cost.toFixed(2)} ден
+                  </td>
+                </tr>
+                <tr className="bg-zinc-50/60 dark:bg-zinc-800/30">
+                  <td className="px-4 py-2.5 font-bold text-zinc-700 dark:text-zinc-300">{t('net_margin')}</td>
+                  <td className={`px-4 py-2.5 text-right font-mono font-bold ${marginColorClass(costData.margin.net_margin_percent)}`}>
+                    {costData.margin.net_margin_amount.toFixed(2)} ден
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-2.5 font-black text-zinc-700 dark:text-zinc-300">{t('margin_percent')}</td>
+                  <td className={`px-4 py-2.5 text-right font-mono font-black text-base ${marginColorClass(costData.margin.net_margin_percent)}`}>
+                    {costData.margin.net_margin_percent.toFixed(2)}%
+                    {costData.margin.net_margin_percent < 0 && (
+                      <span className="ml-2 text-xs font-bold">{t('cost_losing_money')}</span>
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </div>
     </div>
   );

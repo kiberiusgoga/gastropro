@@ -6,7 +6,7 @@ import { useStore } from './store/useStore';
 import Sidebar from './components/UI/Sidebar';
 import Login from './components/UI/Login';
 import Dashboard from './components/Dashboard';
-import InventoryView from './components/InventoryView';
+import InventoryShell from './components/Inventory/InventoryShell';
 import BillingView from './components/BillingView';
 import { SubscriptionDashboard } from './components/Billing/SubscriptionDashboard';
 import StaffView from './components/StaffView';
@@ -90,7 +90,7 @@ const AppContent = () => {
       case 'dashboard':
         return <Dashboard />;
       case 'inventory':
-        return featureFlags?.inventory_enabled ? <InventoryView /> : <div className="p-8 text-center">Модулот за инвентар не е достапен за вашиот план.</div>;
+        return featureFlags?.inventory_enabled ? <InventoryShell /> : <div className="p-8 text-center">Модулот за инвентар не е достапен за вашиот план.</div>;
       case 'billing':
         return (
           <div className="space-y-8">

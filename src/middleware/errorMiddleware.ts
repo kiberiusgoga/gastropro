@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AppError, ValidationError } from '../lib/errors';
+import { AppError, ValidationError, ConflictError } from '../lib/errors';
 import { ZodError } from 'zod';
 import logger from '../lib/logger';
 
@@ -24,8 +24,14 @@ export const errorMiddleware = (
       message: err.message,
     };
 
+    if (err.code) {
+      errorResponse.code = err.code;
+    }
     if (err instanceof ValidationError && err.errors) {
       errorResponse.errors = err.errors;
+    }
+    if (err instanceof ConflictError && err.details) {
+      errorResponse.details = err.details;
     }
 
     return res.status(err.statusCode).json(errorResponse);

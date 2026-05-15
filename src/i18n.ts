@@ -349,6 +349,16 @@ const mk = {
   vat_food_standard: 'Стандард за храна (10%)',
   vat_alcohol_standard: 'Стандард за алкохол (18%)',
 
+  // Cost & margin (menu item edit modal — Норматив tab)
+  cost_of_ingredients: 'Кост на состојки',
+  net_revenue: 'Нето приход',
+  net_margin: 'Нето маржа',
+  margin_percent: 'Маржа процент',
+  cost_add_ingredients_hint: 'Додај состојки за да се пресмета цена и маржа',
+  cost_missing_price_warning: 'Некои состојки немаат набавна цена. Маржата може да биде неточна.',
+  cost_save_first: 'Зачувај го артиклот за да видиш маржа',
+  cost_losing_money: 'Губиш пари на овој артикл',
+
   // Shifts & Z-report
   close_shift: 'Затвори смена',
   close_shift_subtitle: 'Внеси реален кеш и генерирај Z-извештај',
@@ -370,6 +380,34 @@ const mk = {
   back: 'Назад',
   print: 'Печати',
   optional: 'опционално',
+
+  // Products — expiry & initial inventory
+  default_expiry_days_label: 'Стандарден рок (денови)',
+  default_expiry_days_placeholder: 'пр. 30',
+  default_expiry_days_help: 'Ќе се примени при прием ако не е наведен друг рок',
+  initial_inventory_banner: 'Залихата ќе се книжи преку системска фактура (добавувач: "Иницијална залиха")',
+  initial_inventory_supplier: 'Иницијална залиха',
+  purchase_price_label: 'Набавна цена',
+  purchase_price_placeholder: 'пр. 0.01',
+
+  // Inventory module tabs
+  inv_tab_products: 'Артикли',
+  inv_tab_categories: 'Категории',
+  inv_tab_bundles: 'Нормативи',
+  inv_tab_invoices: 'Фактури',
+  inv_tab_purchase_orders: 'Нарачки',
+  inv_tab_movements: 'Движења',
+  inv_tab_inventory_checks: 'Пописи',
+
+  // Purchase orders UX
+  receive_po: 'Прими',
+  receive_po_title: 'Прием на нарачка',
+  receive_po_success: 'Нарачката е успешно примена',
+  po_items: 'Ставки на нарачка',
+  add_po_item: 'Додај ставка',
+  unit_price: 'Единечна цена',
+  expiry_date: 'Рок на траење',
+  no_po_items: 'Нема ставки',
 };
 
 const en: Record<keyof typeof mk, string> = {
@@ -697,6 +735,16 @@ const en: Record<keyof typeof mk, string> = {
   vat_food_standard: 'Standard for food (10%)',
   vat_alcohol_standard: 'Standard for alcohol (18%)',
 
+  // Cost & margin
+  cost_of_ingredients: 'Cost of ingredients',
+  net_revenue: 'Net revenue',
+  net_margin: 'Net margin',
+  margin_percent: 'Margin percent',
+  cost_add_ingredients_hint: 'Add ingredients to calculate cost and margin',
+  cost_missing_price_warning: 'Some ingredients are missing purchase price. Margin may be inaccurate.',
+  cost_save_first: 'Save the item to see margin',
+  cost_losing_money: 'Losing money on this item',
+
   // Shifts & Z-report
   close_shift: 'Close shift',
   close_shift_subtitle: 'Enter actual cash and generate Z-report',
@@ -718,6 +766,33 @@ const en: Record<keyof typeof mk, string> = {
   back: 'Back',
   print: 'Print',
   optional: 'optional',
+
+  default_expiry_days_label: 'Default shelf life (days)',
+  default_expiry_days_placeholder: 'e.g. 30',
+  default_expiry_days_help: 'Applied on receipt when no other expiry is specified',
+  initial_inventory_banner: 'Stock will be recorded via a system invoice (supplier: "Initial Inventory")',
+  initial_inventory_supplier: 'Initial Inventory',
+  purchase_price_label: 'Purchase price',
+  purchase_price_placeholder: 'e.g. 0.01',
+
+  // Inventory module tabs
+  inv_tab_products: 'Products',
+  inv_tab_categories: 'Categories',
+  inv_tab_bundles: 'Normatives',
+  inv_tab_invoices: 'Invoices',
+  inv_tab_purchase_orders: 'Orders',
+  inv_tab_movements: 'Movements',
+  inv_tab_inventory_checks: 'Inventory Checks',
+
+  // Purchase orders UX
+  receive_po: 'Receive',
+  receive_po_title: 'Receive Purchase Order',
+  receive_po_success: 'Purchase order received successfully',
+  po_items: 'Order items',
+  add_po_item: 'Add item',
+  unit_price: 'Unit price',
+  expiry_date: 'Expiry date',
+  no_po_items: 'No items',
 };
 
 const sq: Record<keyof typeof mk, string> = {
@@ -1045,6 +1120,16 @@ const sq: Record<keyof typeof mk, string> = {
   vat_food_standard: 'Standard për ushqim (10%)',
   vat_alcohol_standard: 'Standard për alkool (18%)',
 
+  // Cost & margin
+  cost_of_ingredients: 'Kosto e përbërësve',
+  net_revenue: 'Të ardhura neto',
+  net_margin: 'Marzhi neto',
+  margin_percent: 'Përqindja e marzhit',
+  cost_add_ingredients_hint: 'Shto përbërës për të llogaritur koston dhe marzhën',
+  cost_missing_price_warning: 'Disa përbërës nuk kanë çmim blerjeje. Marzhi mund të jetë i pasaktë.',
+  cost_save_first: 'Ruaj artikullin për të parë marzhën',
+  cost_losing_money: 'Po humb para në këtë artikull',
+
   // Shifts & Z-report
   close_shift: 'Mbyll turnin',
   close_shift_subtitle: 'Shkruaj arkën reale dhe gjenero raportin Z',
@@ -1066,6 +1151,33 @@ const sq: Record<keyof typeof mk, string> = {
   back: 'Kthehu',
   print: 'Printo',
   optional: 'opsional',
+
+  default_expiry_days_label: 'Afati standard (ditë)',
+  default_expiry_days_placeholder: 'p.sh. 30',
+  default_expiry_days_help: 'Aplikohet gjatë pranimit kur nuk specifikohet afat tjetër',
+  initial_inventory_banner: 'Stoku do të regjistrohet nëpërmjet faturës sistem (furnizues: "Stok Fillestar")',
+  initial_inventory_supplier: 'Stok Fillestar',
+  purchase_price_label: 'Çmimi i blerjes',
+  purchase_price_placeholder: 'p.sh. 0.01',
+
+  // Inventory module tabs
+  inv_tab_products: 'Artikuj',
+  inv_tab_categories: 'Kategori',
+  inv_tab_bundles: 'Normative',
+  inv_tab_invoices: 'Fatura',
+  inv_tab_purchase_orders: 'Porosi',
+  inv_tab_movements: 'Lëvizje',
+  inv_tab_inventory_checks: 'Inventarizim',
+
+  // Purchase orders UX
+  receive_po: 'Prano',
+  receive_po_title: 'Pranimi i porosisë',
+  receive_po_success: 'Porosia u pranua me sukses',
+  po_items: 'Artikujt e porosisë',
+  add_po_item: 'Shto artikull',
+  unit_price: 'Çmimi njësi',
+  expiry_date: 'Data e skadencës',
+  no_po_items: 'Nuk ka artikuj',
 };
 
 i18n

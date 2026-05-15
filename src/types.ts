@@ -208,6 +208,7 @@ export interface PurchaseOrder {
   orderDate: string;
   expectedDate?: string;
   items: {
+    id?: string;
     productId: string;
     productName: string;
     quantity: number;
@@ -253,6 +254,7 @@ export interface Product {
   currentStock: number;
   minStock: number;
   active: boolean;
+  defaultExpiryDays?: number | null;
 }
 
 export interface Invoice {

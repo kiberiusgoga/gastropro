@@ -1,4 +1,5 @@
 import express from 'express';
+import type { PoolClient } from 'pg';
 import bcrypt from 'bcryptjs';
 import net from 'net';
 import { createHash, randomBytes } from 'crypto';
@@ -18,6 +19,7 @@ import { sendEmail } from './services/emailService';
 import { computeZReport } from './services/zreportService';
 import { requireActiveShift } from './utils/shiftValidator';
 import { getImageStorage } from './services/imageStorage';
+import { calculateMenuItemCost, calculateNetMargin } from './utils/costCalculator';
 import multer from 'multer';
 
 const router = express.Router();
@@ -58,19 +60,42 @@ const productSchema = z.object({
   category_id: z.string().uuid(),
   min_stock: z.number().nonnegative().default(0),
   active: z.boolean().optional().default(true),
+  default_expiry_days: z.number().int().min(1).max(3650).optional().nullable(),
 });
 
-const invoiceItemSchema = z.object({
-  product_id: z.string().uuid(),
-  quantity: z.number().positive(),
-  price: z.number().nonnegative(),
+const createProductSchema = productSchema.extend({
+  current_stock: z.number().nonnegative().default(0),
 });
 
 const invoiceSchema = z.object({
-  invoice_number: z.string().min(1),
-  supplier_name: z.string().min(1),
+  invoice_number: z.string().min(1).max(100),
+  supplier_name: z.string().min(1).max(200),
   date: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
-  items: z.array(invoiceItemSchema).min(1),
+  is_initial_inventory: z.boolean().optional().default(false),
+  source_purchase_order_id: z.string().uuid().nullable().default(null),
+  items: z.array(z.object({
+    product_id: z.string().uuid(),
+    quantity: z.number().positive(),
+    price: z.number().nonnegative(),
+    expiry_date: z.string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD')
+      .optional()
+      .nullable(),
+  })).min(1).max(500),
+});
+
+const receivePoSchema = z.object({
+  invoice_number: z.string().min(1).max(100).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  items: z.array(z.object({
+    purchase_order_item_id: z.string().uuid(),
+    quantity: z.number().positive().optional(),
+    price: z.number().nonnegative().optional(),
+    expiry_date: z.string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD')
+      .optional()
+      .nullable(),
+  })).optional(),
 });
 
 const createUserSchema = z.object({
@@ -529,24 +554,65 @@ router.get('/products', authenticateToken, asyncHandler(async (req: AuthRequest,
 }));
 
 router.post('/products', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
-  const data = productSchema.parse(req.body);
-  const restaurantId = req.user?.restaurantId;
-  
-  const result = await pool.query(
-    'INSERT INTO products (name, barcode, unit, purchase_price, selling_price, category_id, min_stock, restaurant_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-    [data.name, data.barcode, data.unit, data.purchase_price, data.selling_price, data.category_id, data.min_stock, restaurantId]
-  );
-  res.status(201).json(result.rows[0]);
+  const data = createProductSchema.parse(req.body);
+  const restaurantId = req.user!.restaurantId;
+  const userId = req.user!.id;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    let productRow: any;
+    try {
+      const result = await client.query(
+        `INSERT INTO products (name, barcode, unit, purchase_price, selling_price, category_id, min_stock, restaurant_id, default_expiry_days)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [data.name, data.barcode ?? null, data.unit, data.purchase_price, data.selling_price,
+         data.category_id, data.min_stock, restaurantId, data.default_expiry_days ?? null],
+      );
+      productRow = result.rows[0];
+    } catch (err: any) {
+      if (err.code === '23505' && err.constraint === 'products_restaurant_name_unique') {
+        throw new ConflictError(`Артикл со име "${data.name}" веќе постои во магацинот.`);
+      }
+      throw err;
+    }
+
+    if (data.current_stock > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      await createInvoiceWithReceipt(client, restaurantId, userId, {
+        invoice_number: `INIT-${productRow.id.slice(0, 8).toUpperCase()}`,
+        supplier_name: 'Иницијална залиха',
+        date: today,
+        is_initial_inventory: true,
+        source_purchase_order_id: null,
+        items: [{ product_id: productRow.id, quantity: data.current_stock, price: data.purchase_price }],
+      });
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json(productRow);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }));
 
 router.put('/products/:id', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
   const { id } = req.params;
   const data = productSchema.parse(req.body);
   const restaurantId = req.user?.restaurantId;
-  
+  const hasExpiry = 'default_expiry_days' in req.body;
+
   const result = await pool.query(
-    'UPDATE products SET name = $1, barcode = $2, unit = $3, purchase_price = $4, selling_price = $5, category_id = $6, min_stock = $7, active = $8, updated_at = CURRENT_TIMESTAMP WHERE id = $9 AND restaurant_id = $10 RETURNING *',
-    [data.name, data.barcode, data.unit, data.purchase_price, data.selling_price, data.category_id, data.min_stock, data.active, id, restaurantId]
+    hasExpiry
+      ? 'UPDATE products SET name=$1, barcode=$2, unit=$3, purchase_price=$4, selling_price=$5, category_id=$6, min_stock=$7, active=$8, default_expiry_days=$9, updated_at=CURRENT_TIMESTAMP WHERE id=$10 AND restaurant_id=$11 RETURNING *'
+      : 'UPDATE products SET name=$1, barcode=$2, unit=$3, purchase_price=$4, selling_price=$5, category_id=$6, min_stock=$7, active=$8, updated_at=CURRENT_TIMESTAMP WHERE id=$9 AND restaurant_id=$10 RETURNING *',
+    hasExpiry
+      ? [data.name, data.barcode, data.unit, data.purchase_price, data.selling_price, data.category_id, data.min_stock, data.active, data.default_expiry_days ?? null, id, restaurantId]
+      : [data.name, data.barcode, data.unit, data.purchase_price, data.selling_price, data.category_id, data.min_stock, data.active, id, restaurantId],
   );
   if (result.rowCount === 0) throw new NotFoundError('Product not found');
   res.json(result.rows[0]);
@@ -678,35 +744,156 @@ async function assertOwns(table: string, id: string, restaurantId: string): Prom
   if (!res.rowCount) throw new NotFoundError(`${table.replace('_', ' ')} not found`);
 }
 
-// --- INVOICES (Stock Increase) ---
+// --- INVOICE RECEIPT HELPER ---
 
-router.post('/invoices', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { invoice_number, supplier_name, date, items } = invoiceSchema.parse(req.body);
-  const restaurantId = req.user?.restaurantId;
-  const client = await pool.connect();
+interface InvoiceReceiptItem {
+  product_id: string;
+  quantity: number;
+  price: number;
+  expiry_date?: string | null;
+}
 
-  try {
-    await client.query('BEGIN');
+interface InvoiceReceiptData {
+  invoice_number: string;
+  supplier_name: string;
+  date: string;
+  is_initial_inventory: boolean;
+  source_purchase_order_id: string | null;
+  items: InvoiceReceiptItem[];
+}
 
-    const total_amount = items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-    
-    const invoiceResult = await client.query(
-      'INSERT INTO invoices (invoice_number, supplier_name, date, total_amount, status, user_id, restaurant_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      [invoice_number, supplier_name, date, total_amount, 'completed', req.user?.id, restaurantId]
-    );
-    const invoiceId = invoiceResult.rows[0].id;
+interface CreatedInvoiceResult {
+  id: string;
+  total_amount: number;
+  item_count: number;
+}
 
-    for (const item of items) {
-      await client.query(
-        'INSERT INTO invoice_items (invoice_id, product_id, quantity, price, total) VALUES ($1, $2, $3, $4, $5)',
-        [invoiceId, item.product_id, item.quantity, item.price, item.quantity * item.price]
-      );
+// Core receipt logic shared by POST /invoices and POST /purchase-orders/:id/receive.
+// Must be called inside an open transaction — caller owns BEGIN/COMMIT/ROLLBACK.
+// Caller also owns assertOwns pre-flight checks and logAuthEvent after commit.
+// total_amount is computed here from SUM(quantity × price), never accepted from caller.
+async function createInvoiceWithReceipt(
+  client: PoolClient,
+  restaurantId: string,
+  userId: string,
+  data: InvoiceReceiptData,
+): Promise<CreatedInvoiceResult> {
+  // One query validates tenant ownership, gets name snapshot, and default_expiry_days.
+  // A product belonging to another restaurant is absent from the result → NotFoundError.
+  const productIds = data.items.map(i => i.product_id);
+  const productsResult = await client.query(
+    `SELECT id, name, default_expiry_days FROM products
+     WHERE id = ANY($1::uuid[]) AND restaurant_id = $2`,
+    [productIds, restaurantId],
+  );
+  const productsById = new Map(productsResult.rows.map(p => [p.id, p]));
+  for (const item of data.items) {
+    if (!productsById.has(item.product_id)) {
+      throw new NotFoundError(`Product not found: ${item.product_id}`);
+    }
+  }
 
-      await updateStock(client, item.product_id, 'receipt', item.quantity, req.user?.id || '', restaurantId || '', `Invoice #${invoice_number}`, invoiceId);
+  const total_amount = data.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+
+  const invoiceResult = await client.query(
+    `INSERT INTO invoices
+       (invoice_number, supplier_name, date, total_amount, status,
+        user_id, restaurant_id, is_initial_inventory, source_purchase_order_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [
+      data.invoice_number, data.supplier_name, data.date,
+      total_amount, 'completed', userId, restaurantId,
+      data.is_initial_inventory, data.source_purchase_order_id,
+    ],
+  );
+  const invoiceId = invoiceResult.rows[0].id;
+
+  for (const item of data.items) {
+    const product = productsById.get(item.product_id)!;
+
+    // Effective expiry: explicit item value wins, then product default, then null.
+    let effectiveExpiry: string | null = null;
+    if (item.expiry_date != null) {
+      effectiveExpiry = item.expiry_date;
+    } else if (product.default_expiry_days != null) {
+      const d = new Date(data.date);
+      d.setDate(d.getDate() + parseInt(product.default_expiry_days, 10));
+      effectiveExpiry = d.toISOString().split('T')[0];
     }
 
+    await client.query(
+      `INSERT INTO invoice_items
+         (invoice_id, product_id, quantity, price, total, name, restaurant_id, expiry_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [invoiceId, item.product_id, item.quantity, item.price,
+       item.quantity * item.price, product.name, restaurantId, effectiveExpiry],
+    );
+
+    await updateStock(client, item.product_id, 'receipt', item.quantity,
+      userId, restaurantId, `Invoice #${data.invoice_number}`, invoiceId);
+
+    // Skip price update when zero — prevents wiping a known purchase_price on blank submission.
+    if (item.price > 0) {
+      await client.query(
+        `UPDATE products SET purchase_price = $1 WHERE id = $2 AND restaurant_id = $3`,
+        [item.price, item.product_id, restaurantId],
+      );
+    }
+  }
+
+  // purchase_orders has no updated_at column — status update only.
+  // Guard prevents double-mark if called twice with the same source PO.
+  if (data.source_purchase_order_id) {
+    await client.query(
+      `UPDATE purchase_orders
+       SET status = 'received'
+       WHERE id = $1 AND restaurant_id = $2 AND status != 'received'`,
+      [data.source_purchase_order_id, restaurantId],
+    );
+  }
+
+  return { id: invoiceId, total_amount, item_count: data.items.length };
+}
+
+// --- INVOICES (Stock Increase) ---
+
+router.post('/invoices', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const parsedData = invoiceSchema.parse(req.body);
+  const restaurantId = req.user!.restaurantId;
+  const userId = req.user!.id;
+
+  if (parsedData.source_purchase_order_id) {
+    await assertOwns('purchase_orders', parsedData.source_purchase_order_id, restaurantId);
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const invoice = await createInvoiceWithReceipt(client, restaurantId, userId, {
+      invoice_number: parsedData.invoice_number,
+      supplier_name: parsedData.supplier_name,
+      date: parsedData.date,
+      is_initial_inventory: parsedData.is_initial_inventory,
+      source_purchase_order_id: parsedData.source_purchase_order_id,
+      items: parsedData.items,
+    });
     await client.query('COMMIT');
-    res.status(201).json({ id: invoiceId, message: 'Invoice processed successfully' });
+
+    logAuthEvent({
+      user_id: userId,
+      restaurant_id: restaurantId,
+      action: 'invoice_created',
+      metadata: {
+        invoice_id: invoice.id,
+        invoice_number: parsedData.invoice_number,
+        item_count: invoice.item_count,
+        total_amount: invoice.total_amount,
+        is_initial_inventory: parsedData.is_initial_inventory,
+        source_purchase_order_id: parsedData.source_purchase_order_id,
+      },
+    });
+
+    res.status(201).json({ id: invoice.id, message: 'Invoice processed successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -997,7 +1184,24 @@ router.delete('/bundles/:id', authenticateToken, authorizeRole(['Admin', 'Manage
 // --- INVENTORY CHECKS ---
 
 router.get('/inventory-checks', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const result = await pool.query('SELECT * FROM inventory_checks WHERE restaurant_id = $1 ORDER BY date DESC', [req.user?.restaurantId]);
+  const result = await pool.query(
+    `SELECT ic.*,
+            COALESCE(
+              json_agg(json_build_object(
+                'product_id', ici.product_id,
+                'system_qty', ici.system_qty,
+                'real_qty',   ici.real_qty,
+                'diff',       ici.diff
+              ) ORDER BY ici.id) FILTER (WHERE ici.id IS NOT NULL),
+              '[]'::json
+            ) AS items
+     FROM inventory_checks ic
+     LEFT JOIN inventory_check_items ici ON ici.check_id = ic.id
+     WHERE ic.restaurant_id = $1
+     GROUP BY ic.id
+     ORDER BY ic.date DESC`,
+    [req.user?.restaurantId],
+  );
   res.json(result.rows);
 }));
 
@@ -1355,6 +1559,47 @@ router.get('/menu-items/:id/recipe', authenticateToken, asyncHandler(async (req:
   );
   res.json(result.rows);
 }));
+
+// GET /menu-items/:id/cost — live cost & margin breakdown (Admin/Manager only)
+router.get('/menu-items/:id/cost',
+  authenticateToken,
+  authorizeRole(['Admin', 'Manager']),
+  asyncHandler(async (req: AuthRequest, res) => {
+    const itemRes = await pool.query(
+      'SELECT id, price, vat_rate FROM menu_items WHERE id = $1 AND restaurant_id = $2',
+      [req.params.id, req.user!.restaurantId]
+    );
+    if (!itemRes.rowCount) throw new NotFoundError('Menu item not found');
+
+    const item = itemRes.rows[0];
+    const costData = await calculateMenuItemCost(req.params.id, req.user!.restaurantId);
+
+    if (costData.unit_cost === null) {
+      return res.json({
+        menu_item_id: req.params.id,
+        has_recipe: false,
+        ingredients_count: 0,
+        cost: null,
+        margin: null,
+      });
+    }
+
+    const margin = calculateNetMargin(
+      parseFloat(item.price),
+      parseFloat(item.vat_rate),
+      costData.unit_cost
+    );
+
+    res.json({
+      menu_item_id: req.params.id,
+      has_recipe: true,
+      ingredients_count: costData.ingredients_count,
+      missing_purchase_price: costData.missing_purchase_price,
+      cost: costData.unit_cost,
+      margin,
+    });
+  })
+);
 
 // GET /menu-items/:id/recipe/stock-check?portions=N — proverka na dovolnost
 router.get('/menu-items/:id/recipe/stock-check', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
@@ -1806,8 +2051,19 @@ router.post('/orders', authenticateToken, asyncHandler(async (req: AuthRequest, 
       let subtotal = 0;
       for (const item of items) {
         await client.query(
-          `INSERT INTO order_items (order_id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle, vat_rate)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE((SELECT vat_rate FROM menu_items WHERE id = $2), 0.10))`,
+          `INSERT INTO order_items (order_id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle, vat_rate, unit_cost)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+             COALESCE((SELECT vat_rate FROM menu_items WHERE id = $2), 0.10),
+             (SELECT COALESCE(SUM(
+                CASE
+                  WHEN ri.recipe_unit = 'g'  AND p.unit = 'kg' THEN ri.quantity * 0.001 * p.purchase_price
+                  WHEN ri.recipe_unit = 'ml' AND p.unit = 'l'  THEN ri.quantity * 0.001 * p.purchase_price
+                  ELSE ri.quantity * p.purchase_price
+                END
+              ), 0)
+              FROM recipe_ingredients ri
+              JOIN products p ON p.id = ri.inventory_item_id
+              WHERE ri.menu_item_id = $2))`,
           [order.id, item.menu_item_id, item.name, item.quantity, item.price, item.preparation_station, item.note, item.is_bundle || false]
         );
         subtotal += item.price * item.quantity;
@@ -1958,8 +2214,19 @@ router.post('/orders/:id/items', authenticateToken, asyncHandler(async (req: Aut
   const orderRes = await pool.query('SELECT id FROM orders WHERE id = $1 AND restaurant_id = $2', [req.params.id, req.user?.restaurantId]);
   if (orderRes.rowCount === 0) throw new NotFoundError('Order not found');
   const itemRes = await pool.query(
-    `INSERT INTO order_items (order_id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle, vat_rate)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE((SELECT vat_rate FROM menu_items WHERE id = $2), 0.10)) RETURNING *`,
+    `INSERT INTO order_items (order_id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle, vat_rate, unit_cost)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+       COALESCE((SELECT vat_rate FROM menu_items WHERE id = $2), 0.10),
+       (SELECT COALESCE(SUM(
+          CASE
+            WHEN ri.recipe_unit = 'g'  AND p.unit = 'kg' THEN ri.quantity * 0.001 * p.purchase_price
+            WHEN ri.recipe_unit = 'ml' AND p.unit = 'l'  THEN ri.quantity * 0.001 * p.purchase_price
+            ELSE ri.quantity * p.purchase_price
+          END
+        ), 0)
+        FROM recipe_ingredients ri
+        JOIN products p ON p.id = ri.inventory_item_id
+        WHERE ri.menu_item_id = $2)) RETURNING *`,
     [req.params.id, menu_item_id, name, quantity, price, preparation_station, note, is_bundle || false]
   );
   res.status(201).json(itemRes.rows[0]);
@@ -2439,11 +2706,18 @@ router.get('/suppliers', authenticateToken, asyncHandler(async (req: AuthRequest
   const result = await pool.query('SELECT * FROM suppliers WHERE restaurant_id = $1 AND active = TRUE AND deleted_at IS NULL', [req.user?.restaurantId]);
   res.json(result.rows);
 }));
+const createSupplierSchema = z.object({
+  name: z.string().min(1).max(200),
+  contact_person: z.string().max(200).optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  email: z.string().email().max(200).optional().nullable(),
+  address: z.string().max(500).optional().nullable(),
+});
 router.post('/suppliers', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { name, contact_person, phone, email, address } = req.body;
+  const data = createSupplierSchema.parse(req.body);
   const result = await pool.query(
     `INSERT INTO suppliers (restaurant_id, name, contact_person, phone, email, address) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [req.user?.restaurantId, name, contact_person, phone, email, address]
+    [req.user?.restaurantId, data.name, data.contact_person ?? null, data.phone ?? null, data.email ?? null, data.address ?? null],
   );
   res.status(201).json(result.rows[0]);
 }));
@@ -2516,21 +2790,182 @@ router.put('/notifications/:id/read', authenticateToken, asyncHandler(async (req
 
 // Purchase Orders
 router.get('/purchase-orders', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const result = await pool.query('SELECT * FROM purchase_orders WHERE restaurant_id = $1 ORDER BY order_date DESC', [req.user?.restaurantId]);
+  const result = await pool.query(
+    `SELECT po.*,
+            COALESCE(
+              json_agg(json_build_object(
+                'id',           poi.id,
+                'product_id',   poi.product_id,
+                'product_name', poi.product_name,
+                'quantity',     poi.quantity,
+                'unit_price',   poi.unit_price
+              ) ORDER BY poi.id) FILTER (WHERE poi.id IS NOT NULL),
+              '[]'::json
+            ) AS po_items
+     FROM purchase_orders po
+     LEFT JOIN purchase_order_items poi ON poi.purchase_order_id = po.id
+     WHERE po.restaurant_id = $1
+     GROUP BY po.id
+     ORDER BY po.order_date DESC`,
+    [req.user?.restaurantId],
+  );
   res.json(result.rows);
 }));
 router.post('/purchase-orders', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { supplier_id, supplier_name, order_date, expected_date, total_cost, status, notes } = req.body;
-  const result = await pool.query(
-    `INSERT INTO purchase_orders (restaurant_id, supplier_id, supplier_name, order_date, expected_date, total_cost, status, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-    [req.user?.restaurantId, supplier_id, supplier_name, order_date, expected_date, total_cost || 0, status || 'draft', notes]
-  );
-  res.status(201).json(result.rows[0]);
+  const { supplier_id, supplier_name, order_date, expected_date, total_cost, status, notes, items } = req.body;
+  const restaurantId = req.user?.restaurantId;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const poResult = await client.query(
+      `INSERT INTO purchase_orders (restaurant_id, supplier_id, supplier_name, order_date, expected_date, total_cost, status, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [restaurantId, supplier_id, supplier_name, order_date, expected_date, total_cost || 0, status || 'draft', notes],
+    );
+    const po = poResult.rows[0];
+    if (Array.isArray(items) && items.length > 0) {
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO purchase_order_items (purchase_order_id, product_id, product_name, quantity, unit_price)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [po.id, item.product_id, item.product_name, item.quantity, item.unit_price],
+        );
+      }
+    }
+    await client.query('COMMIT');
+    res.status(201).json(po);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }));
 router.put('/purchase-orders/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const { status } = req.body;
   const result = await pool.query(`UPDATE purchase_orders SET status = COALESCE($1, status) WHERE id = $2 AND restaurant_id = $3 RETURNING *`, [status, req.params.id, req.user?.restaurantId]);
   res.json(result.rows[0]);
+}));
+
+router.post('/purchase-orders/:id/receive', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const poId = req.params.id;
+  const restaurantId = req.user!.restaurantId;
+  const userId = req.user!.id;
+
+  const parsed = receivePoSchema.parse(req.body);
+
+  // Load PO + items in one query. restaurant_id filter doubles as ownership check.
+  // COALESCE + FILTER (WHERE poi.id IS NOT NULL) gives [] instead of [null] for empty POs.
+  const poResult = await pool.query(
+    `SELECT po.id, po.supplier_name, po.status,
+            COALESCE(
+              json_agg(json_build_object(
+                'id',           poi.id,
+                'product_id',   poi.product_id,
+                'product_name', poi.product_name,
+                'quantity',     poi.quantity,
+                'unit_price',   poi.unit_price
+              ) ORDER BY poi.id) FILTER (WHERE poi.id IS NOT NULL),
+              '[]'::json
+            ) AS items
+     FROM purchase_orders po
+     LEFT JOIN purchase_order_items poi ON poi.purchase_order_id = po.id
+     WHERE po.id = $1 AND po.restaurant_id = $2
+     GROUP BY po.id`,
+    [poId, restaurantId],
+  );
+
+  if (!poResult.rowCount || poResult.rowCount === 0) {
+    throw new NotFoundError('Purchase order not found');
+  }
+
+  const po = poResult.rows[0];
+
+  if (po.status === 'received' || po.status === 'cancelled') {
+    throw new ConflictError(
+      `Purchase order cannot be received: current status is '${po.status}'`,
+      'PO_NOT_RECEIVABLE',
+      { current_status: po.status },
+    );
+  }
+
+  const poItems: Array<{ id: string; product_id: string; product_name: string; quantity: string; unit_price: string }> = po.items;
+  if (poItems.length === 0) {
+    throw new ConflictError('Purchase order has no items', 'PO_EMPTY');
+  }
+
+  // Validate every override references an item that belongs to this PO.
+  if (parsed.items && parsed.items.length > 0) {
+    const validIds = new Set(poItems.map(i => i.id));
+    for (const override of parsed.items) {
+      if (!validIds.has(override.purchase_order_item_id)) {
+        throw new ValidationError(
+          `Invalid purchase order item: ${override.purchase_order_item_id}`,
+          undefined,
+          'INVALID_PO_ITEM_ID',
+        );
+      }
+    }
+  }
+
+  const overrideMap = new Map((parsed.items ?? []).map(o => [o.purchase_order_item_id, o]));
+
+  // Merge PO items with overrides. Missing overrides receive PO defaults.
+  const invoiceItems: InvoiceReceiptItem[] = poItems.map(poi => {
+    const ov = overrideMap.get(poi.id);
+    return {
+      product_id: poi.product_id,
+      quantity:   ov?.quantity   ?? parseFloat(poi.quantity),
+      price:      ov?.price      ?? parseFloat(poi.unit_price),
+      expiry_date: ov?.expiry_date ?? null,
+    };
+  });
+
+  const invoiceNumber = parsed.invoice_number
+    ?? `PO-${poId.slice(0, 8).toUpperCase()}-RECEIVED`;
+  const date = parsed.date ?? new Date().toISOString().split('T')[0];
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const invoice = await createInvoiceWithReceipt(client, restaurantId, userId, {
+      invoice_number: invoiceNumber,
+      supplier_name:  po.supplier_name,
+      date,
+      is_initial_inventory: false,
+      source_purchase_order_id: poId,
+      items: invoiceItems,
+    });
+
+    await client.query('COMMIT');
+
+    logAuthEvent({
+      user_id: userId,
+      restaurant_id: restaurantId,
+      action: 'purchase_order_received',
+      metadata: {
+        purchase_order_id: poId,
+        invoice_id: invoice.id,
+        item_count: invoice.item_count,
+        total_amount: invoice.total_amount,
+        had_overrides: parsed.items != null && parsed.items.length > 0,
+      },
+    });
+
+    res.status(201).json({
+      id: invoice.id,
+      invoice_number: invoiceNumber,
+      total_amount: invoice.total_amount,
+      item_count: invoice.item_count,
+      source_purchase_order_id: poId,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }));
 
 router.delete('/purchase-orders/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {

@@ -1,11 +1,13 @@
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
+  public readonly code?: string;
 
-  constructor(message: string, statusCode: number, isOperational = true) {
+  constructor(message: string, statusCode: number, isOperational = true, code?: string) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
+    this.code = code;
 
     Object.setPrototypeOf(this, new.target.prototype);
     Error.captureStackTrace(this, this.constructor);
@@ -15,8 +17,8 @@ export class AppError extends Error {
 export class ValidationError extends AppError {
   public readonly errors?: unknown;
 
-  constructor(message: string, errors?: unknown) {
-    super(message, 400);
+  constructor(message: string, errors?: unknown, code?: string) {
+    super(message, 400, true, code);
     this.errors = errors;
   }
 }
@@ -40,7 +42,10 @@ export class NotFoundError extends AppError {
 }
 
 export class ConflictError extends AppError {
-  constructor(message: string) {
-    super(message, 409);
+  public readonly details?: Record<string, unknown>;
+
+  constructor(message: string, code?: string, details?: Record<string, unknown>) {
+    super(message, 409, true, code);
+    this.details = details;
   }
 }

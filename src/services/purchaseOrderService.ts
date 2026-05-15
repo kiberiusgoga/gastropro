@@ -80,7 +80,14 @@ export const purchaseOrderService = {
         status: row.status,
         totalCost: Number(row.total_cost || 0),
         notes: row.notes,
-        items: []
+        items: (row.po_items ?? []).map((i: any) => ({
+          id: i.id,
+          productId: i.product_id,
+          productName: i.product_name,
+          quantity: Number(i.quantity),
+          unitPrice: Number(i.unit_price),
+          total: Number(i.quantity) * Number(i.unit_price),
+        })),
       })) as PurchaseOrder[];
     } catch (error) {
       console.error(error);
@@ -97,7 +104,13 @@ export const purchaseOrderService = {
         expected_date: data.expectedDate,
         total_cost: data.totalCost,
         status: data.status,
-        notes: data.notes
+        notes: data.notes,
+        items: data.items.map(i => ({
+          product_id: i.productId,
+          product_name: i.productName,
+          quantity: i.quantity,
+          unit_price: i.unitPrice,
+        })),
       });
       const row = response.data;
       return {
@@ -110,8 +123,25 @@ export const purchaseOrderService = {
         status: row.status,
         totalCost: Number(row.total_cost || 0),
         notes: row.notes,
-        items: []
+        items: [],
       } as PurchaseOrder;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  },
+
+  receivePO: async (
+    id: string,
+    data: {
+      items?: { purchase_order_item_id: string; quantity?: number; price?: number; expiry_date?: string | null }[];
+      invoice_number?: string;
+      date?: string;
+    } = {},
+  ): Promise<any> => {
+    try {
+      const response = await apiClient.post(`/purchase-orders/${id}/receive`, data);
+      return response.data;
     } catch (error) {
       console.error(error);
       throw error;

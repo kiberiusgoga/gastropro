@@ -84,9 +84,9 @@ const Invoices = () => {
       });
       fetchInvoices();
       fetchProducts();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating invoice:", error);
-      toast.error(t('error'));
+      toast.error(error?.message ?? t('error'));
     }
   };
 

@@ -51,7 +51,11 @@ export const inventoryCheckService = {
         restaurantId: row.restaurant_id,
         date: row.date,
         status: row.status,
-        items: [] // Items are stored in inventory_check_items table, fetched separately if needed
+        items: (row.items ?? []).map((item: any) => ({
+          productId: item.product_id,
+          systemQty: Number(item.system_qty),
+          realQty: Number(item.real_qty),
+        })),
       })) as InventoryCheck[];
     } catch (error) {
       console.error('Error fetching inventory checks:', error);
@@ -77,12 +81,12 @@ export const inventoryCheckService = {
 };
 
 export const invoiceService = {
-  create: async (data: { invoiceNumber: string; supplierName: string; items: { productId: string; quantity: number; price: number }[]; restaurantId?: string }) => {
+  create: async (data: { invoiceNumber: string; supplierName: string; date?: string; items: { productId: string; quantity: number; price: number }[]; restaurantId?: string }) => {
     try {
       const response = await apiClient.post('/invoices', {
         invoice_number: data.invoiceNumber,
         supplier_name: data.supplierName,
-        date: new Date().toISOString().split('T')[0],
+        date: data.date ?? new Date().toISOString().split('T')[0],
         items: data.items.map(item => ({
           product_id: item.productId,
           quantity: item.quantity,
@@ -90,9 +94,12 @@ export const invoiceService = {
         }))
       });
       return response.data;
-    } catch (error) {
-      console.error('Error creating invoice:', error);
-      throw error;
+    } catch (error: any) {
+      const serverMsg = error?.response?.data?.message ?? error?.response?.data?.errors?.[0]?.message;
+      const status = error?.response?.status;
+      const enriched = new Error(serverMsg ? `[${status}] ${serverMsg}` : String(error?.message ?? error));
+      console.error('Invoice creation failed:', { status, body: error?.response?.data });
+      throw enriched;
     }
   },
 
@@ -131,10 +138,9 @@ export const bundleService = {
         sellingPrice: Number(row.selling_price),
         active: row.active,
         items: row.items?.map((item: any) => ({
-          id: item.id,
-          productId: item.product_id,
+          product_id: item.product_id,
           quantity: Number(item.quantity),
-          productName: item.product_name,
+          product_name: item.product_name,
           unit: item.unit
         })) || []
       })) as Bundle[];

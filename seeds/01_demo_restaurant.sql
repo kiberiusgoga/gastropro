@@ -189,40 +189,40 @@ SELECT id INTO inv_clean FROM categories WHERE restaurant_id = rid AND name = '�
 -- 6. PRODUCTS (inventory)
 -- ============================================================
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_raw, 'Брашно',  'kg',  40,  0, 50, 10) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_raw, 'Брашно',  'kg',  40,  0, 50, 10) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_raw, 'Шеќер',   'kg',  60,  0, 30,  5) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_raw, 'Шеќер',   'kg',  60,  0, 30,  5) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_raw, 'Масло',    'l',  120,  0, 20,  5) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_raw, 'Масло',    'l',  120,  0, 20,  5) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_raw, 'Сол',     'kg',  15,  0, 10,  2) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_raw, 'Сол',     'kg',  15,  0, 10,  2) ON CONFLICT (restaurant_id, name) DO NOTHING;
 
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_bev, 'Кока Кола 0.33l', 'pcs', 45, 120, 100, 24) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_bev, 'Кока Кола 0.33l', 'pcs', 45, 120, 100, 24) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_bev, 'Пиво 0.5l',        'pcs', 70, 150,  80, 20) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_bev, 'Пиво 0.5l',        'pcs', 70, 150,  80, 20) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_bev, 'Вода 0.5l',         'pcs', 25,  80, 150, 30) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_bev, 'Вода 0.5l',         'pcs', 25,  80, 150, 30) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_bev, 'Сок (1l)',           'pcs', 90, 200,  40, 12) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_bev, 'Сок (1l)',           'pcs', 90, 200,  40, 12) ON CONFLICT (restaurant_id, name) DO NOTHING;
 
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_food, 'Пилешко месо',  'kg', 200, 0, 15, 3) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_food, 'Пилешко месо',  'kg', 200, 0, 15, 3) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_food, 'Говедско месо', 'kg', 350, 0, 10, 2) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_food, 'Говедско месо', 'kg', 350, 0, 10, 2) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_food, 'Свинско месо',  'kg', 250, 0, 12, 3) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_food, 'Свинско месо',  'kg', 250, 0, 12, 3) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_food, 'Сирење',         'kg', 300, 0,  8, 2) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_food, 'Сирење',         'kg', 300, 0,  8, 2) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_food, 'Домати',          'kg',  80, 0,  5, 1) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_food, 'Домати',          'kg',  80, 0,  5, 1) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_food, 'Тестенини',       'kg',  90, 0, 20, 5) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_food, 'Тестенини',       'kg',  90, 0, 20, 5) ON CONFLICT (restaurant_id, name) DO NOTHING;
 
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_clean, 'Детергент',     'pcs', 120, 0, 10, 2) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_clean, 'Детергент',     'pcs', 120, 0, 10, 2) ON CONFLICT (restaurant_id, name) DO NOTHING;
 INSERT INTO products (restaurant_id, category_id, name, unit, purchase_price, selling_price, current_stock, min_stock)
-  VALUES (rid, inv_clean, 'Хартиени крпи', 'box', 200, 0,  5, 2) ON CONFLICT DO NOTHING;
+  VALUES (rid, inv_clean, 'Хартиени крпи', 'box', 200, 0,  5, 2) ON CONFLICT (restaurant_id, name) DO NOTHING;
 
 -- ============================================================
 -- 7. RESTAURANT TABLES (10 tables)

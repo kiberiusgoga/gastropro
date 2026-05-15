@@ -13,7 +13,8 @@ const mapProduct = (row: any): Product => ({
   preparationStation: row.preparation_station,
   currentStock: Number(row.current_stock || 0),
   minStock: Number(row.min_stock || 0),
-  active: row.active
+  active: row.active,
+  defaultExpiryDays: row.default_expiry_days != null ? Number(row.default_expiry_days) : null,
 });
 
 const toProductPayload = (data: Partial<Product>) => ({
@@ -25,7 +26,9 @@ const toProductPayload = (data: Partial<Product>) => ({
   category_id: data.categoryId,
   min_stock: data.minStock,
   active: data.active !== false,
-  preparation_station: data.preparationStation
+  preparation_station: data.preparationStation,
+  default_expiry_days: data.defaultExpiryDays,
+  current_stock: data.currentStock,
 });
 
 export const productService = {
