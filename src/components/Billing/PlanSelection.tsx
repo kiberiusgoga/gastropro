@@ -10,10 +10,10 @@ interface PlanSelectionProps {
   onPlanSelected: (subscription: Subscription) => void;
 }
 
-export const PlanSelection: React.FC<PlanSelectionProps> = ({ 
-  restaurantId, 
+export const PlanSelection: React.FC<PlanSelectionProps> = ({
+  restaurantId,
   currentSubscription,
-  onPlanSelected 
+  onPlanSelected
 }) => {
   const [loading, setLoading] = useState<string | null>(null);
   const plans = DEFAULT_PLANS;
@@ -43,36 +43,36 @@ export const PlanSelection: React.FC<PlanSelectionProps> = ({
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-8">
       {plans.map((plan) => {
         const isCurrent = currentSubscription?.plan === plan.id;
-        const isUpgrade = currentSubscription && 
+        const isUpgrade = currentSubscription &&
           plans.findIndex(p => p.id === plan.id) > plans.findIndex(p => p.id === currentSubscription.plan);
 
         return (
-          <div 
+          <div
             key={plan.id}
-            className={`relative flex flex-col p-6 bg-white rounded-2xl border-2 transition-all duration-300 ${
-              isCurrent ? 'border-primary shadow-lg scale-105 z-10' : 'border-gray-100 hover:border-gray-200'
+            className={`relative flex flex-col p-6 bg-surface rounded-2xl border-2 transition-all duration-300 ${
+              isCurrent ? 'border-accent shadow-card-lg scale-105 z-10' : 'border-warm-line hover:border-warm-line-strong'
             }`}
           >
             {plan.id === 'professional' && (
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-white px-4 py-1 rounded-full text-sm font-bold flex items-center gap-1">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-accent text-[#faf5ee] px-4 py-1 rounded-full text-sm font-bold flex items-center gap-1">
                 <Zap className="w-3 h-3 fill-current" />
                 Most Popular
               </div>
             )}
 
             <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+              <h3 className="text-xl font-bold text-cream mb-2">{plan.name}</h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-gray-900">${plan.price}</span>
-                <span className="text-gray-500">/month</span>
+                <span className="text-4xl font-black text-cream">${plan.price}</span>
+                <span className="text-cream-faint">/month</span>
               </div>
             </div>
 
             <ul className="flex-1 space-y-4 mb-8">
               {plan.features.map((feature, idx) => (
-                <li key={idx} className="flex items-start gap-3 text-sm text-gray-600">
-                  <div className="mt-1 bg-green-100 rounded-full p-0.5">
-                    <Check className="w-3 h-3 text-green-600" />
+                <li key={idx} className="flex items-start gap-3 text-sm text-cream-muted">
+                  <div className="mt-1 bg-emerald-900/20 rounded-full p-0.5">
+                    <Check className="w-3 h-3 text-emerald-400" />
                   </div>
                   {feature}
                 </li>
@@ -83,9 +83,9 @@ export const PlanSelection: React.FC<PlanSelectionProps> = ({
               onClick={() => handleSelectPlan(plan.id)}
               disabled={isCurrent || loading !== null}
               className={`w-full py-3 px-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
-                isCurrent 
-                  ? 'bg-gray-100 text-gray-400 cursor-default' 
-                  : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
+                isCurrent
+                  ? 'bg-surface-2 text-cream-faint cursor-default'
+                  : 'bg-accent text-[#faf5ee] hover:brightness-110 active:scale-95'
               }`}
             >
               {loading === plan.id ? (

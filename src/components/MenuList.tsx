@@ -10,9 +10,6 @@ import { Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, X, ChefHat, Flask
 
 const STATIONS = ['kitchen', 'bar', 'grill', 'pastry'];
 
-// ============================================================
-// Dozvoleni recipe_unit vrednosti spored inventory_item.unit
-// ============================================================
 function allowedUnitsFor(inventoryUnit: string): string[] {
   switch (inventoryUnit) {
     case 'kg':  return ['g', 'kg'];
@@ -23,14 +20,11 @@ function allowedUnitsFor(inventoryUnit: string): string[] {
   }
 }
 
-// ============================================================
-// RecipeTab — tab za normativ vnatre vo Add/Edit modalot
-// ============================================================
 function marginColorClass(pct: number): string {
-  if (pct >= 60) return 'text-emerald-600 dark:text-emerald-400';
-  if (pct >= 40) return 'text-amber-500 dark:text-amber-400';
-  if (pct >= 20) return 'text-orange-500 dark:text-orange-400';
-  return 'text-rose-600 dark:text-rose-400';
+  if (pct >= 60) return 'text-emerald-400';
+  if (pct >= 40) return 'text-amber-400';
+  if (pct >= 20) return 'text-orange-400';
+  return 'text-rose-400';
 }
 
 const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
@@ -84,7 +78,6 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
 
   useEffect(() => { load(); }, [load]);
 
-  // Koga se menuva izbraniot proizvod, go resetira recipe_unit
   const handleProductChange = (productId: string) => {
     const prod = products.find(p => p.id === productId);
     const units = prod ? allowedUnitsFor(prod.unit) : [];
@@ -124,10 +117,10 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
     }
   };
 
-  const inputCls = 'px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white';
+  const inputCls = 'px-3 py-2 bg-warm-input border border-warm-line rounded-lg text-sm font-bold text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50';
 
   if (loading) return (
-    <div className="flex items-center justify-center py-12 text-zinc-400 gap-2">
+    <div className="flex items-center justify-center py-12 text-cream-faint gap-2">
       <FlaskConical size={20} className="animate-pulse" />
       <span className="text-sm font-bold">Се вчитува нормативот...</span>
     </div>
@@ -136,44 +129,45 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-black text-zinc-700 dark:text-zinc-200">Состојки за подготовка</p>
-        <p className="text-xs text-zinc-400 mt-0.5">
+        <p className="text-sm font-black text-cream">Состојки за подготовка</p>
+        <p className="text-xs text-cream-faint mt-0.5">
           Овие количини ќе се одземат од магацин при секоја продажба
         </p>
       </div>
 
-      {/* Tabela so sostojki */}
+      {/* Ingredients table */}
       {ingredients.length === 0 ? (
-        <div className="text-center py-8 bg-zinc-50 dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-200 dark:border-zinc-700">
-          <FlaskConical size={28} className="mx-auto mb-2 text-zinc-300 dark:text-zinc-600" />
-          <p className="text-sm font-bold text-zinc-400">Нема дефиниран норматив</p>
-          <p className="text-xs text-zinc-400 mt-0.5">Додај состојка за да почнеш</p>
+        <div className="text-center py-8 bg-surface-2 rounded-xl border-2 border-dashed border-warm-line">
+          <FlaskConical size={28} className="mx-auto mb-2 text-cream-faint/30" />
+          <p className="text-sm font-bold text-cream-faint">Нема дефиниран норматив</p>
+          <p className="text-xs text-cream-faint mt-0.5">Додај состојка за да почнеш</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+        <div className="rounded-xl border border-warm-line overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-zinc-50 dark:bg-zinc-800/60">
-                <th className="text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Состојка</th>
-                <th className="text-right px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Количина</th>
-                <th className="text-right px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Залиха</th>
+              <tr className="bg-surface-2/60">
+                <th className="text-left px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-cream-faint">Состојка</th>
+                <th className="text-right px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-cream-faint">Количина</th>
+                <th className="text-right px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-cream-faint">Залиха</th>
                 <th className="w-10" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tbody className="divide-y divide-warm-line">
               {ingredients.map(ing => {
                 const sufficient = ing.current_stock >= ing.quantity;
                 return (
                   <tr key={ing.id} className="group">
-                    <td className="px-4 py-3 font-bold text-zinc-800 dark:text-zinc-200">{ing.ingredient_name}</td>
-                    <td className="px-4 py-3 text-right font-mono text-zinc-600 dark:text-zinc-400">
+                    <td className="px-4 py-3 font-bold text-cream-muted">{ing.ingredient_name}</td>
+                    <td className="px-4 py-3 text-right font-mono text-cream-faint">
                       {ing.quantity} {ing.recipe_unit}
                     </td>
                     <td className="px-4 py-3 text-right">
+                      {/* keep semantic: emerald = sufficient, rose = insufficient */}
                       <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${
                         sufficient
-                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
-                          : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'
+                          ? 'bg-emerald-900/20 text-emerald-400'
+                          : 'bg-rose-900/20 text-rose-400'
                       }`}>
                         {!sufficient && <AlertTriangle size={10} />}
                         {ing.current_stock} {ing.inventory_unit}
@@ -182,7 +176,7 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
                     <td className="px-2 py-3">
                       <button
                         onClick={() => handleDelete(ing.id)}
-                        className="p-1.5 text-zinc-300 dark:text-zinc-600 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        className="p-1.5 text-cream-faint hover:text-rose-400 hover:bg-rose-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                       >
                         <Trash size={14} />
                       </button>
@@ -195,12 +189,12 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
         </div>
       )}
 
-      {/* Forma za dodavanje sostojok */}
-      <div className="bg-zinc-50 dark:bg-zinc-800/40 rounded-xl p-4 space-y-3 border border-zinc-100 dark:border-zinc-800">
-        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Додај состојка</p>
+      {/* Add ingredient form */}
+      <div className="bg-surface-2/40 rounded-xl p-4 space-y-3 border border-warm-line">
+        <p className="text-[10px] font-black uppercase tracking-widest text-cream-faint">Додај состојка</p>
         <div className="grid grid-cols-[1fr_80px_80px_36px] gap-2 items-end">
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Производ</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint mb-1 block">Производ</label>
             <select
               value={addForm.inventory_item_id}
               onChange={e => handleProductChange(e.target.value)}
@@ -212,7 +206,7 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
             </select>
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Кол.</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint mb-1 block">Кол.</label>
             <input
               type="number"
               min="0.001"
@@ -224,7 +218,7 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
             />
           </div>
           <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Јед.</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint mb-1 block">Јед.</label>
             <select
               value={addForm.recipe_unit}
               onChange={e => setAddForm(f => ({ ...f, recipe_unit: e.target.value }))}
@@ -236,7 +230,7 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
           <button
             onClick={handleAdd}
             disabled={adding}
-            className="h-[38px] w-9 flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-lg transition-all disabled:opacity-50 shadow-sm"
+            className="h-[38px] w-9 flex items-center justify-center bg-accent hover:brightness-110 text-[#faf5ee] rounded-lg transition-all disabled:opacity-50 shadow-card-sm"
           >
             <Plus size={16} strokeWidth={3} />
           </button>
@@ -244,66 +238,66 @@ const RecipeTab: React.FC<{ menuItemId: string }> = ({ menuItemId }) => {
       </div>
 
       {/* Cost & Margin section */}
-      <div className="border-t border-zinc-100 dark:border-zinc-800 pt-5">
+      <div className="border-t border-warm-line pt-5">
         <div className="flex items-center gap-2 mb-3">
-          <TrendingUp size={14} className="text-zinc-400" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Кост и Маржа</p>
+          <TrendingUp size={14} className="text-cream-faint" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-cream-faint">Кост и Маржа</p>
         </div>
 
         {costLoading ? (
-          <div className="flex items-center gap-2 py-4 text-zinc-400 text-sm">
+          <div className="flex items-center gap-2 py-4 text-cream-faint text-sm">
             <TrendingUp size={16} className="animate-pulse" />
             <span className="font-bold">Се пресметува...</span>
           </div>
         ) : !costData || !costData.has_recipe ? (
-          <div className="text-center py-6 bg-zinc-50 dark:bg-zinc-800 rounded-xl border-2 border-dashed border-zinc-200 dark:border-zinc-700">
-            <TrendingUp size={24} className="mx-auto mb-2 text-zinc-300 dark:text-zinc-600" />
-            <p className="text-sm font-bold text-zinc-400">{t('cost_add_ingredients_hint')}</p>
+          <div className="text-center py-6 bg-surface-2 rounded-xl border-2 border-dashed border-warm-line">
+            <TrendingUp size={24} className="mx-auto mb-2 text-cream-faint/30" />
+            <p className="text-sm font-bold text-cream-faint">{t('cost_add_ingredients_hint')}</p>
           </div>
         ) : costData.margin ? (
-          <div className="rounded-xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+          <div className="rounded-xl border border-warm-line overflow-hidden">
             {costData.missing_purchase_price && (
-              <div className="flex items-start gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
+              <div className="flex items-start gap-2 px-4 py-2.5 bg-amber-900/20 border-b border-amber-800">
                 <AlertTriangle size={13} className="text-amber-500 mt-0.5 shrink-0" />
-                <p className="text-xs font-bold text-amber-600 dark:text-amber-400">{t('cost_missing_price_warning')}</p>
+                <p className="text-xs font-bold text-amber-400">{t('cost_missing_price_warning')}</p>
               </div>
             )}
             <table className="w-full text-sm">
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tbody className="divide-y divide-warm-line">
                 <tr>
-                  <td className="px-4 py-2.5 text-zinc-500 dark:text-zinc-400">
+                  <td className="px-4 py-2.5 text-cream-faint">
                     Продажна цена (со ДДВ {Math.round(costData.margin.vat_rate * 100)}%)
                   </td>
-                  <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-800 dark:text-zinc-200">
+                  <td className="px-4 py-2.5 text-right font-mono font-bold text-cream-muted">
                     {costData.margin.selling_price.toFixed(2)} ден
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-2.5 text-zinc-500 dark:text-zinc-400">ДДВ ({Math.round(costData.margin.vat_rate * 100)}%)</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-zinc-500 dark:text-zinc-400">
+                  <td className="px-4 py-2.5 text-cream-faint">ДДВ ({Math.round(costData.margin.vat_rate * 100)}%)</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-cream-faint">
                     -{costData.margin.vat_amount.toFixed(2)} ден
                   </td>
                 </tr>
-                <tr className="bg-zinc-50/60 dark:bg-zinc-800/30">
-                  <td className="px-4 py-2.5 font-bold text-zinc-700 dark:text-zinc-300">{t('net_revenue')}</td>
-                  <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-700 dark:text-zinc-300">
+                <tr className="bg-surface-2/30">
+                  <td className="px-4 py-2.5 font-bold text-cream-muted">{t('net_revenue')}</td>
+                  <td className="px-4 py-2.5 text-right font-mono font-bold text-cream-muted">
                     {costData.margin.net_revenue.toFixed(2)} ден
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-2.5 text-zinc-500 dark:text-zinc-400">{t('cost_of_ingredients')}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-zinc-500 dark:text-zinc-400">
+                  <td className="px-4 py-2.5 text-cream-faint">{t('cost_of_ingredients')}</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-cream-faint">
                     -{costData.margin.unit_cost.toFixed(2)} ден
                   </td>
                 </tr>
-                <tr className="bg-zinc-50/60 dark:bg-zinc-800/30">
-                  <td className="px-4 py-2.5 font-bold text-zinc-700 dark:text-zinc-300">{t('net_margin')}</td>
+                <tr className="bg-surface-2/30">
+                  <td className="px-4 py-2.5 font-bold text-cream-muted">{t('net_margin')}</td>
                   <td className={`px-4 py-2.5 text-right font-mono font-bold ${marginColorClass(costData.margin.net_margin_percent)}`}>
                     {costData.margin.net_margin_amount.toFixed(2)} ден
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-2.5 font-black text-zinc-700 dark:text-zinc-300">{t('margin_percent')}</td>
+                  <td className="px-4 py-2.5 font-black text-cream-muted">{t('margin_percent')}</td>
                   <td className={`px-4 py-2.5 text-right font-mono font-black text-base ${marginColorClass(costData.margin.net_margin_percent)}`}>
                     {costData.margin.net_margin_percent.toFixed(2)}%
                     {costData.margin.net_margin_percent < 0 && (
@@ -344,9 +338,7 @@ const MenuList: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [modalTab, setModalTab] = useState<'details' | 'recipe'>('details');
-  // catAssignments: categoryId → price override string ('' = no override)
   const [catAssignments, setCatAssignments] = useState<Record<string, string>>({});
-  // origCatIds: category IDs before editing — used for diff on save
   const [origCatIds, setOrigCatIds] = useState<string[]>([]);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
@@ -409,13 +401,11 @@ const MenuList: React.FC = () => {
     setModalImageUrl(item.imageUrl ?? null);
     setModalTab('details');
     setShowModal(true);
-    // Load junction assignments
     const raw = await menuService.getItemCategories(item.id).catch(() => []);
     let assignments: Record<string, string> = {};
     for (const r of raw) {
       assignments[r.category_id] = r.price_override != null ? String(r.price_override) : '';
     }
-    // Fallback: if junction is empty (migration not yet run), seed from menuCategoryId
     if (Object.keys(assignments).length === 0 && item.menuCategoryId) {
       assignments[item.menuCategoryId] = '';
     }
@@ -508,9 +498,6 @@ const MenuList: React.FC = () => {
     }
   };
 
-  // Кога корисникот кликнува на табот Норматив:
-  // - ако артиклот веќе постои → само го менуваме табот
-  // - ако е нов артикл → прво го зачувуваме (без затворање на модалот), па го менуваме табот
   const handleSwitchToRecipe = async () => {
     if (editItem) { setModalTab('recipe'); return; }
     const selectedCatIds = Object.keys(catAssignments);
@@ -564,7 +551,7 @@ const MenuList: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 gap-3 text-zinc-400">
+      <div className="flex items-center justify-center h-64 gap-3 text-cream-faint">
         <ChefHat className="animate-pulse" size={28} />
         <span className="font-bold uppercase tracking-widest text-sm">Вчитување...</span>
       </div>
@@ -577,12 +564,12 @@ const MenuList: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black tracking-tight dark:text-white">Мени</h1>
-          <p className="text-xs md:text-sm text-zinc-500 mt-0.5">{items.length} артикли · {categories.length} категории</p>
+          <h1 className="text-xl md:text-2xl font-black tracking-tight text-cream">Мени</h1>
+          <p className="text-xs md:text-sm text-cream-faint mt-0.5">{items.length} артикли · {categories.length} категории</p>
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-3 sm:px-5 py-2.5 bg-emerald-500 text-zinc-950 rounded-xl font-black text-xs sm:text-sm uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 shrink-0"
+          className="flex items-center gap-2 px-3 sm:px-5 py-2.5 bg-accent text-[#faf5ee] rounded-xl font-black text-xs sm:text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-card shrink-0"
         >
           <Plus size={16} strokeWidth={3} />
           <span className="hidden sm:inline">Додај артикл</span>
@@ -597,8 +584,8 @@ const MenuList: React.FC = () => {
             onClick={() => setSelectedCategoryId('all')}
             className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all shrink-0 ${
               selectedCategoryId === 'all'
-                ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow'
-                : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400'
+                ? 'bg-accent text-[#faf5ee] shadow-card-sm'
+                : 'bg-surface text-cream-muted border border-warm-line hover:border-warm-line-strong'
             }`}
           >
             Сите ({items.length})
@@ -621,7 +608,7 @@ const MenuList: React.FC = () => {
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all shrink-0 border-2 ${
                   isActive
                     ? 'text-white shadow-md'
-                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+                    : 'bg-surface text-cream-muted border-warm-line hover:border-warm-line-strong'
                 }`}
               >
                 {cat.icon && <span className="text-base leading-none">{cat.icon}</span>}
@@ -633,7 +620,7 @@ const MenuList: React.FC = () => {
                 )}
                 {cat.name}
                 <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-lg ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
+                  isActive ? 'bg-white/20 text-white' : 'bg-surface-2 text-cream-faint'
                 }`}>
                   {count}
                 </span>
@@ -643,20 +630,20 @@ const MenuList: React.FC = () => {
         </div>
 
         <div className="relative shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-cream-faint" size={16} />
           <input
             type="text"
             placeholder="Пребарај..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl w-full sm:w-48 md:w-56 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white transition-all"
+            className="pl-9 pr-4 py-2 bg-warm-input border border-warm-line rounded-xl w-full sm:w-48 md:w-56 text-sm text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
           />
         </div>
       </div>
 
       {/* Grid */}
       {filteredItems.length === 0 ? (
-        <div className="text-center py-20 text-zinc-400">
+        <div className="text-center py-20 text-cream-faint">
           <ChefHat size={40} className="mx-auto mb-4 opacity-30" />
           <p className="font-bold">Нема артикли</p>
         </div>
@@ -670,14 +657,14 @@ const MenuList: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className={`bg-white dark:bg-zinc-900 rounded-2xl border overflow-hidden group transition-all ${
+                className={`bg-surface rounded-2xl border overflow-hidden group transition-all ${
                   item.available
-                    ? 'border-zinc-100 dark:border-zinc-800 hover:shadow-lg hover:border-emerald-200 dark:hover:border-emerald-800'
-                    : 'border-zinc-200 dark:border-zinc-700 opacity-60'
+                    ? 'border-warm-line hover:shadow-card-lg hover:border-accent/30'
+                    : 'border-warm-line-strong opacity-60'
                 }`}
               >
                 {/* Image */}
-                <div className="h-36 bg-zinc-100 dark:bg-zinc-800 relative overflow-hidden">
+                <div className="h-36 bg-surface-2 relative overflow-hidden">
                   <img
                     src={item.imageUrl || `https://picsum.photos/seed/${item.id}/400/300`}
                     alt={item.name}
@@ -691,7 +678,7 @@ const MenuList: React.FC = () => {
                       </span>
                     </div>
                   )}
-                  <div className="absolute top-2 right-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur px-2 py-1 rounded-lg text-sm font-black text-zinc-900 dark:text-zinc-100 shadow">
+                  <div className="absolute top-2 right-2 bg-surface/90 backdrop-blur px-2 py-1 rounded-lg text-sm font-black text-cream shadow-card-sm">
                     {item.displayedPrice ?? item.price} ден.
                   </div>
                   <button
@@ -706,20 +693,20 @@ const MenuList: React.FC = () => {
                 {/* Content */}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 leading-tight text-sm">{item.name}</h3>
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded shrink-0">
+                    <h3 className="font-bold text-cream leading-tight text-sm">{item.name}</h3>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-400 bg-emerald-900/20 px-2 py-0.5 rounded shrink-0">
                       {item.categoryName || categoryName(item.menuCategoryId)}
                     </span>
                   </div>
                   {item.description && (
-                    <p className="text-zinc-400 text-xs line-clamp-1 mb-3">{item.description}</p>
+                    <p className="text-cream-faint text-xs line-clamp-1 mb-3">{item.description}</p>
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-warm-line">
                     <button
                       onClick={() => toggleAvailable(item)}
-                      className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                      className="flex items-center gap-1.5 text-xs font-bold text-cream-faint hover:text-cream transition-colors"
                       title={item.available ? 'Означи недостапно' : 'Означи достапно'}
                     >
                       {item.available
@@ -729,13 +716,13 @@ const MenuList: React.FC = () => {
                     <div className="flex-1" />
                     <button
                       onClick={() => openEdit(item)}
-                      className="p-1.5 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                      className="p-1.5 text-cream-faint hover:text-accent-light hover:bg-accent/10 rounded-lg transition-all"
                     >
                       <Edit2 size={15} />
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(item.id)}
-                      className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all"
+                      className="p-1.5 text-cream-faint hover:text-rose-400 hover:bg-rose-900/20 rounded-lg transition-all"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -754,33 +741,33 @@ const MenuList: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
+            className="fixed inset-0 bg-base/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
             onClick={e => e.target === e.currentTarget && setShowModal(false)}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto"
+              className="bg-surface border border-warm-line rounded-t-2xl sm:rounded-2xl shadow-card-lg w-full sm:max-w-lg max-h-[92vh] overflow-y-auto"
             >
               {/* Modal header */}
               <div className="flex items-center justify-between px-6 pt-6 pb-0">
-                <h2 className="text-lg font-black dark:text-white">
+                <h2 className="text-lg font-black text-cream">
                   {editItem ? 'Уреди артикл' : 'Нов артикл'}
                 </h2>
-                <button onClick={() => setShowModal(false)} className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                <button onClick={() => setShowModal(false)} className="p-2 text-cream-faint hover:text-cream transition-colors">
                   <X size={20} />
                 </button>
               </div>
 
               {/* Tab switcher */}
-              <div className="flex gap-1 mx-6 mt-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
+              <div className="flex gap-1 mx-6 mt-4 bg-surface-2 rounded-xl p-1">
                 <button
                   onClick={() => setModalTab('details')}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
                     modalTab === 'details'
-                      ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow'
-                      : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                      ? 'bg-warm-input text-cream shadow-card-sm'
+                      : 'text-cream-faint hover:text-cream-muted'
                   }`}
                 >
                   <ChefHat size={13} />
@@ -791,8 +778,8 @@ const MenuList: React.FC = () => {
                   disabled={saving}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                     modalTab === 'recipe'
-                      ? 'bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow'
-                      : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                      ? 'bg-warm-input text-emerald-400 shadow-card-sm'
+                      : 'text-cream-faint hover:text-cream-muted'
                   }`}
                 >
                   <FlaskConical size={13} />
@@ -807,13 +794,13 @@ const MenuList: React.FC = () => {
 
                     {/* Image upload */}
                     <div>
-                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Слика</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-cream-faint mb-1.5 block">Слика</label>
                       {editItem ? (
-                        <div className="relative rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 h-40 group/img">
+                        <div className="relative rounded-xl overflow-hidden bg-surface-2 h-40 group/img">
                           {modalImageUrl ? (
                             <img src={modalImageUrl} alt="Menu item" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="flex flex-col items-center justify-center h-full gap-2 text-zinc-400">
+                            <div className="flex flex-col items-center justify-center h-full gap-2 text-cream-faint">
                               <ImageIcon size={28} className="opacity-40" />
                               <span className="text-xs font-bold">Нема слика</span>
                             </div>
@@ -847,8 +834,8 @@ const MenuList: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="h-16 rounded-xl bg-zinc-50 dark:bg-zinc-800 border-2 border-dashed border-zinc-200 dark:border-zinc-700 flex items-center justify-center">
-                          <p className="text-xs text-zinc-400 font-bold">Зачувај го артиклот прво за да додадеш слика</p>
+                        <div className="h-16 rounded-xl bg-surface-2 border-2 border-dashed border-warm-line flex items-center justify-center">
+                          <p className="text-xs text-cream-faint font-bold">Зачувај го артиклот прво за да додадеш слика</p>
                         </div>
                       )}
                       <input
@@ -861,31 +848,31 @@ const MenuList: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Назив *</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-cream-faint mb-1.5 block">Назив *</label>
                       <input
                         type="text"
                         value={form.name || ''}
                         onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white"
+                        className="w-full px-4 py-2.5 bg-warm-input border border-warm-line rounded-xl text-sm font-bold text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50"
                         placeholder="Пр. Маргарита"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Цена (ден) *</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-cream-faint mb-1.5 block">Цена (ден) *</label>
                       <input
                         type="number"
                         min={0}
                         value={form.price || ''}
                         onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))}
-                        className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white"
+                        className="w-full px-4 py-2.5 bg-warm-input border border-warm-line rounded-xl text-sm font-bold text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-2 block">
+                      <label className="text-xs font-black uppercase tracking-widest text-cream-faint mb-2 block">
                         Категории * {Object.keys(catAssignments).length > 0 && (
-                          <span className="ml-1 normal-case font-medium text-emerald-600">
+                          <span className="ml-1 normal-case font-medium text-emerald-400">
                             ({Object.keys(catAssignments).length} избрани)
                           </span>
                         )}
@@ -902,8 +889,8 @@ const MenuList: React.FC = () => {
                               style={selected ? { backgroundColor: accent + '22', borderColor: accent, color: accent } : {}}
                               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all ${
                                 selected
-                                  ? 'shadow-sm'
-                                  : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-500'
+                                  ? 'shadow-card-sm'
+                                  : 'bg-surface-2 border-warm-line text-cream-muted hover:border-warm-line-strong'
                               }`}
                             >
                               {cat.icon && <span className="text-sm leading-none">{cat.icon}</span>}
@@ -915,15 +902,15 @@ const MenuList: React.FC = () => {
 
                       {/* Price overrides per category */}
                       {Object.keys(catAssignments).length > 0 && (
-                        <div className="mt-3 p-3 bg-zinc-50 dark:bg-zinc-800/60 rounded-xl border border-zinc-100 dark:border-zinc-700 space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">
+                        <div className="mt-3 p-3 bg-surface-2/60 rounded-xl border border-warm-line space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-cream-faint mb-1">
                             Ценовно отстапување по категорија (опционално)
                           </p>
                           {Object.keys(catAssignments).map(catId => {
                             const cat = categories.find(c => c.id === catId);
                             return (
                               <div key={catId} className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300 w-28 truncate shrink-0">
+                                <span className="text-xs font-bold text-cream-muted w-28 truncate shrink-0">
                                   {cat?.icon} {cat?.name}
                                 </span>
                                 <input
@@ -932,9 +919,9 @@ const MenuList: React.FC = () => {
                                   value={catAssignments[catId]}
                                   onChange={e => setCatAssignments(prev => ({ ...prev, [catId]: e.target.value }))}
                                   placeholder={`Основна: ${form.price ?? 0} ден.`}
-                                  className="flex-1 px-3 py-1.5 bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white"
+                                  className="flex-1 px-3 py-1.5 bg-warm-input border border-warm-line rounded-lg text-sm font-bold text-cream focus:outline-none focus:ring-2 focus:ring-accent/20"
                                 />
-                                <span className="text-xs text-zinc-400 shrink-0">ден.</span>
+                                <span className="text-xs text-cream-faint shrink-0">ден.</span>
                               </div>
                             );
                           })}
@@ -943,33 +930,33 @@ const MenuList: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Опис</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-cream-faint mb-1.5 block">Опис</label>
                       <textarea
                         value={form.description || ''}
                         onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                         rows={2}
-                        className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white resize-none"
+                        className="w-full px-4 py-2.5 bg-warm-input border border-warm-line rounded-xl text-sm text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 resize-none"
                         placeholder="Краток опис..."
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Станица за подготовка</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-cream-faint mb-1.5 block">Станица за подготовка</label>
                       <select
                         value={form.preparationStation || 'kitchen'}
                         onChange={e => setForm(f => ({ ...f, preparationStation: e.target.value as any }))}
-                        className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white"
+                        className="w-full px-4 py-2.5 bg-warm-input border border-warm-line rounded-xl text-sm font-bold text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50"
                       >
                         {STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
 
                     <div>
-                      <label className="text-xs font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">ДДВ стапка</label>
+                      <label className="text-xs font-black uppercase tracking-widest text-cream-faint mb-1.5 block">ДДВ стапка</label>
                       <select
                         value={form.vatRate ?? 0.10}
                         onChange={e => setForm(f => ({ ...f, vatRate: Number(e.target.value) }))}
-                        className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white"
+                        className="w-full px-4 py-2.5 bg-warm-input border border-warm-line rounded-xl text-sm font-bold text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50"
                       >
                         <option value={0}>0% – Изземено</option>
                         <option value={0.05}>5%</option>
@@ -978,8 +965,8 @@ const MenuList: React.FC = () => {
                       </select>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
-                      <span className="text-sm font-bold dark:text-zinc-200">Достапно на мени</span>
+                    <div className="flex items-center justify-between p-3 bg-surface-2 rounded-xl">
+                      <span className="text-sm font-bold text-cream-muted">Достапно на мени</span>
                       <button
                         type="button"
                         onClick={() => setForm(f => ({ ...f, available: !f.available }))}
@@ -987,21 +974,21 @@ const MenuList: React.FC = () => {
                       >
                         {form.available
                           ? <ToggleRight size={28} className="text-emerald-500" />
-                          : <ToggleLeft size={28} className="text-zinc-400" />}
+                          : <ToggleLeft size={28} className="text-cream-faint" />}
                       </button>
                     </div>
 
                     <div className="flex gap-3 pt-2">
                       <button
                         onClick={() => setShowModal(false)}
-                        className="flex-1 py-2.5 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+                        className="flex-1 py-2.5 border border-warm-line rounded-xl text-sm font-bold text-cream-muted hover:bg-surface-2 transition-all"
                       >
                         Откажи
                       </button>
                       <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="flex-1 py-2.5 bg-emerald-500 text-zinc-950 rounded-xl text-sm font-black uppercase tracking-wide hover:bg-emerald-400 transition-all disabled:opacity-50"
+                        className="flex-1 py-2.5 bg-accent text-[#faf5ee] rounded-xl text-sm font-black uppercase tracking-wide hover:brightness-110 transition-all disabled:opacity-50"
                       >
                         {saving ? 'Зачувување...' : editItem ? 'Зачувај' : 'Додај'}
                       </button>
@@ -1023,24 +1010,25 @@ const MenuList: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-base/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center"
+              className="bg-surface border border-warm-line rounded-2xl shadow-card-lg p-6 max-w-sm w-full text-center"
             >
               <Trash2 size={32} className="text-rose-500 mx-auto mb-3" />
-              <h3 className="font-black text-lg dark:text-white mb-2">Избриши артикл?</h3>
-              <p className="text-zinc-500 text-sm mb-6">Оваа акција не може да се поврати.</p>
+              <h3 className="font-black text-lg text-cream mb-2">Избриши артикл?</h3>
+              <p className="text-cream-faint text-sm mb-6">Оваа акција не може да се поврати.</p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setDeleteConfirm(null)}
-                  className="flex-1 py-2.5 border border-zinc-200 dark:border-zinc-700 rounded-xl font-bold text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+                  className="flex-1 py-2.5 border border-warm-line rounded-xl font-bold text-sm text-cream-muted hover:bg-surface-2 transition-all"
                 >
                   Откажи
                 </button>
+                {/* keep rose — destructive/irreversible delete */}
                 <button
                   onClick={() => handleDelete(deleteConfirm)}
                   className="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-black text-sm hover:bg-rose-600 transition-all"

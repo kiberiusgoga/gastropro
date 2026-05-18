@@ -19,8 +19,6 @@ import { useStore } from '../../store/useStore';
 import { Printer as PrinterType } from '../../types';
 import CategoryManager from '../../components/Settings/CategoryManager';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface RestaurantSettings {
   name: string;
   address: string;
@@ -39,49 +37,41 @@ interface NewPrinter {
   station: string;
 }
 
-// ─── Section wrapper ──────────────────────────────────────────────────────────
-
 const Section: React.FC<{ icon: React.ElementType; title: string; subtitle: string; children: React.ReactNode }> = ({
   icon: Icon, title, subtitle, children,
 }) => (
-  <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl overflow-hidden">
-    <div className="px-8 py-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-4">
-      <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center">
-        <Icon size={20} className="text-zinc-600 dark:text-zinc-300" />
+  <div className="bg-surface border border-warm-line rounded-3xl overflow-hidden">
+    <div className="px-8 py-6 border-b border-warm-line flex items-center gap-4">
+      <div className="w-10 h-10 bg-surface-2 rounded-2xl flex items-center justify-center">
+        <Icon size={20} className="text-cream-muted" />
       </div>
       <div>
-        <h2 className="text-sm font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-widest">{title}</h2>
-        <p className="text-xs text-zinc-500 mt-0.5">{subtitle}</p>
+        <h2 className="text-sm font-black text-cream uppercase tracking-widest">{title}</h2>
+        <p className="text-xs text-cream-faint mt-0.5">{subtitle}</p>
       </div>
     </div>
     <div className="p-8">{children}</div>
   </div>
 );
 
-// ─── Field ────────────────────────────────────────────────────────────────────
-
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div>
-    <label className="block text-xs font-black text-zinc-500 uppercase tracking-widest mb-2">{label}</label>
+    <label className="block text-xs font-black text-cream-faint uppercase tracking-widest mb-2">{label}</label>
     {children}
   </div>
 );
 
-const inputCls = "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition-all";
-
-// ─── Main component ───────────────────────────────────────────────────────────
+const inputCls = "w-full px-4 py-3 bg-warm-input border border-warm-line rounded-xl text-sm font-medium text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all";
 
 const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useStore();
 
-  // Restaurant info
   const [info, setInfo] = useState<RestaurantSettings>({
     name: '', address: '', phone: '', tax_number: '', currency: 'MKD', timezone: 'Europe/Skopje',
   });
   const [savingInfo, setSavingInfo] = useState(false);
 
-  // Printers
   const [printers, setPrinters] = useState<PrinterType[]>([]);
   const [showAddPrinter, setShowAddPrinter] = useState(false);
   const [newPrinter, setNewPrinter] = useState<NewPrinter>({
@@ -89,11 +79,8 @@ const SettingsPage: React.FC = () => {
   });
   const [savingPrinter, setSavingPrinter] = useState(false);
 
-  // Password
   const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' });
   const [savingPwd, setSavingPwd] = useState(false);
-
-  // ── Load data ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!user?.restaurantId) return;
@@ -125,8 +112,6 @@ const SettingsPage: React.FC = () => {
     }).catch(console.error);
   }, [user?.restaurantId]);
 
-  // ── Save restaurant info ───────────────────────────────────────────────────
-
   const saveInfo = async () => {
     if (!info.name.trim()) { toast.error('Името е задолжително'); return; }
     setSavingInfo(true);
@@ -146,8 +131,6 @@ const SettingsPage: React.FC = () => {
       setSavingInfo(false);
     }
   };
-
-  // ── Printer CRUD ───────────────────────────────────────────────────────────
 
   const addPrinter = async () => {
     if (!newPrinter.name.trim()) { toast.error('Внесете ime на принтер'); return; }
@@ -208,8 +191,6 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  // ── Change password ────────────────────────────────────────────────────────
-
   const changePassword = async () => {
     if (!pwd.current || !pwd.next) { toast.error('Пополнете ги полињата'); return; }
     if (pwd.next !== pwd.confirm)  { toast.error('Лозинките не се совпаѓаат'); return; }
@@ -226,19 +207,16 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   const PRINTER_TYPE_LABEL: Record<string, string> = { receipt: 'Сметка', kitchen: 'Кујна', bar: 'Шанк' };
   const STATION_LABEL: Record<string, string> = { kitchen: 'Кујна', bar: 'Шанк', grill: 'Скара', dessert: 'Десерти', salad: 'Салати' };
 
   return (
     <div className="space-y-8 pb-16">
       <div>
-        <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Подесувања</h1>
-        <p className="text-sm text-zinc-500 mt-1">Управување со ресторанот и системот</p>
+        <h1 className="text-2xl font-black text-cream uppercase tracking-tight">Подесувања</h1>
+        <p className="text-sm text-cream-faint mt-1">Управување со ресторанот и системот</p>
       </div>
 
-      {/* ── Restaurant Info ── */}
       <Section icon={Store} title="Информации за ресторан" subtitle="Основни податоци кои се прикажуваат на сметките">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Field label="Назив на ресторан">
@@ -276,39 +254,38 @@ const SettingsPage: React.FC = () => {
         </div>
         <div className="mt-6 flex justify-end">
           <button onClick={saveInfo} disabled={savingInfo}
-            className="flex items-center gap-2 px-6 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 disabled:opacity-50 transition-all">
+            className="flex items-center gap-2 px-6 py-3 bg-accent text-[#faf5ee] rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all">
             <Save size={15} />
             {savingInfo ? 'Зачувување...' : 'Зачувај промени'}
           </button>
         </div>
       </Section>
 
-      {/* ── Printers ── */}
       <Section icon={Printer} title="Принтери" subtitle="Конфигурација на thermal и мрежни принтери">
         <div className="space-y-3 mb-6">
           {printers.length === 0 && (
-            <div className="py-10 text-center text-zinc-400 text-sm">Нема конфигурирани принтери</div>
+            <div className="py-10 text-center text-cream-faint text-sm">Нема конфигурирани принтери</div>
           )}
           {printers.map(p => (
             <div key={p.id}
-              className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700">
+              className="flex items-center justify-between p-4 bg-surface-2/50 rounded-2xl border border-warm-line">
               <div className="flex items-center gap-4">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${p.active ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-zinc-100 dark:bg-zinc-700'}`}>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${p.active ? 'bg-emerald-900/30' : 'bg-surface-2'}`}>
                   {p.connectionType === 'network'
-                    ? <Wifi size={16} className={p.active ? 'text-emerald-600' : 'text-zinc-400'} />
-                    : <Monitor size={16} className={p.active ? 'text-emerald-600' : 'text-zinc-400'} />}
+                    ? <Wifi size={16} className={p.active ? 'text-emerald-400' : 'text-cream-faint'} />
+                    : <Monitor size={16} className={p.active ? 'text-emerald-400' : 'text-cream-faint'} />}
                 </div>
                 <div>
-                  <p className="text-sm font-black text-zinc-900 dark:text-zinc-100">{p.name}</p>
+                  <p className="text-sm font-black text-cream">{p.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-cream-faint uppercase tracking-wider">
                       {PRINTER_TYPE_LABEL[p.type] ?? p.type}
                     </span>
                     {p.station && (
-                      <span className="text-[10px] font-bold text-zinc-400">· {STATION_LABEL[p.station] ?? p.station}</span>
+                      <span className="text-[10px] font-bold text-cream-faint">· {STATION_LABEL[p.station] ?? p.station}</span>
                     )}
                     {p.connectionType === 'network' && p.ipAddress && (
-                      <span className="text-[10px] font-mono text-zinc-400">{p.ipAddress}:{p.port ?? 9100}</span>
+                      <span className="text-[10px] font-mono text-cream-faint">{p.ipAddress}:{p.port ?? 9100}</span>
                     )}
                   </div>
                 </div>
@@ -317,14 +294,14 @@ const SettingsPage: React.FC = () => {
                 <button onClick={() => togglePrinterActive(p)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
                     p.active
-                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400'
-                      : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-400'
+                      ? 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'
+                      : 'bg-surface-2 text-cream-faint hover:bg-warm-input'
                   }`}>
                   {p.active ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
                   {p.active ? 'Активен' : 'Неактивен'}
                 </button>
                 <button onClick={() => deletePrinter(p.id)}
-                  className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all">
+                  className="p-2 text-cream-faint hover:text-rose-400 hover:bg-rose-900/20 rounded-xl transition-all">
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -333,8 +310,8 @@ const SettingsPage: React.FC = () => {
         </div>
 
         {showAddPrinter ? (
-          <div className="border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl p-6 space-y-4">
-            <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest">Нов принтер</h3>
+          <div className="border-2 border-dashed border-warm-line rounded-2xl p-6 space-y-4">
+            <h3 className="text-xs font-black text-cream-faint uppercase tracking-widest">Нов принтер</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Назив">
                 <input className={inputCls} value={newPrinter.name}
@@ -381,11 +358,11 @@ const SettingsPage: React.FC = () => {
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowAddPrinter(false)}
-                className="px-5 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-zinc-200 transition-all">
+                className="px-5 py-2.5 bg-surface-2 text-cream-muted rounded-xl font-black text-xs uppercase tracking-widest hover:bg-warm-input transition-all">
                 Откажи
               </button>
               <button onClick={addPrinter} disabled={savingPrinter}
-                className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 disabled:opacity-50 transition-all">
+                className="flex items-center gap-2 px-5 py-2.5 bg-accent text-[#faf5ee] rounded-xl font-black text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all">
                 <Save size={13} />
                 {savingPrinter ? 'Зачувување...' : 'Зачувај принтер'}
               </button>
@@ -393,19 +370,17 @@ const SettingsPage: React.FC = () => {
           </div>
         ) : (
           <button onClick={() => setShowAddPrinter(true)}
-            className="flex items-center gap-2 px-5 py-3 border-2 border-dashed border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 rounded-2xl font-black text-xs uppercase tracking-widest transition-all w-full justify-center">
+            className="flex items-center gap-2 px-5 py-3 border-2 border-dashed border-warm-line text-cream-faint hover:text-cream hover:border-warm-line-strong rounded-2xl font-black text-xs uppercase tracking-widest transition-all w-full justify-center">
             <Plus size={16} />
             Додај принтер
           </button>
         )}
       </Section>
 
-      {/* ── Menu Categories ── */}
       <Section icon={Tag} title={t('cat_settings_title')} subtitle={t('cat_settings_subtitle')}>
         <CategoryManager />
       </Section>
 
-      {/* ── Change Password ── */}
       <Section icon={Lock} title="Промени лозинка" subtitle="Смена на лозинка за тековната сметка">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <Field label="Тековна лозинка">
@@ -422,13 +397,13 @@ const SettingsPage: React.FC = () => {
           </Field>
         </div>
         {pwd.next && pwd.confirm && pwd.next !== pwd.confirm && (
-          <p className="mt-3 text-xs text-red-500 flex items-center gap-1.5">
+          <p className="mt-3 text-xs text-red-400 flex items-center gap-1.5">
             <AlertCircle size={12} /> Лозинките не се совпаѓаат
           </p>
         )}
         <div className="mt-6 flex justify-end">
           <button onClick={changePassword} disabled={savingPwd}
-            className="flex items-center gap-2 px-6 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 disabled:opacity-50 transition-all">
+            className="flex items-center gap-2 px-6 py-3 bg-accent text-[#faf5ee] rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all">
             <Lock size={15} />
             {savingPwd ? 'Зачувување...' : 'Промени лозинка'}
           </button>

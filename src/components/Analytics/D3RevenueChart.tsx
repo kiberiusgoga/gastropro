@@ -30,7 +30,6 @@ const D3RevenueChart: React.FC<D3RevenueChartProps> = ({ stats, isDarkMode }) =>
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // X axis
     const x = d3.scalePoint()
       .domain(data.map(d => d.date))
       .range([0, width]);
@@ -39,10 +38,9 @@ const D3RevenueChart: React.FC<D3RevenueChartProps> = ({ stats, isDarkMode }) =>
       .attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(x))
       .selectAll("text")
-      .attr("fill", isDarkMode ? "#71717a" : "#a1a1aa")
+      .attr("fill", "#8c8279")
       .style("font-size", "10px");
 
-    // Y axis
     const y = d3.scaleLinear()
       .domain([0, (d3.max(data, (d: {date: string, revenue: number}) => d.revenue) as unknown as number) || 0])
       .range([height, 0]);
@@ -50,9 +48,8 @@ const D3RevenueChart: React.FC<D3RevenueChartProps> = ({ stats, isDarkMode }) =>
     svg.append("g")
       .call(d3.axisLeft(y).ticks(5))
       .selectAll("text")
-      .attr("fill", isDarkMode ? "#71717a" : "#a1a1aa");
+      .attr("fill", "#8c8279");
 
-    // Line
     const line = d3.line<{date: string, revenue: number}>()
       .x(d => x(d.date) as number || 0)
       .y(d => y(d.revenue));
@@ -60,11 +57,10 @@ const D3RevenueChart: React.FC<D3RevenueChartProps> = ({ stats, isDarkMode }) =>
     svg.append("path")
       .datum(data)
       .attr("fill", "none")
-      .attr("stroke", isDarkMode ? "#60a5fa" : "#3b82f6")
+      .attr("stroke", "#c2652a")
       .attr("stroke-width", 3)
       .attr("d", line);
 
-    // Area
     const area = d3.area<{date: string, revenue: number}>()
       .x(d => x(d.date) as number || 0)
       .y0(height)
@@ -72,11 +68,10 @@ const D3RevenueChart: React.FC<D3RevenueChartProps> = ({ stats, isDarkMode }) =>
 
     svg.append("path")
       .datum(data)
-      .attr("fill", isDarkMode ? "#60a5fa" : "#3b82f6")
-      .attr("fill-opacity", 0.1)
+      .attr("fill", "#c2652a")
+      .attr("fill-opacity", 0.12)
       .attr("d", area);
 
-    // Dots
     svg.selectAll("dot")
       .data(data)
       .enter()
@@ -84,17 +79,17 @@ const D3RevenueChart: React.FC<D3RevenueChartProps> = ({ stats, isDarkMode }) =>
       .attr("cx", (d) => x(d.date) as number || 0)
       .attr("cy", (d) => y(d.revenue))
       .attr("r", 5)
-      .attr("fill", isDarkMode ? "#60a5fa" : "#3b82f6")
-      .attr("stroke", isDarkMode ? "#18181b" : "#fff")
+      .attr("fill", "#c2652a")
+      .attr("stroke", "#252118")
       .attr("stroke-width", 2);
 
     svg.selectAll(".domain").remove();
-    svg.selectAll(".tick line").attr("stroke", isDarkMode ? "#27272a" : "#f4f4f5");
+    svg.selectAll(".tick line").attr("stroke", "#2e2921");
 
   }, [stats, isDarkMode]);
 
   return (
-    <div className="flex justify-center items-center bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 overflow-x-auto">
+    <div className="flex justify-center items-center bg-surface-2/50 p-6 rounded-3xl border border-warm-line overflow-x-auto">
       <svg ref={svgRef}></svg>
     </div>
   );

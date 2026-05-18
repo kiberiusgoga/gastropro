@@ -30,7 +30,7 @@ function formatTs(ts: string) {
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div className="mb-6 print:mb-4">
-    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400 mb-3 print:text-zinc-600">
+    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cream-faint mb-3 print:text-zinc-600">
       {title}
     </h3>
     {children}
@@ -38,9 +38,9 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 );
 
 const Row: React.FC<{ label: string; value: string; bold?: boolean; accent?: string }> = ({ label, value, bold, accent }) => (
-  <div className={`flex justify-between items-center py-1.5 border-b border-zinc-100 dark:border-zinc-800 print:border-zinc-200 last:border-0 ${bold ? 'font-black' : 'font-medium'}`}>
-    <span className={`text-sm ${bold ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400'}`}>{label}</span>
-    <span className={`text-sm font-black ${accent ?? (bold ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200')}`}>{value}</span>
+  <div className={`flex justify-between items-center py-1.5 border-b border-warm-line print:border-zinc-200 last:border-0 ${bold ? 'font-black' : 'font-medium'}`}>
+    <span className={`text-sm ${bold ? 'text-cream' : 'text-cream-muted'}`}>{label}</span>
+    <span className={`text-sm font-black ${accent ?? (bold ? 'text-cream' : 'text-cream-muted')}`}>{value}</span>
   </div>
 );
 
@@ -49,14 +49,14 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
   const diff = z.cash_difference;
 
   const diffColor =
-    diff === 0 ? 'text-emerald-600 dark:text-emerald-400' :
-    Math.abs(diff) <= 50 ? 'text-amber-600 dark:text-amber-400' :
-    'text-red-600 dark:text-red-400';
+    diff === 0 ? 'text-emerald-400' :
+    Math.abs(diff) <= 50 ? 'text-amber-400' :
+    'text-red-400';
 
   const diffBg =
-    diff === 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' :
-    Math.abs(diff) <= 50 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' :
-    'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
+    diff === 0 ? 'bg-emerald-900/20 border-emerald-800' :
+    Math.abs(diff) <= 50 ? 'bg-amber-900/20 border-amber-800' :
+    'bg-red-900/20 border-red-800';
 
   return (
     <div className="space-y-0">
@@ -65,7 +65,7 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
         {onBack && (
           <button
             onClick={onBack}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm font-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-warm-line text-sm font-black text-cream-muted hover:bg-surface-2 transition-all"
           >
             <ArrowLeft size={16} />
             {t('back')}
@@ -74,7 +74,7 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
         <div className="flex-1" />
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-5 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-black uppercase tracking-wide hover:opacity-90 transition-all shadow-sm"
+          className="flex items-center gap-2 px-5 py-2 rounded-xl bg-accent text-[#faf5ee] text-sm font-black uppercase tracking-wide hover:brightness-110 transition-all shadow-card"
         >
           <Printer size={16} />
           {t('print')} / PDF
@@ -83,27 +83,27 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
 
       {/* Report card */}
       <div
-        className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm print:shadow-none print:border-0 print:rounded-none"
+        className="bg-surface rounded-2xl border border-warm-line shadow-card print:shadow-none print:border-0 print:rounded-none"
         id="zreport-print"
       >
         {/* ── Header ── */}
-        <div className="px-8 pt-8 pb-6 border-b border-zinc-100 dark:border-zinc-800 print:border-zinc-300">
+        <div className="px-8 pt-8 pb-6 border-b border-warm-line print:border-zinc-300">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-600 dark:text-emerald-400 mb-1">Z-ИЗВЕШТАЈ</p>
-              <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-accent-light mb-1">Z-ИЗВЕШТАЈ</p>
+              <h1 className="text-2xl font-black text-cream tracking-tight">
                 {z.restaurant.name}
               </h1>
               {z.restaurant.address && (
-                <p className="text-sm text-zinc-500 mt-0.5">{z.restaurant.address}</p>
+                <p className="text-sm text-cream-faint mt-0.5">{z.restaurant.address}</p>
               )}
               {z.restaurant.vat_number && (
-                <p className="text-xs text-zinc-400 mt-0.5">ДДВ број: {z.restaurant.vat_number}</p>
+                <p className="text-xs text-cream-faint mt-0.5">ДДВ број: {z.restaurant.vat_number}</p>
               )}
             </div>
-            <div className="text-right text-xs text-zinc-400 space-y-0.5">
+            <div className="text-right text-xs text-cream-faint space-y-0.5">
               <p>{formatTs(z.closed_at)}</p>
-              <p className="font-black text-zinc-600 dark:text-zinc-300">Смена #{z.shift_id.slice(-6).toUpperCase()}</p>
+              <p className="font-black text-cream-muted">Смена #{z.shift_id.slice(-6).toUpperCase()}</p>
             </div>
           </div>
         </div>
@@ -118,7 +118,7 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
             <Row label="Траење" value={duration(z.duration_minutes)} />
           </Section>
 
-          {/* ── Cash reconciliation ── */}
+          {/* ── Cash reconciliation — keep semantic emerald/amber/red ── */}
           <Section title={t('cash_reconciliation')}>
             <div className={`rounded-xl border p-4 space-y-2 ${diffBg}`}>
               <Row label={t('initial_cash')} value={`${fmt(z.initial_cash)} ден.`} />
@@ -155,7 +155,7 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
             <Section title={t('vat_breakdown')}>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 dark:border-zinc-800">
+                  <tr className="text-[10px] font-black uppercase tracking-widest text-cream-faint border-b border-warm-line">
                     <th className="text-left pb-2">{t('vat_rate')}</th>
                     <th className="text-right pb-2">Бруто</th>
                     <th className="text-right pb-2">Нето</th>
@@ -165,12 +165,12 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
                 </thead>
                 <tbody>
                   {z.vat_breakdown.map(v => (
-                    <tr key={v.rate} className="border-b border-zinc-50 dark:border-zinc-800/50 last:border-0">
-                      <td className="py-2 font-black">{VatRatePct(v.rate)}</td>
-                      <td className="py-2 text-right">{fmt(v.gross)} ден.</td>
-                      <td className="py-2 text-right text-zinc-500">{fmt(v.net)} ден.</td>
-                      <td className="py-2 text-right text-zinc-500">{fmt(v.vat)} ден.</td>
-                      <td className="py-2 text-right text-zinc-400">{v.item_count}</td>
+                    <tr key={v.rate} className="border-b border-warm-line/50 last:border-0">
+                      <td className="py-2 font-black text-cream">{VatRatePct(v.rate)}</td>
+                      <td className="py-2 text-right text-cream-muted">{fmt(v.gross)} ден.</td>
+                      <td className="py-2 text-right text-cream-faint">{fmt(v.net)} ден.</td>
+                      <td className="py-2 text-right text-cream-faint">{fmt(v.vat)} ден.</td>
+                      <td className="py-2 text-right text-cream-faint">{v.item_count}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -181,7 +181,7 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
           {/* ── Payment methods ── */}
           <Section title={t('payment_breakdown')}>
             {z.payment_breakdown.length === 0 ? (
-              <p className="text-sm text-zinc-400 italic">Нема платени нарачки</p>
+              <p className="text-sm text-cream-faint italic">Нема платени нарачки</p>
             ) : (
               z.payment_breakdown.map(p => (
                 <Row
@@ -209,7 +209,7 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
             <Section title="Топ 10 артикли">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 dark:border-zinc-800">
+                  <tr className="text-[10px] font-black uppercase tracking-widest text-cream-faint border-b border-warm-line">
                     <th className="text-left pb-2">Артикал</th>
                     <th className="text-right pb-2">Кол.</th>
                     <th className="text-right pb-2">Приход</th>
@@ -217,13 +217,13 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
                 </thead>
                 <tbody>
                   {z.top_items.map((item, i) => (
-                    <tr key={item.menu_item_id ?? item.name} className="border-b border-zinc-50 dark:border-zinc-800/50 last:border-0">
-                      <td className="py-1.5">
-                        <span className="text-[10px] font-black text-zinc-400 mr-2">{i + 1}.</span>
+                    <tr key={item.menu_item_id ?? item.name} className="border-b border-warm-line/50 last:border-0">
+                      <td className="py-1.5 text-cream-muted">
+                        <span className="text-[10px] font-black text-cream-faint mr-2">{i + 1}.</span>
                         {item.name}
                       </td>
-                      <td className="py-1.5 text-right font-black">{item.quantity_sold}</td>
-                      <td className="py-1.5 text-right text-zinc-500">{fmt(item.revenue)} ден.</td>
+                      <td className="py-1.5 text-right font-black text-cream">{item.quantity_sold}</td>
+                      <td className="py-1.5 text-right text-cream-faint">{fmt(item.revenue)} ден.</td>
                     </tr>
                   ))}
                 </tbody>
@@ -235,17 +235,17 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
           {z.category_breakdown.length > 0 && (
             <Section title="По категорија">
               {z.category_breakdown.map(c => (
-                <div key={c.category_id ?? 'uncat'} className="flex items-center gap-3 py-1.5 border-b border-zinc-50 dark:border-zinc-800/50 last:border-0">
+                <div key={c.category_id ?? 'uncat'} className="flex items-center gap-3 py-1.5 border-b border-warm-line/50 last:border-0">
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate">{c.category_name}</span>
-                      <span className="font-black text-zinc-900 dark:text-zinc-100 ml-2 shrink-0">{fmt(c.revenue)} ден.</span>
+                      <span className="font-medium text-cream-muted truncate">{c.category_name}</span>
+                      <span className="font-black text-cream ml-2 shrink-0">{fmt(c.revenue)} ден.</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${c.percentage}%` }} />
+                      <div className="flex-1 h-1.5 bg-warm-line rounded-full overflow-hidden">
+                        <div className="h-full bg-accent rounded-full" style={{ width: `${c.percentage}%` }} />
                       </div>
-                      <span className="text-[10px] font-black text-zinc-400 w-8 text-right">{fmtPct(c.percentage)}</span>
+                      <span className="text-[10px] font-black text-cream-faint w-8 text-right">{fmtPct(c.percentage)}</span>
                     </div>
                   </div>
                 </div>
@@ -262,14 +262,14 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
                 return (
                   <div key={h.hour} className="flex-1 flex flex-col items-center gap-0.5" title={`${h.hour}:00 — ${fmt(h.revenue)} ден.`}>
                     <div
-                      className="w-full bg-emerald-500/30 dark:bg-emerald-500/20 rounded-sm"
+                      className="w-full bg-accent/30 rounded-sm"
                       style={{ height: `${Math.max(pct, h.revenue > 0 ? 4 : 0)}%` }}
                     />
                   </div>
                 );
               })}
             </div>
-            <div className="flex justify-between text-[9px] text-zinc-400 mt-1 font-mono">
+            <div className="flex justify-between text-[9px] text-cream-faint mt-1 font-mono">
               <span>0</span><span>6</span><span>12</span><span>18</span><span>23</span>
             </div>
           </Section>
@@ -277,7 +277,7 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
           {/* ── Discounts ── */}
           <Section title="Попусти">
             {z.discounts.application_count === 0 ? (
-              <p className="text-sm text-zinc-400 italic">Нема применети попусти</p>
+              <p className="text-sm text-cream-faint italic">Нема применети попусти</p>
             ) : (
               <>
                 <Row label="Вкупен попуст" value={`${fmt(z.discounts.total_amount)} ден.`} bold />
@@ -292,7 +292,7 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
           {/* ── Cancellations ── */}
           <Section title="Откажани нарачки">
             {z.cancellations.cancelled_order_count === 0 ? (
-              <p className="text-sm text-zinc-400 italic">Нема откажани нарачки</p>
+              <p className="text-sm text-cream-faint italic">Нема откажани нарачки</p>
             ) : (
               <>
                 <Row label="Откажани нарачки" value={String(z.cancellations.cancelled_order_count)} />
@@ -303,8 +303,8 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-4 border-t border-zinc-100 dark:border-zinc-800 text-center print:border-zinc-300">
-          <p className="text-[10px] text-zinc-400 font-mono">
+        <div className="px-8 py-4 border-t border-warm-line text-center print:border-zinc-300">
+          <p className="text-[10px] text-cream-faint font-mono">
             Генерирано: {formatTs(z.closed_at)} · GastroPro Management · Смена {z.shift_id.slice(-6).toUpperCase()}
           </p>
         </div>

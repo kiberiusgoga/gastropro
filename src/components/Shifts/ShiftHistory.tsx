@@ -106,38 +106,38 @@ const ShiftHistory: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <History size={20} className="text-blue-600 dark:text-blue-400" />
-        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Историја на смени</h2>
-        <span className="ml-auto text-xs text-zinc-400 font-medium">{pagination.total} вкупно</span>
+        <History size={20} className="text-accent-light" />
+        <h2 className="text-xl font-bold text-cream">Историја на смени</h2>
+        <span className="ml-auto text-xs text-cream-faint font-medium">{pagination.total} вкупно</span>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+      <div className="flex flex-wrap gap-3 bg-surface p-4 rounded-2xl border border-warm-line">
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Од датум</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">Од датум</label>
           <input
             type="date"
             value={dateFrom}
             onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:text-white"
+            className="px-3 py-2 bg-warm-input border border-warm-line rounded-xl text-sm font-medium text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">До датум</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">До датум</label>
           <input
             type="date"
             value={dateTo}
             onChange={e => { setDateTo(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:text-white"
+            className="px-3 py-2 bg-warm-input border border-warm-line rounded-xl text-sm font-medium text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50"
           />
         </div>
         {isManager && waiterOptions.length > 0 && (
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Келнер</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">Келнер</label>
             <select
               value={filterUser}
               onChange={e => { setFilterUser(e.target.value); setPage(1); }}
-              className="px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 dark:text-white"
+              className="px-3 py-2 bg-warm-input border border-warm-line rounded-xl text-sm font-medium text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50"
             >
               <option value="">Сите келнери</option>
               {waiterOptions.map(e => (
@@ -150,7 +150,7 @@ const ShiftHistory: React.FC = () => {
           <div className="flex flex-col justify-end">
             <button
               onClick={() => { setDateFrom(''); setDateTo(''); setFilterUser(''); setPage(1); }}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-cream-faint hover:text-cream transition-colors"
             >
               <X size={14} />
               Исчисти
@@ -160,17 +160,17 @@ const ShiftHistory: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-warm-line overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-16 gap-2 text-zinc-400">
+          <div className="flex items-center justify-center py-16 gap-2 text-cream-faint">
             <Loader2 size={20} className="animate-spin" />
             <span className="text-sm font-bold">Се вчитува...</span>
           </div>
         ) : shifts.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-zinc-400 font-medium">Нема затворени смени</p>
+            <p className="text-cream-muted font-medium">Нема затворени смени</p>
             {(dateFrom || dateTo || filterUser) && (
-              <p className="text-xs text-zinc-400 mt-1">Пробај со поширок филтер</p>
+              <p className="text-xs text-cream-faint mt-1">Пробај со поширок филтер</p>
             )}
           </div>
         ) : (
@@ -179,7 +179,7 @@ const ShiftHistory: React.FC = () => {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                  <tr className="text-[10px] font-black uppercase tracking-widest text-cream-faint border-b border-warm-line bg-surface-2/50">
                     <th className="text-left px-6 py-3">Келнер</th>
                     <th className="text-left px-4 py-3">Отворена</th>
                     <th className="text-left px-4 py-3">Затворена</th>
@@ -188,15 +188,15 @@ const ShiftHistory: React.FC = () => {
                     <th className="text-right px-6 py-3">Разлика каса</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800/50">
+                <tbody className="divide-y divide-warm-line/50">
                   <AnimatePresence>
                     {shifts.map(shift => {
                       const diff = shift.cash_difference ? Number(shift.cash_difference) : null;
                       const diffColor =
-                        diff === null ? 'text-zinc-400' :
-                        diff === 0 ? 'text-emerald-600 dark:text-emerald-400' :
-                        Math.abs(diff) <= 50 ? 'text-amber-600 dark:text-amber-400' :
-                        'text-red-600 dark:text-red-400';
+                        diff === null ? 'text-cream-faint' :
+                        diff === 0 ? 'text-emerald-400' :
+                        Math.abs(diff) <= 50 ? 'text-amber-400' :
+                        'text-red-400';
 
                       return (
                         <motion.tr
@@ -204,15 +204,15 @@ const ShiftHistory: React.FC = () => {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           onClick={() => openZReport(shift.id)}
-                          className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer group"
+                          className="hover:bg-surface-2/50 transition-colors cursor-pointer group"
                         >
-                          <td className="px-6 py-4 font-bold text-zinc-900 dark:text-zinc-100">
+                          <td className="px-6 py-4 font-bold text-cream">
                             {shift.user_name}
                           </td>
-                          <td className="px-4 py-4 text-zinc-500">{fmtTs(shift.start_time)}</td>
-                          <td className="px-4 py-4 text-zinc-500">{shift.end_time ? fmtTs(shift.end_time) : '—'}</td>
-                          <td className="px-4 py-4 text-zinc-500">{duration(shift.start_time, shift.end_time)}</td>
-                          <td className="px-4 py-4 text-right font-bold text-zinc-900 dark:text-zinc-100">
+                          <td className="px-4 py-4 text-cream-faint">{fmtTs(shift.start_time)}</td>
+                          <td className="px-4 py-4 text-cream-faint">{shift.end_time ? fmtTs(shift.end_time) : '—'}</td>
+                          <td className="px-4 py-4 text-cream-faint">{duration(shift.start_time, shift.end_time)}</td>
+                          <td className="px-4 py-4 text-right font-bold text-cream">
                             {shift.final_cash !== null ? fmtMoney(shift.final_cash) : '—'}
                           </td>
                           <td className="px-6 py-4 text-right">
@@ -232,29 +232,29 @@ const ShiftHistory: React.FC = () => {
             </div>
 
             {/* Mobile cards */}
-            <div className="md:hidden divide-y divide-zinc-100 dark:divide-zinc-800">
+            <div className="md:hidden divide-y divide-warm-line">
               {shifts.map(shift => {
                 const diff = shift.cash_difference ? Number(shift.cash_difference) : null;
                 const diffColor =
-                  diff === null ? 'text-zinc-400' :
-                  diff === 0 ? 'text-emerald-600' :
-                  Math.abs(diff) <= 50 ? 'text-amber-600' : 'text-red-600';
+                  diff === null ? 'text-cream-faint' :
+                  diff === 0 ? 'text-emerald-400' :
+                  Math.abs(diff) <= 50 ? 'text-amber-400' : 'text-red-400';
 
                 return (
                   <div
                     key={shift.id}
                     onClick={() => openZReport(shift.id)}
-                    className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 active:bg-zinc-100 cursor-pointer transition-colors"
+                    className="p-4 hover:bg-surface-2/50 active:bg-surface-2 cursor-pointer transition-colors"
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <span className="font-bold text-zinc-900 dark:text-zinc-100">{shift.user_name}</span>
+                      <span className="font-bold text-cream">{shift.user_name}</span>
                       {diff !== null && (
                         <span className={`text-sm font-black ${diffColor}`}>
                           {diff > 0 ? '+' : ''}{Number(diff).toLocaleString('mk-MK', { minimumFractionDigits: 2 })} ден.
                         </span>
                       )}
                     </div>
-                    <div className="flex gap-3 text-xs text-zinc-400 font-medium">
+                    <div className="flex gap-3 text-xs text-cream-faint font-medium">
                       <span>{fmtTs(shift.start_time)}</span>
                       <span>·</span>
                       <span>{duration(shift.start_time, shift.end_time)}</span>
@@ -266,7 +266,7 @@ const ShiftHistory: React.FC = () => {
 
             {/* Loading overlay for z-report */}
             {loadingZReport && (
-              <div className="flex items-center justify-center py-4 gap-2 text-zinc-400 border-t border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-center justify-center py-4 gap-2 text-cream-faint border-t border-warm-line">
                 <Loader2 size={16} className="animate-spin" />
                 <span className="text-xs font-bold">Се вчитува Z-извештај...</span>
               </div>
@@ -278,21 +278,21 @@ const ShiftHistory: React.FC = () => {
       {/* Pagination */}
       {pagination.pages > 1 && (
         <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-400 font-medium">
+          <span className="text-xs text-cream-faint font-medium">
             Страница {pagination.page} од {pagination.pages}
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+              className="p-2 rounded-xl border border-warm-line text-cream-muted hover:bg-surface-2 disabled:opacity-40 transition-colors"
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
               disabled={page >= pagination.pages}
-              className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+              className="p-2 rounded-xl border border-warm-line text-cream-muted hover:bg-surface-2 disabled:opacity-40 transition-colors"
             >
               <ChevronRight size={16} />
             </button>

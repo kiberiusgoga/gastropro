@@ -75,24 +75,24 @@ const CloseShiftModal: React.FC<Props> = ({ shiftId, onClose, onClosed }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-zinc-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-base/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         onClick={e => e.target === e.currentTarget && onClose()}
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 16 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 16 }}
-          className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+          className="bg-surface w-full max-w-md rounded-2xl shadow-card-lg overflow-hidden border border-warm-line"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+          <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-warm-line">
             <div>
-              <h2 className="text-lg font-black dark:text-white uppercase tracking-tight">
+              <h2 className="text-lg font-black text-cream uppercase tracking-tight">
                 {t('close_shift')}
               </h2>
-              <p className="text-xs text-zinc-500 mt-0.5">{t('close_shift_subtitle')}</p>
+              <p className="text-xs text-cream-faint mt-0.5">{t('close_shift_subtitle')}</p>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 transition-colors">
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-surface-2 text-cream-faint transition-colors">
               <X size={18} />
             </button>
           </div>
@@ -100,30 +100,30 @@ const CloseShiftModal: React.FC<Props> = ({ shiftId, onClose, onClosed }) => {
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
             {/* Preview summary */}
             {loadingPreview ? (
-              <div className="flex items-center justify-center py-6 text-zinc-400 gap-2">
+              <div className="flex items-center justify-center py-6 text-cream-faint gap-2">
                 <Loader2 size={18} className="animate-spin" />
                 <span className="text-sm font-bold">Се вчитува...</span>
               </div>
             ) : preview && (
-              <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4 space-y-2 text-sm">
+              <div className="bg-surface-2 rounded-xl p-4 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-zinc-500 font-medium">{t('gross_revenue')}</span>
-                  <span className="font-black dark:text-white">{preview.totals.gross_revenue.toLocaleString()} ден.</span>
+                  <span className="text-cream-faint font-medium">{t('gross_revenue')}</span>
+                  <span className="font-black text-cream">{preview.totals.gross_revenue.toLocaleString()} ден.</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-zinc-500 font-medium">{t('order_count')}</span>
-                  <span className="font-black dark:text-white">{preview.totals.order_count}</span>
+                  <span className="text-cream-faint font-medium">{t('order_count')}</span>
+                  <span className="font-black text-cream">{preview.totals.order_count}</span>
                 </div>
-                <div className="flex justify-between border-t border-zinc-200 dark:border-zinc-700 pt-2 mt-2">
-                  <span className="text-zinc-500 font-medium">{t('expected_cash')}</span>
-                  <span className="font-black dark:text-white">{preview.expected_cash.toLocaleString()} ден.</span>
+                <div className="flex justify-between border-t border-warm-line pt-2 mt-2">
+                  <span className="text-cream-faint font-medium">{t('expected_cash')}</span>
+                  <span className="font-black text-cream">{preview.expected_cash.toLocaleString()} ден.</span>
                 </div>
               </div>
             )}
 
             {/* Actual cash input */}
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-zinc-500 mb-2">
+              <label className="block text-xs font-black uppercase tracking-widest text-cream-faint mb-2">
                 {t('actual_cash')} *
               </label>
               <input
@@ -133,21 +133,21 @@ const CloseShiftModal: React.FC<Props> = ({ shiftId, onClose, onClosed }) => {
                 value={actualCash}
                 onChange={e => setActualCash(e.target.value)}
                 placeholder="0.00"
-                className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white transition-all"
+                className="w-full px-4 py-3 bg-warm-input border border-warm-line rounded-xl text-sm font-bold text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                 autoFocus
               />
             </div>
 
-            {/* Real-time difference */}
+            {/* Real-time difference — keep semantic emerald/amber/red */}
             {actualCash !== '' && preview && (
               <div className={`rounded-xl border p-4 space-y-2 text-sm ${diffBg}`}>
                 <div className="flex justify-between">
-                  <span className="text-zinc-500 font-medium">{t('expected_cash')}</span>
-                  <span className="font-black dark:text-white">{expected.toLocaleString()} ден.</span>
+                  <span className="text-cream-faint font-medium">{t('expected_cash')}</span>
+                  <span className="font-black text-cream">{expected.toLocaleString()} ден.</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-zinc-500 font-medium">{t('actual_cash')}</span>
-                  <span className="font-black dark:text-white">{actual.toLocaleString()} ден.</span>
+                  <span className="text-cream-faint font-medium">{t('actual_cash')}</span>
+                  <span className="font-black text-cream">{actual.toLocaleString()} ден.</span>
                 </div>
                 <div className={`flex items-center justify-between pt-2 border-t border-current/10 font-black ${diffColor}`}>
                   <div className="flex items-center gap-1.5">
@@ -165,7 +165,7 @@ const CloseShiftModal: React.FC<Props> = ({ shiftId, onClose, onClosed }) => {
 
             {/* Notes */}
             <div>
-              <label className="block text-xs font-black uppercase tracking-widest text-zinc-500 mb-2">
+              <label className="block text-xs font-black uppercase tracking-widest text-cream-faint mb-2">
                 {t('notes')} ({t('optional')})
               </label>
               <textarea
@@ -174,14 +174,14 @@ const CloseShiftModal: React.FC<Props> = ({ shiftId, onClose, onClosed }) => {
                 rows={2}
                 maxLength={1000}
                 placeholder="Забелешки за сменава..."
-                className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 dark:text-white transition-all"
+                className="w-full px-4 py-3 bg-warm-input border border-warm-line rounded-xl text-sm font-medium text-cream resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
               />
             </div>
 
-            {/* Warning */}
+            {/* Warning — keep amber semantic */}
             <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
               <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">{t('close_shift_warning')}</p>
+              <p className="text-xs text-amber-400 font-medium">{t('close_shift_warning')}</p>
             </div>
 
             {/* Buttons */}
@@ -189,10 +189,11 @@ const CloseShiftModal: React.FC<Props> = ({ shiftId, onClose, onClosed }) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 text-sm font-black uppercase tracking-wide text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+                className="flex-1 py-3 rounded-xl border border-warm-line text-sm font-black uppercase tracking-wide text-cream-muted hover:bg-surface-2 transition-all"
               >
                 {t('cancel')}
               </button>
+              {/* keep red — danger: irreversible close shift action */}
               <button
                 type="submit"
                 disabled={submitting || loadingPreview}

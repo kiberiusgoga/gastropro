@@ -14,7 +14,6 @@ const D3CategoryChart: React.FC<D3CategoryChartProps> = ({ stats, menu, isDarkMo
   useEffect(() => {
     if (!svgRef.current || stats.length === 0) return;
 
-    // Aggregate data by category
     const categorySales: Record<string, number> = {};
 
     stats.forEach(day => {
@@ -32,12 +31,10 @@ const D3CategoryChart: React.FC<D3CategoryChartProps> = ({ stats, menu, isDarkMo
       count: count as number
     })).sort((a, b) => b.count - a.count);
 
-    // D3 Chart Logic
     const margin = { top: 20, right: 30, bottom: 40, left: 100 };
     const width = 500 - margin.left - margin.right;
     const height = 300 - margin.top - margin.bottom;
 
-    // Clear previous content
     d3.select(svgRef.current).selectAll("*").remove();
 
     const svg = d3.select(svgRef.current)
@@ -46,7 +43,6 @@ const D3CategoryChart: React.FC<D3CategoryChartProps> = ({ stats, menu, isDarkMo
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // X axis
     const x = d3.scaleLinear()
       .domain([0, (d3.max(data, (d: {category: string, count: number}) => d.count) as unknown as number) || 0])
       .range([0, width]);
@@ -55,9 +51,8 @@ const D3CategoryChart: React.FC<D3CategoryChartProps> = ({ stats, menu, isDarkMo
       .attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(x).ticks(5))
       .selectAll("text")
-      .attr("fill", isDarkMode ? "#71717a" : "#a1a1aa");
+      .attr("fill", "#8c8279");
 
-    // Y axis
     const y = d3.scaleBand()
       .range([0, height])
       .domain(data.map(d => d.category))
@@ -66,10 +61,9 @@ const D3CategoryChart: React.FC<D3CategoryChartProps> = ({ stats, menu, isDarkMo
     svg.append("g")
       .call(d3.axisLeft(y))
       .selectAll("text")
-      .attr("fill", isDarkMode ? "#e4e4e7" : "#3f3f46")
+      .attr("fill", "#b8aa97")
       .style("font-weight", "700");
 
-    // Bars
     svg.selectAll("myRect")
       .data(data)
       .enter()
@@ -78,20 +72,19 @@ const D3CategoryChart: React.FC<D3CategoryChartProps> = ({ stats, menu, isDarkMo
       .attr("y", (d) => y(d.category) || 0)
       .attr("width", 0)
       .attr("height", y.bandwidth())
-      .attr("fill", isDarkMode ? "#34d399" : "#10b981")
+      .attr("fill", "#c2652a")
       .attr("rx", 4)
       .transition()
       .duration(800)
       .attr("width", (d) => x(d.count));
 
-    // Remove axis lines for cleaner look
     svg.selectAll(".domain").remove();
-    svg.selectAll(".tick line").attr("stroke", isDarkMode ? "#27272a" : "#f4f4f5");
+    svg.selectAll(".tick line").attr("stroke", "#2e2921");
 
   }, [stats, menu, isDarkMode]);
 
   return (
-    <div className="flex justify-center items-center bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 overflow-x-auto">
+    <div className="flex justify-center items-center bg-surface-2/50 p-6 rounded-3xl border border-warm-line overflow-x-auto">
       <svg ref={svgRef}></svg>
     </div>
   );
