@@ -5,15 +5,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { printService } from '../../services/printService';
 import { kdsService } from '../../services/kdsService';
 import { tableService, posService } from '../../services/posService';
-import { 
-  Clock, 
-  CheckCircle2, 
-  ChefHat, 
-  AlertCircle, 
-  Filter, 
-  Flame, 
-  Wine, 
-  IceCream, 
+import {
+  Clock,
+  CheckCircle2,
+  ChefHat,
+  AlertCircle,
+  Filter,
+  Flame,
+  Wine,
+  IceCream,
   UtensilsCrossed,
   Timer,
   Zap,
@@ -29,10 +29,10 @@ interface KitchenDisplayProps {
   onUpdateItemStatus?: (orderId: string, itemId: string, newStatus: OrderItem['status']) => void;
 }
 
-const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ 
-  orders: initialOrders, 
-  tables: initialTables, 
-  onUpdateItemStatus: initialOnUpdateItemStatus 
+const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
+  orders: initialOrders,
+  tables: initialTables,
+  onUpdateItemStatus: initialOnUpdateItemStatus
 }) => {
   const [internalOrders, setInternalOrders] = useState<Order[]>([]);
   const [internalTables, setInternalTables] = useState<Table[]>([]);
@@ -48,7 +48,6 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Subscribe to orders if not provided
   useEffect(() => {
     if (!initialOrders) {
       const unsubscribe = kdsService.subscribeToKitchenOrders((data) => {
@@ -59,7 +58,6 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
     }
   }, [initialOrders]);
 
-  // Fetch tables if not provided
   useEffect(() => {
     if (!initialTables) {
       const fetchTables = async () => {
@@ -76,7 +74,6 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
       initialOnUpdateItemStatus(orderId, itemId, newStatus);
       return;
     }
-    // Optimistic local update for instant UI feedback
     setInternalOrders(prev => prev.map(order =>
       order.id !== orderId ? order : {
         ...order,
@@ -85,9 +82,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
         )
       }
     ));
-    // SSE ke ja potvrdi promenata od serverot avtomatski
     const result = await posService.updateOrderItemStatus(orderId, itemId, newStatus);
-    // Prikazi gi warningite za niska zaliha ako gi ima
     if (result?.deductionWarnings?.length) {
       for (const w of result.deductionWarnings) {
         toast.warning(`⚠ Залихата на ${w.ingredientName} е под нула. Провери магацин.`, { duration: 8000 });
@@ -110,13 +105,12 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
       .filter(o => o.status !== 'paid' && o.status !== 'cancelled')
       .map(order => ({
         ...order,
-        items: order.items.filter(item => 
+        items: order.items.filter(item =>
           activeStation === 'all' || item.preparationStation === activeStation
         )
       }))
       .filter(order => order.items.length > 0)
       .sort((a, b) => {
-        // Sort by priority first, then by time
         const priorityScore = { 'VIP': 3, 'rush': 2, 'normal': 1 };
         const scoreA = priorityScore[a.priority || 'normal'];
         const scoreB = priorityScore[b.priority || 'normal'];
@@ -127,46 +121,47 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
 
   const filteredOrders = getFilteredOrders();
 
+  // Priority badge styles — semantic: normal=emerald, rush=amber, VIP=rose
   const getPriorityStyles = (priority?: OrderPriority) => {
     switch (priority) {
-      case 'VIP': return 'bg-purple-600 text-white shadow-purple-200';
-      case 'rush': return 'bg-red-600 text-white shadow-red-200 animate-pulse';
-      default: return 'bg-blue-600 text-white shadow-blue-200';
+      case 'VIP':   return 'bg-rose-500/15 text-rose-300 border border-rose-500/30';
+      case 'rush':  return 'bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse';
+      default:      return 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
     }
   };
 
   const getPriorityIcon = (priority?: OrderPriority) => {
     switch (priority) {
-      case 'VIP': return <Star size={14} fill="currentColor" />;
+      case 'VIP':  return <Star size={14} fill="currentColor" />;
       case 'rush': return <Zap size={14} fill="currentColor" />;
-      default: return <Timer size={14} />;
+      default:     return <Timer size={14} />;
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-slate-50">
+      <div className="flex items-center justify-center h-full bg-base">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Се вчитуваат нарачки...</p>
+          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-cream-faint font-medium">Се вчитуваат нарачки...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
+    <div className="flex flex-col h-full bg-base">
       {/* Station Tabs */}
-      <div className="bg-white border-b border-slate-200 p-4 shrink-0">
+      <div className="bg-surface border-b border-warm-line p-4 shrink-0">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {stations.map(station => (
             <button
               key={station.id}
               onClick={() => setActiveStation(station.id)}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-2 ${
-                activeStation === station.id 
-                  ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-200' 
-                  : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
+                activeStation === station.id
+                  ? 'bg-accent border-accent text-[#faf5ee] shadow-card'
+                  : 'bg-surface-2 border-warm-line text-cream-muted hover:border-warm-line-strong'
               }`}
             >
               <station.icon size={16} />
@@ -192,31 +187,33 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className={`bg-white rounded-[2rem] border-2 shadow-sm overflow-hidden flex flex-col h-fit transition-all ${
-                    isLate ? 'border-red-200 shadow-red-100' : 'border-slate-100'
+                  className={`bg-surface rounded-[2rem] border-2 shadow-card overflow-hidden flex flex-col h-fit transition-all ${
+                    isLate ? 'border-red-700/60 shadow-red-900/20' : 'border-warm-line-strong'
                   }`}
                 >
                   {/* Card Header */}
-                  <div className={`p-5 flex justify-between items-start ${isLate ? 'bg-red-50' : 'bg-slate-50/50'}`}>
+                  <div className={`p-5 flex justify-between items-start ${isLate ? 'bg-red-900/15' : 'bg-surface-2/50'}`}>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-tighter flex items-center gap-1 ${getPriorityStyles(order.priority)}`}>
                           {getPriorityIcon(order.priority)}
                           {order.priority || 'NORMAL'}
                         </span>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">#{order.id.slice(-4)}</span>
+                        <span className="text-[10px] font-black text-cream-faint uppercase tracking-widest">#{order.id.slice(-4)}</span>
                       </div>
-                      <h3 className="font-black text-2xl text-slate-900">
+                      {/* High-contrast table header per scope */}
+                      <h3 className="font-black text-2xl text-cream font-serif italic">
                         {order.orderType === 'dine_in' ? `МАСА ${table?.number || '?'}` : order.orderType === 'takeaway' ? 'ЗА НОСЕЊЕ' : 'ДОСТАВА'}
                       </h3>
                     </div>
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-sm ${isLate ? 'bg-red-600 text-white' : 'bg-white text-slate-600 border border-slate-200'}`}>
+                    {/* Timer — keep red semantic for late orders */}
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-sm ${isLate ? 'bg-red-600 text-white' : 'bg-surface-2 text-cream-muted border border-warm-line'}`}>
                       <Clock size={16} />
                       {timeElapsed}'
                     </div>
-                    <button 
+                    <button
                       onClick={() => printService.printKitchenTickets(order)}
-                      className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 rounded-xl transition-all ml-2"
+                      className="p-2 bg-surface-2 border border-warm-line text-cream-faint hover:text-accent-light hover:border-accent/50 rounded-xl transition-all ml-2"
                       title="Печати бон"
                     >
                       <Printer size={18} />
@@ -226,46 +223,48 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
                   {/* Items List */}
                   <div className="p-5 space-y-3">
                     {order.items.map((item) => (
-                      <div key={item.id} className="flex flex-col gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100 group">
+                      <div key={item.id} className="flex flex-col gap-2 p-3 rounded-2xl bg-surface-2 border border-warm-line-strong group">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3">
-                            <span className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm font-black">
+                            {/* High-contrast quantity badge */}
+                            <span className="w-8 h-8 rounded-xl bg-base text-cream flex items-center justify-center text-sm font-black border border-warm-line">
                               {item.quantity}
                             </span>
                             <div>
-                              <h4 className="font-bold text-slate-900 leading-tight">{item.name}</h4>
-                              {item.note && <p className="text-[10px] font-bold text-orange-600 uppercase mt-0.5 italic">! {item.note}</p>}
+                              <h4 className="font-bold text-cream leading-tight">{item.name}</h4>
+                              {item.note && <p className="text-[10px] font-bold text-amber-400 uppercase mt-0.5 italic">! {item.note}</p>}
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.preparationStation}</span>
+                            <span className="text-[9px] font-black text-cream-faint uppercase tracking-widest">{item.preparationStation}</span>
                           </div>
                         </div>
 
-                        {/* Item Actions */}
+                        {/* Item Actions — large, clearly tappable */}
                         <div className="flex gap-1.5 mt-1">
                           {item.status === 'pending' ? (
                             <button
                               onClick={() => handleUpdateItemStatus(order.id, item.id, 'preparing')}
-                              className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-sm shadow-blue-100"
+                              className="flex-1 py-2 bg-accent text-[#faf5ee] rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-card-sm"
                             >
                               ЗАПОЧНИ
                             </button>
                           ) : item.status === 'preparing' ? (
+                            // keep emerald — semantic completion
                             <button
                               onClick={() => handleUpdateItemStatus(order.id, item.id, 'ready')}
-                              className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-100 flex items-center justify-center gap-1"
+                              className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-card-sm flex items-center justify-center gap-1"
                             >
                               <CheckCircle2 size={12} />
                               ГОТОВО
                             </button>
                           ) : (
-                            <div className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                            <div className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-surface-2 text-cream-faint border border-warm-line rounded-xl text-[10px] font-black uppercase tracking-widest">
                               <CheckCircle2 size={12} />
                               СПРЕМНО
-                              <button 
+                              <button
                                 onClick={() => handleUpdateItemStatus(order.id, item.id, 'preparing')}
-                                className="ml-2 p-1 hover:bg-slate-300 rounded-lg transition-colors"
+                                className="ml-2 p-1 hover:bg-warm-input rounded-lg transition-colors"
                               >
                                 <RotateCcw size={10} />
                               </button>
@@ -277,12 +276,12 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
                   </div>
 
                   {/* Footer Actions */}
-                  <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
-                    <button className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
+                  <div className="p-4 bg-surface-2/50 border-t border-warm-line flex gap-2">
+                    <button className="flex-1 py-2.5 bg-surface border border-warm-line text-cream-muted rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-surface-2 transition-all flex items-center justify-center gap-2">
                       <History size={14} />
                       ИСТОРИЈА
                     </button>
-                    <button className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
+                    <button className="flex-1 py-2.5 bg-surface border border-warm-line text-cream-muted rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-surface-2 transition-all flex items-center justify-center gap-2">
                       <AlertCircle size={14} />
                       ОДЛОЖИ
                     </button>
@@ -293,13 +292,13 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
           </AnimatePresence>
 
           {filteredOrders.length === 0 && (
-            <div className="col-span-full py-40 flex flex-col items-center justify-center text-slate-300 gap-4">
-              <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center">
+            <div className="col-span-full py-40 flex flex-col items-center justify-center text-cream-faint gap-4">
+              <div className="w-24 h-24 rounded-full bg-surface-2 flex items-center justify-center text-cream-faint/20">
                 <ChefHat size={48} strokeWidth={1} />
               </div>
               <div className="text-center">
-                <h2 className="text-xl font-black text-slate-400 uppercase tracking-widest">Кујната е празна</h2>
-                <p className="text-sm font-medium text-slate-400">Нема активни нарачки за избраната станица.</p>
+                <h2 className="text-xl font-black text-cream-faint uppercase tracking-widest">Кујната е празна</h2>
+                <p className="text-sm font-medium text-cream-faint">Нема активни нарачки за избраната станица.</p>
               </div>
             </div>
           )}
