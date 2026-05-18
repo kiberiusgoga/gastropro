@@ -38,7 +38,7 @@ const AppContent = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
-    const initial = saved ? saved === 'true' : false;
+    const initial = saved ? saved === 'true' : true; // default dark for Sahara
     document.documentElement.classList.toggle('dark', initial);
     return initial;
   });
@@ -54,10 +54,8 @@ const AppContent = () => {
           if (!sub) {
             sub = await billingService.createTrialSubscription(user.restaurantId);
           }
-          
           if (sub) {
             const flags = await featureFlagService.getFeatureFlags(sub.plan);
-            // Force enable analytics for demo purposes
             setFeatureFlags({ ...flags, analytics_enabled: true });
           }
         } catch (error) {
@@ -90,17 +88,19 @@ const AppContent = () => {
       case 'dashboard':
         return <Dashboard />;
       case 'inventory':
-        return featureFlags?.inventory_enabled ? <InventoryShell /> : <div className="p-8 text-center">Модулот за инвентар не е достапен за вашиот план.</div>;
+        return featureFlags?.inventory_enabled
+          ? <InventoryShell />
+          : <div className="p-8 text-center text-cream-muted">Модулот за инвентар не е достапен за вашиот план.</div>;
       case 'billing':
         return (
           <div className="space-y-8">
-            <BillingView 
-              restaurant={activeRestaurant} 
+            <BillingView
+              restaurant={activeRestaurant}
               onUpgrade={(plan) => {
                 if (activeRestaurant) {
                   setRestaurant({ ...activeRestaurant, subscriptionPlan: plan });
                 }
-              }} 
+              }}
             />
             <SubscriptionDashboard restaurantId={user.restaurantId || 'default'} />
           </div>
@@ -110,9 +110,9 @@ const AppContent = () => {
           <StaffView
             staff={employees as any}
             shifts={[]}
-            onAssignWaiter={() => {}} 
-            onReleaseWaiter={() => {}} 
-            onAddStaff={() => {}} 
+            onAssignWaiter={() => {}}
+            onReleaseWaiter={() => {}}
+            onAddStaff={() => {}}
           />
         );
       case 'menu':
@@ -136,19 +136,19 @@ const AppContent = () => {
   };
 
   return (
-    <div className={`flex h-screen ${isDarkMode ? 'dark' : ''} bg-white dark:bg-zinc-950 transition-colors duration-300`}>
+    <div className={`flex h-screen ${isDarkMode ? 'dark' : ''} bg-base transition-colors duration-300`}>
       <Toaster position="top-right" richColors />
-      
-      <Sidebar 
-        activeTab={activeTab} 
+
+      <Sidebar
+        activeTab={activeTab}
         setActiveTab={setActiveTab}
         isDarkMode={isDarkMode}
         toggleDarkMode={() => {
-            const next = !isDarkMode;
-            setIsDarkMode(next);
-            document.documentElement.classList.toggle('dark', next);
-            localStorage.setItem('darkMode', String(next));
-          }}
+          const next = !isDarkMode;
+          setIsDarkMode(next);
+          document.documentElement.classList.toggle('dark', next);
+          localStorage.setItem('darkMode', String(next));
+        }}
         onLogout={() => setUser(null)}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -156,51 +156,47 @@ const AppContent = () => {
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile Header */}
-        <header className="lg:hidden h-14 sm:h-16 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between px-4 sm:px-6 shrink-0">
+        <header className="lg:hidden h-14 sm:h-16 bg-surface border-b border-warm-line flex items-center justify-between px-4 sm:px-6 shrink-0">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-zinc-950 shadow-lg shadow-emerald-500/10">
+            <div className="w-10 h-10 bg-accent rounded-btn flex items-center justify-center text-[#faf5ee] shadow-card">
               <Menu size={20} strokeWidth={3} />
             </div>
-            <span className="font-black text-xl tracking-tighter font-display uppercase italic dark:text-white">GastroPro</span>
+            <span className="font-bold text-xl tracking-tight font-serif italic text-cream">GastroPro</span>
           </div>
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+            className="p-2 text-cream-faint hover:bg-surface-2 rounded-xl transition-colors"
           >
             <Menu size={24} />
           </button>
         </header>
 
         {/* Desktop TopBar */}
-        <header className="hidden lg:flex h-20 bg-white/50 dark:bg-zinc-950/50 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-800/50 items-center justify-between px-10 shrink-0 relative z-30">
+        <header className="hidden lg:flex h-20 bg-surface/50 backdrop-blur-md border-b border-warm-line items-center justify-between px-10 shrink-0 relative z-30">
           <div className="flex items-center gap-6">
-            <h2 className="text-xl font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
+            <h2 className="text-xl font-bold text-cream font-serif italic">
               {t(activeTab)}
             </h2>
-            <div className="h-6 w-[1px] bg-zinc-200 dark:bg-zinc-800" />
-            <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-widest">
-              <span className="text-emerald-500">PRO</span>
+            <div className="h-6 w-[1px] bg-warm-line" />
+            <div className="flex items-center gap-2 text-xs font-bold text-cream-faint uppercase tracking-widest">
+              <span className="text-accent-light">PRO</span>
               <span>Account</span>
             </div>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex flex-col items-end">
-              <span className="text-sm font-black text-zinc-900 dark:text-zinc-100">{user.name}</span>
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{user.role}</span>
+              <span className="text-sm font-black text-cream">{user.name}</span>
+              <span className="text-[10px] font-bold text-cream-faint uppercase tracking-widest">{user.role}</span>
             </div>
-            <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-               <div className="w-full h-full bg-gradient-to-br from-emerald-400 to-blue-500 opacity-20" />
-               <span className="absolute font-black text-zinc-600 dark:text-zinc-300 text-xs">{user.name.charAt(0)}</span>
+            <div className="w-10 h-10 bg-surface-2 rounded-xl flex items-center justify-center border border-warm-line shadow-card-sm overflow-hidden relative">
+              <div className="w-full h-full bg-gradient-to-br from-accent to-accent-light opacity-20 absolute inset-0" />
+              <span className="relative font-black text-cream text-xs">{user.name.charAt(0)}</span>
             </div>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-10 relative">
-          {/* Subtle Background Pattern */}
-          <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]" 
-               style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-          
           <div className="max-w-7xl mx-auto relative z-10">
             {renderContent()}
           </div>
