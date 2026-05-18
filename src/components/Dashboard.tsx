@@ -21,30 +21,31 @@ interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
-  accent: string;         // Tailwind bg + text pair, e.g. "blue"
+  accent: string;
   trend?: 'up' | 'down';
   trendValue?: string;
   loading?: boolean;
 }
 
 const ACCENT: Record<string, { icon: string; badge: string; glow: string }> = {
-  blue:    { icon: 'bg-blue-500 text-white',    badge: 'bg-blue-500/10 text-blue-500',    glow: 'bg-blue-500/10' },
-  emerald: { icon: 'bg-emerald-500 text-white', badge: 'bg-emerald-500/10 text-emerald-500', glow: 'bg-emerald-500/10' },
-  amber:   { icon: 'bg-amber-500 text-white',   badge: 'bg-amber-500/10 text-amber-500',  glow: 'bg-amber-500/10' },
-  violet:  { icon: 'bg-violet-500 text-white',  badge: 'bg-violet-500/10 text-violet-500', glow: 'bg-violet-500/10' },
+  orange:  { icon: 'bg-accent text-[#faf5ee]',          badge: 'bg-accent/10 text-accent-light',      glow: 'bg-accent/10' },
+  blue:    { icon: 'bg-blue-500 text-white',             badge: 'bg-blue-500/10 text-blue-500',        glow: 'bg-blue-500/10' },
+  emerald: { icon: 'bg-emerald-500 text-white',          badge: 'bg-emerald-500/10 text-emerald-500',  glow: 'bg-emerald-500/10' },
+  amber:   { icon: 'bg-amber-500 text-white',            badge: 'bg-amber-500/10 text-amber-500',      glow: 'bg-amber-500/10' },
+  violet:  { icon: 'bg-violet-500 text-white',           badge: 'bg-violet-500/10 text-violet-500',    glow: 'bg-violet-500/10' },
 };
 
 const StatCard = ({ title, value, icon: Icon, accent, trend, trendValue, loading }: StatCardProps) => {
-  const a = ACCENT[accent] ?? ACCENT.blue;
+  const a = ACCENT[accent] ?? ACCENT.orange;
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 md:p-6 flex flex-col gap-3 md:gap-4 group transition-all duration-300 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5">
+    <div className="relative overflow-hidden rounded-card border border-warm-line bg-surface p-4 md:p-6 flex flex-col gap-3 md:gap-4 group transition-all duration-300 shadow-card hover:shadow-card-lg hover:-translate-y-0.5">
       <div className="flex items-start justify-between">
         <div className={`w-9 h-9 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-lg ${a.icon} transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6`}>
           <Icon size={18} strokeWidth={2.5} className="md:w-[22px] md:h-[22px]" />
         </div>
         {trend && trendValue && (
           <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider ${
-            trend === 'up' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+            trend === 'up' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
           }`}>
             <ArrowUpRight size={12} strokeWidth={3} className={trend === 'down' ? 'rotate-90' : ''} />
             {trendValue}
@@ -52,11 +53,11 @@ const StatCard = ({ title, value, icon: Icon, accent, trend, trendValue, loading
         )}
       </div>
       <div>
-        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.18em] mb-1.5">{title}</p>
+        <p className="text-[10px] font-black text-cream-faint uppercase tracking-[0.18em] mb-1.5">{title}</p>
         {loading ? (
-          <div className="h-8 w-28 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse" />
+          <div className="h-8 w-28 bg-surface-2 rounded-lg animate-pulse" />
         ) : (
-          <h3 className="text-xl md:text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight font-display">{value}</h3>
+          <h3 className="text-xl md:text-3xl font-black text-cream tracking-tight font-sans">{value}</h3>
         )}
       </div>
       <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full blur-2xl opacity-60 ${a.glow} transition-all duration-700 group-hover:scale-150 group-hover:opacity-80`} />
@@ -69,10 +70,10 @@ const StatCard = ({ title, value, icon: Icon, accent, trend, trendValue, loading
 const ChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl px-4 py-3 shadow-xl">
-      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{label}</p>
-      <p className="text-lg font-black text-zinc-900 dark:text-zinc-50">
-        {Number(payload[0].value).toLocaleString()} <span className="text-xs font-bold text-zinc-400">ден.</span>
+    <div className="bg-surface border border-warm-line rounded-2xl px-4 py-3 shadow-xl">
+      <p className="text-[10px] font-black text-cream-muted uppercase tracking-widest mb-1">{label}</p>
+      <p className="text-lg font-black text-cream">
+        {Number(payload[0].value).toLocaleString()} <span className="text-xs font-bold text-cream-faint">ден.</span>
       </p>
     </div>
   );
@@ -110,21 +111,21 @@ const Dashboard = () => {
   const hasChartData = chartData.some(d => d.revenue > 0);
 
   return (
-    <div className="space-y-4 md:space-y-8 pb-10 md:pb-20">
+    <div className="space-y-6 md:space-y-8 pb-10 md:pb-20 text-cream">
 
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
+            <div className="w-10 h-10 bg-accent rounded-btn flex items-center justify-center text-[#faf5ee] shadow-lg">
               <BarChart3 size={20} strokeWidth={2.5} />
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight font-display uppercase italic">
+            <h2 className="text-2xl md:text-3xl font-bold text-cream tracking-tight font-serif italic">
               {t('dashboard')}
             </h2>
           </div>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-13">
-            {t('welcome')}, <span className="text-emerald-500">{user.name}</span>
+          <p className="text-xs font-bold text-cream-faint uppercase tracking-widest pl-13">
+            {t('welcome')}, <span className="text-accent-light">{user.name}</span>
           </p>
         </div>
 
@@ -142,7 +143,7 @@ const Dashboard = () => {
                 }
               }
             }}
-            className="flex items-center gap-2.5 px-6 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
+            className="flex items-center gap-2.5 px-6 py-3 bg-accent text-[#faf5ee] rounded-btn font-black text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-card"
           >
             <Database size={16} strokeWidth={2.5} />
             {t('generate_demo_data')}
@@ -156,7 +157,7 @@ const Dashboard = () => {
           title={t('total_products')}
           value={isStatsLoading ? '…' : (products || []).length}
           icon={Package}
-          accent="blue"
+          accent="orange"
           trend="up"
           trendValue="12%"
           loading={isStatsLoading}
@@ -183,32 +184,32 @@ const Dashboard = () => {
           title="Приход денес"
           value={todayRevenue === null ? '…' : `${todayRevenue.toLocaleString()} ден.`}
           icon={DollarSign}
-          accent="violet"
+          accent="orange"
           loading={chartLoading}
         />
       </div>
 
       {/* ── Revenue Chart ── */}
-      <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 md:p-8">
+      <div className="rounded-card border border-warm-line bg-surface p-4 md:p-8">
         <div className="flex items-center justify-between mb-4 md:mb-8">
           <div>
-            <h3 className="text-base font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight font-display">
+            <h3 className="text-base font-bold text-cream tracking-tight font-serif">
               {t('revenue_overview')}
             </h3>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">
+            <p className="text-[10px] font-bold text-cream-muted uppercase tracking-widest mt-0.5">
               {t('finances_and_sales')} — последни 7 дена
             </p>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Live</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/10">
+            <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+            <span className="text-[10px] font-black text-accent-light uppercase tracking-wider">Live</span>
           </div>
         </div>
 
         {chartLoading ? (
-          <div className="h-48 md:h-72 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl animate-pulse" />
+          <div className="h-48 md:h-72 bg-surface-2 rounded-xl animate-pulse" />
         ) : !hasChartData ? (
-          <div className="h-48 md:h-72 flex flex-col items-center justify-center text-zinc-300 dark:text-zinc-700 gap-3">
+          <div className="h-48 md:h-72 flex flex-col items-center justify-center text-cream-faint gap-3">
             <TrendingUp size={48} strokeWidth={1} />
             <p className="text-xs font-black uppercase tracking-widest">Нема податоци за прикажување</p>
           </div>
@@ -218,35 +219,35 @@ const Dashboard = () => {
               <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="5%"  stopColor="#c2652a" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#c2652a" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-zinc-100 dark:text-zinc-800" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(216,208,200,0.08)" />
                 <XAxis
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#71717a', fontSize: 11, fontWeight: 700 }}
+                  tick={{ fill: '#b8aa97', fontSize: 11, fontWeight: 700 }}
                   dy={12}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: '#71717a', fontSize: 11, fontWeight: 700 }}
+                  tick={{ fill: '#b8aa97', fontSize: 11, fontWeight: 700 }}
                   tickFormatter={v => v === 0 ? '0' : `${(v / 1000).toFixed(0)}k`}
                   width={36}
                 />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '4 2' }} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#c2652a', strokeWidth: 1, strokeDasharray: '4 2' }} />
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#3b82f6"
+                  stroke="#c2652a"
                   strokeWidth={3}
                   fillOpacity={1}
                   fill="url(#revGrad)"
-                  dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                  activeDot={{ r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                  dot={{ r: 4, fill: '#c2652a', strokeWidth: 2, stroke: '#252118' }}
+                  activeDot={{ r: 6, fill: '#c2652a', strokeWidth: 2, stroke: '#252118' }}
                   animationDuration={1200}
                 />
               </AreaChart>
@@ -259,16 +260,16 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
 
         {/* Low Stock Warning */}
-        <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 md:p-7">
+        <div className="rounded-card border border-warm-line bg-surface p-4 md:p-7">
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <div>
-              <h3 className="text-base font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight font-display">
+              <h3 className="text-base font-bold text-cream tracking-tight font-serif">
                 Ниска залиха
               </h3>
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Производи под минимум</p>
+              <p className="text-[10px] font-bold text-cream-muted uppercase tracking-widest mt-0.5">Производи под минимум</p>
             </div>
             {lowStockProducts.length > 0 && (
-              <span className="px-2.5 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-black rounded-lg uppercase">
+              <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 text-xs font-black rounded-lg uppercase">
                 {lowStockProducts.length} алерти
               </span>
             )}
@@ -276,10 +277,10 @@ const Dashboard = () => {
 
           {isStatsLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-12 bg-zinc-50 dark:bg-zinc-800 rounded-xl animate-pulse" />)}
+              {[1, 2, 3].map(i => <div key={i} className="h-12 bg-surface-2 rounded-xl animate-pulse" />)}
             </div>
           ) : lowStockProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-zinc-300 dark:text-zinc-700 gap-2">
+            <div className="flex flex-col items-center justify-center py-10 text-cream-faint gap-2">
               <TrendingUp size={40} strokeWidth={1} />
               <p className="text-xs font-black uppercase tracking-widest">Залихата е уредна</p>
             </div>
@@ -291,13 +292,13 @@ const Dashboard = () => {
                     <AlertTriangle size={16} className="text-amber-500" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-zinc-900 dark:text-zinc-100 truncate">{p.name}</p>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase">
+                    <p className="text-sm font-black text-cream truncate">{p.name}</p>
+                    <p className="text-[10px] font-bold text-cream-faint uppercase">
                       {p.currentStock} / мин. {p.minStock} {p.unit}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="w-16 h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="w-16 h-1.5 bg-surface-2 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-amber-500 rounded-full"
                         style={{ width: `${Math.min(100, (p.currentStock / p.minStock) * 100)}%` }}
@@ -311,18 +312,18 @@ const Dashboard = () => {
         </div>
 
         {/* Audit Trail */}
-        <div className="rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 md:p-7">
+        <div className="rounded-card border border-warm-line bg-surface p-4 md:p-7">
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <div>
-              <h3 className="text-base font-black text-zinc-900 dark:text-zinc-50 uppercase tracking-tight font-display">
+              <h3 className="text-base font-bold text-cream tracking-tight font-serif">
                 {t('audit_trail')}
               </h3>
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">{t('live_activity')}</p>
+              <p className="text-[10px] font-bold text-cream-muted uppercase tracking-widest mt-0.5">{t('live_activity')}</p>
             </div>
           </div>
 
           {(transactions || []).length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-zinc-300 dark:text-zinc-700 gap-2">
+            <div className="flex flex-col items-center justify-center py-10 text-cream-faint gap-2">
               <Activity size={40} strokeWidth={1} />
               <p className="text-xs font-black uppercase tracking-widest">{t('no_data')}</p>
             </div>
@@ -332,18 +333,18 @@ const Dashboard = () => {
                 <div key={tx.id} className="flex items-center gap-4 group">
                   <div className={cn(
                     'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110',
-                    tx.type === 'receipt' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : tx.type === 'output' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                      : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                    tx.type === 'receipt' ? 'bg-emerald-500/10 text-emerald-400'
+                      : tx.type === 'output' ? 'bg-rose-500/10 text-rose-400'
+                      : 'bg-accent/10 text-accent-light'
                   )}>
                     {tx.type === 'receipt' ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <p className="text-sm font-black text-zinc-900 dark:text-zinc-100 truncate uppercase tracking-tight">
+                      <p className="text-sm font-black text-cream truncate uppercase tracking-tight">
                         {products.find(p => p.id === tx.productId)?.name || t('unknown_product')}
                       </p>
-                      <span className="text-[10px] font-bold text-zinc-400 flex items-center gap-1 ml-2 shrink-0">
+                      <span className="text-[10px] font-bold text-cream-faint flex items-center gap-1 ml-2 shrink-0">
                         <Clock size={10} />
                         {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
@@ -356,7 +357,7 @@ const Dashboard = () => {
                         {tx.type === 'receipt' ? '+' : '-'}{tx.quantity}
                       </span>
                       {tx.note && (
-                        <p className="text-[11px] text-zinc-400 font-medium italic truncate">{tx.note}</p>
+                        <p className="text-[11px] text-cream-muted font-medium italic truncate">{tx.note}</p>
                       )}
                     </div>
                   </div>
