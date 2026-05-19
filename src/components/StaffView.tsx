@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { Staff, WaiterShift, Notification, StaffRole } from '../types';
+import { Staff, WaiterShift, Notification, StaffRole, UserRole } from '../types';
 import { UserCog, LogIn, Clock, Bell, Check, X, Users, UserPlus, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import CloseShiftModal from './Shifts/CloseShiftModal';
 import ShiftHistory from './Shifts/ShiftHistory';
 import ZReportView from './Shifts/ZReportView';
 import type { ZReportData } from '../services/zreportService';
-
-const generateRandomPin = () => Math.floor(1000 + Math.random() * 9000).toString();
+import { employeeService } from '../services/employeeService';
 
 interface StaffViewProps {
   staff: Staff[];
@@ -17,7 +17,7 @@ interface StaffViewProps {
   onAssignWaiter: (waiterId: string, initialCash: number) => void;
   onReleaseWaiter: (shiftId: string, finalCash: number) => void;
   onCompleteNotification?: (id: string) => void;
-  onAddStaff: (staff: Omit<Staff, 'id' | 'restaurantId' | 'active' | 'status'>) => void;
+  onAddStaff: () => void;
 }
 
 const GROUPS: { id: StaffRole; label: string; icon: React.ElementType }[] = [
@@ -46,68 +46,39 @@ const StaffView: React.FC<StaffViewProps> = ({
   const [closingShiftId, setClosingShiftId] = useState<string | null>(null);
   const [lastZReport, setLastZReport] = useState<ZReportData | null>(null);
 
-  const [newStaff, setNewStaff] = useState({
+  const groupToRole: Record<StaffRole, UserRole> = {
+    waiter: 'Waiter',
+    Admin: 'Admin',
+    manager: 'Manager',
+    chef: 'Chef',
+    bartender: 'Waiter',
+    cashier: 'Cashier',
+  };
+
+  const [newStaff, setNewStaff] = useState<{ name: string; email: string; role: UserRole }>({
     name: '',
     email: '',
-    role: 'waiter' as StaffRole,
-    pin: '',
-    permissions: {
-      canTransferTable: false,
-      canDeleteOrder: false,
-      canSeeReports: false,
-      canApplyDiscount: false,
-      canVoidItems: false,
-      canSeeClosedBills: false,
-      canTakeOrder: true,
-      canProcessPayment: true
-    }
+    role: 'Waiter',
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const activeShifts = shifts || [];
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const pin = newStaff.pin || generateRandomPin();
-    onAddStaff({ ...newStaff, pin });
-    setShowAddModal(false);
-    resetNewStaff();
-  };
-
-  const resetNewStaff = () => {
-    setNewStaff({
-      name: '',
-      email: '',
-      role: 'waiter',
-      pin: '',
-      permissions: {
-        canTransferTable: false,
-        canDeleteOrder: false,
-        canSeeReports: false,
-        canApplyDiscount: false,
-        canVoidItems: false,
-        canSeeClosedBills: false,
-        canTakeOrder: true,
-        canProcessPayment: true
-      }
-    });
-  };
-
-  const updatePermissionsByRole = (role: StaffRole) => {
-    const isAdmin = role === 'Admin' || role === 'manager';
-    setNewStaff(prev => ({
-      ...prev,
-      role,
-      permissions: {
-        canTransferTable: isAdmin,
-        canDeleteOrder: isAdmin,
-        canSeeReports: isAdmin,
-        canApplyDiscount: isAdmin,
-        canVoidItems: isAdmin,
-        canSeeClosedBills: isAdmin,
-        canTakeOrder: true,
-        canProcessPayment: true
-      }
-    }));
+    setSubmitting(true);
+    try {
+      await employeeService.create({ name: newStaff.name, email: newStaff.email, role: newStaff.role, active: true });
+      toast.success('Вработениот е успешно додаден.');
+      onAddStaff();
+      setShowAddModal(false);
+      setNewStaff({ name: '', email: '', role: 'Waiter' });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Грешка при додавање на вработен.';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredStaff = staff.filter(s => s.role === selectedGroup);
@@ -324,7 +295,7 @@ const StaffView: React.FC<StaffViewProps> = ({
             </div>
             <button
               onClick={() => {
-                updatePermissionsByRole(selectedGroup);
+                setNewStaff({ name: '', email: '', role: groupToRole[selectedGroup] });
                 setShowAddModal(true);
               }}
               className="px-6 py-2.5 bg-accent text-[#faf5ee] rounded-xl font-black text-xs uppercase tracking-widest hover:brightness-110 transition-all shadow-card"
@@ -427,87 +398,46 @@ const StaffView: React.FC<StaffViewProps> = ({
                 </button>
               </div>
 
-              <form onSubmit={handleAddSubmit} className="p-4 md:p-8 space-y-5 md:space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-[10px] font-black text-cream-faint uppercase tracking-widest mb-2">Име и Презиме</label>
-                      <input
-                        required
-                        type="text"
-                        value={newStaff.name}
-                        onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
-                        className="w-full p-4 bg-warm-input border border-warm-line rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/20 focus:border-accent/50 transition-all text-cream font-bold"
-                        placeholder="пр. Петар Петров"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-black text-cream-faint uppercase tracking-widest mb-2">Е-пошта</label>
-                      <input
-                        required
-                        type="email"
-                        value={newStaff.email}
-                        onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                        className="w-full p-4 bg-warm-input border border-warm-line rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/20 focus:border-accent/50 transition-all text-cream font-bold"
-                        placeholder="petar@example.com"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-black text-cream-faint uppercase tracking-widest mb-2">PIN (Код за најава)</label>
-                      <div className="flex gap-2">
-                        <input
-                          required
-                          type="text"
-                          maxLength={4}
-                          pattern="\d{4}"
-                          value={newStaff.pin}
-                          onChange={(e) => setNewStaff({ ...newStaff, pin: e.target.value })}
-                          className="flex-1 p-4 bg-warm-input border border-warm-line rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/20 focus:border-accent/50 transition-all text-cream font-black text-center text-xl tracking-widest"
-                          placeholder="----"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setNewStaff({ ...newStaff, pin: Math.floor(1000 + Math.random() * 9000).toString() })}
-                          className="px-4 bg-surface-2 text-cream-muted rounded-2xl font-bold hover:bg-warm-input transition-colors"
-                        >
-                          Генерирај
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-cream-faint mt-2 font-bold italic">Кодот се користи за брза најава на системот.</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-surface-2/50 p-6 rounded-[2rem] border border-warm-line">
-                    <h3 className="text-xs font-black text-cream-faint uppercase tracking-widest mb-6 border-b border-warm-line pb-2">Права и Дозволи</h3>
-                    <div className="space-y-4">
-                      {[
-                        { id: 'canTakeOrder', label: 'Примање нарачки' },
-                        { id: 'canProcessPayment', label: 'Наплата на сметки' },
-                        { id: 'canTransferTable', label: 'Префрлање маси' },
-                        { id: 'canDeleteOrder', label: 'Бришење нарачки (Сторно)' },
-                        { id: 'canSeeReports', label: 'Преглед на извештаи' },
-                        { id: 'canSeeClosedBills', label: 'Преглед на затворени сметки' },
-                      ].map((perm) => (
-                        <label key={perm.id} className="flex items-center justify-between group cursor-pointer">
-                          <span className="text-sm font-bold text-cream-muted group-hover:text-cream transition-colors">{perm.label}</span>
-                          <input
-                            type="checkbox"
-                            checked={newStaff.permissions[perm.id as keyof typeof newStaff.permissions]}
-                            onChange={(e) => setNewStaff({
-                              ...newStaff,
-                              permissions: { ...newStaff.permissions, [perm.id]: e.target.checked }
-                            })}
-                            className="w-5 h-5 rounded-lg border-zinc-300 text-emerald-600 focus:ring-emerald-500 transition-all"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+              <form onSubmit={handleAddSubmit} className="p-4 md:p-8 space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-cream-faint uppercase tracking-widest mb-2">Име и Презиме</label>
+                  <input
+                    required
+                    type="text"
+                    value={newStaff.name}
+                    onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                    className="w-full p-4 bg-warm-input border border-warm-line rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/20 focus:border-accent/50 transition-all text-cream font-bold"
+                    placeholder="пр. Петар Петров"
+                  />
                 </div>
 
-                <div className="flex gap-4 pt-4">
+                <div>
+                  <label className="block text-[10px] font-black text-cream-faint uppercase tracking-widest mb-2">Е-пошта</label>
+                  <input
+                    required
+                    type="email"
+                    value={newStaff.email}
+                    onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                    className="w-full p-4 bg-warm-input border border-warm-line rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/20 focus:border-accent/50 transition-all text-cream font-bold"
+                    placeholder="petar@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-cream-faint uppercase tracking-widest mb-2">Улога</label>
+                  <select
+                    required
+                    value={newStaff.role}
+                    onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value as UserRole })}
+                    className="w-full p-4 bg-warm-input border border-warm-line rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/20 focus:border-accent/50 transition-all text-cream font-bold"
+                  >
+                    {(['Admin', 'Manager', 'Waiter', 'Chef', 'Cashier', 'Warehouse Worker', 'Driver'] as UserRole[]).map(r => (
+                      <option key={r} value={r} className="bg-surface">{r}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-4 pt-2">
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
@@ -517,9 +447,12 @@ const StaffView: React.FC<StaffViewProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="flex-[2] py-4 bg-accent text-[#faf5ee] rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 transition-all shadow-card"
+                    disabled={submitting}
+                    className="flex-[2] py-4 bg-accent text-[#faf5ee] rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 transition-all shadow-card disabled:opacity-60 flex items-center justify-center gap-2"
                   >
-                    ЗАЧУВАЈ ВРАБОТЕН
+                    {submitting
+                      ? <div className="w-5 h-5 border-2 border-[#faf5ee] border-t-transparent rounded-full animate-spin" />
+                      : 'ЗАЧУВАЈ ВРАБОТЕН'}
                   </button>
                 </div>
               </form>

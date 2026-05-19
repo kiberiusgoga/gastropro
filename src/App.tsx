@@ -31,7 +31,8 @@ const AppContent = () => {
     activeRestaurant,
     employees,
     setRestaurant,
-    setUser
+    setUser,
+    fetchEmployees,
   } = useStore();
 
   const { t } = useTranslation();
@@ -112,7 +113,7 @@ const AppContent = () => {
             shifts={[]}
             onAssignWaiter={() => {}}
             onReleaseWaiter={() => {}}
-            onAddStaff={() => {}}
+            onAddStaff={fetchEmployees}
           />
         );
       case 'menu':

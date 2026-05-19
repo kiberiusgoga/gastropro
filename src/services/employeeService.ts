@@ -32,7 +32,7 @@ export const employeeService = {
     }
   },
 
-  create: async (data: Omit<Employee, 'id' | 'createdAt'>): Promise<Employee | undefined> => {
+  create: async (data: Omit<Employee, 'id' | 'createdAt'>): Promise<Employee> => {
     try {
       const response = await apiClient.post('/employees', {
         name: data.name,
@@ -42,8 +42,8 @@ export const employeeService = {
       });
       return mapEmployee(response.data);
     } catch (error) {
-      console.error('Error creating employee:', error);
-      return undefined;
+      console.error('Employee create failed:', error);
+      throw error;
     }
   },
 

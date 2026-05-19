@@ -124,6 +124,7 @@ describe('POST /api/users', () => {
 describe('POST /api/employees', () => {
   it('4. always generates temp_password regardless of request body', async () => {
     mockPool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // email check
       .mockResolvedValueOnce({  // INSERT employee
         rows: [{
           id: 'emp-1', name: 'Dave', email: 'dave@test.com',
@@ -146,6 +147,7 @@ describe('POST /api/employees', () => {
 
   it('5. INSERT includes must_change_password = TRUE in SQL', async () => {
     mockPool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // email check
       .mockResolvedValueOnce({
         rows: [{
           id: 'emp-2', name: 'Eve', email: 'eve@test.com',
@@ -160,7 +162,7 @@ describe('POST /api/employees', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Eve', email: 'eve@test.com', role: 'Chef' })
 
-    const insertSql = mockPool.query.mock.calls[0]?.[0] as string
+    const insertSql = mockPool.query.mock.calls[1]?.[0] as string  // calls[1] = INSERT (calls[0] = email check)
     expect(insertSql).toMatch(/must_change_password/i)
     expect(insertSql).toMatch(/TRUE/i)
   })

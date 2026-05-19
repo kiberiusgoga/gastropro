@@ -3042,6 +3042,12 @@ router.get('/employees', authenticateToken, authorizeRole(['Admin', 'Manager']),
 }));
 router.post('/employees', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
   const { name, email, role, active } = createEmployeeSchema.parse(req.body);
+
+  const emailExists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (emailExists.rowCount && emailExists.rowCount > 0) {
+    throw new ConflictError('Корисник со оваа email адреса веќе постои.');
+  }
+
   const tempPassword = generateTempPassword();
   const hash = await bcrypt.hash(tempPassword, 10);
 
