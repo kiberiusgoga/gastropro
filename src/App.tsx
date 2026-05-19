@@ -21,6 +21,7 @@ import SettingsPage from './pages/Settings/SettingsPage';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
+import GuestMenu from './components/GuestMenu';
 import { featureFlagService } from './services/featureFlagService';
 import { billingService } from './services/billingService';
 import { FeatureFlags } from './types';
@@ -71,6 +72,12 @@ const AppContent = () => {
   const path = window.location.pathname;
   if (path === '/forgot-password') return <><Toaster position="top-right" richColors /><ForgotPasswordPage /></>;
   if (path === '/reset-password') return <><Toaster position="top-right" richColors /><ResetPasswordPage /></>;
+  if (path.startsWith('/menu/')) {
+    const parts = path.split('/').filter(Boolean); // ['menu', restaurantId, tableId?]
+    const restaurantId = parts[1] || '';
+    const tableId = parts[2] || '1';
+    return <GuestMenu restaurantId={restaurantId} tableId={tableId} />;
+  }
 
   if (showSetupWizard || (user && !user.restaurantId)) {
     return (

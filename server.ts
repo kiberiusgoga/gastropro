@@ -91,6 +91,25 @@ async function startServer() {
   });
   app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 
+  // Public guest-menu endpoints — no auth, but still rate-limited
+  const publicMenuLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+  });
+  app.use('/api/public/menu', publicMenuLimiter);
+
+  const publicNotifyLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many notification requests, please try again later.' },
+  });
+  app.use('/api/public/notify', publicNotifyLimiter);
+
   // Serve locally-uploaded images (used when Cloudinary is not configured)
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
     maxAge: '7d',

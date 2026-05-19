@@ -482,6 +482,93 @@ router.post('/auth/reset-password', asyncHandler(async (req, res) => {
   res.json({ message: 'Лозинката е променета. Можеш да се најавиш со новата лозинка.' });
 }));
 
+// ---------------------------------------------------------------------------
+// PUBLIC ROUTES — no authentication required
+// Must be registered BEFORE the global auth middleware below.
+// ---------------------------------------------------------------------------
+
+const _uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+router.get('/public/menu/:restaurantId', asyncHandler(async (req, res) => {
+  const { restaurantId } = req.params;
+  if (!_uuidRe.test(restaurantId)) {
+    return res.status(400).json({ error: 'Invalid restaurant ID' });
+  }
+
+  const [menuResult, restResult] = await Promise.all([
+    pool.query(
+      `SELECT mi.id, mi.name, mi.price, mi.description, mi.image_url,
+              mi.menu_category_id, mc.name AS category_name
+       FROM menu_items mi
+       LEFT JOIN menu_categories mc ON mc.id = mi.menu_category_id
+       WHERE mi.restaurant_id = $1 AND mi.active = TRUE AND mi.available = TRUE
+       ORDER BY mc.sort_order, mi.name`,
+      [restaurantId]
+    ),
+    pool.query('SELECT name FROM restaurants WHERE id = $1', [restaurantId]),
+  ]);
+
+  if (!restResult.rowCount) {
+    return res.status(404).json({ error: 'Restaurant not found' });
+  }
+
+  res.set('Cache-Control', 'public, max-age=60');
+  res.json({ restaurant: restResult.rows[0], items: menuResult.rows });
+}));
+
+const publicNotifySchema = z.object({
+  table_number: z.string().min(1).max(20),
+  notification_type: z.enum(['waiter', 'bill']),
+});
+
+router.post('/public/notify/:restaurantId', asyncHandler(async (req, res) => {
+  const { restaurantId } = req.params;
+  if (!_uuidRe.test(restaurantId)) {
+    return res.status(400).json({ error: 'Invalid restaurant ID' });
+  }
+
+  const { table_number, notification_type } = publicNotifySchema.parse(req.body);
+
+  // Validate table belongs to restaurant
+  const tableCheck = await pool.query(
+    `SELECT id FROM restaurant_tables WHERE restaurant_id = $1 AND number = $2 AND active = TRUE`,
+    [restaurantId, table_number]
+  );
+  if (!tableCheck.rowCount || tableCheck.rowCount === 0) {
+    return res.status(404).json({ error: 'Table not found' });
+  }
+
+  // 60-second debounce per restaurant+table+type
+  const debounceCheck = await pool.query(
+    `SELECT id FROM notifications
+     WHERE restaurant_id = $1 AND link = $2 AND category = 'new_order' AND type = 'info'
+     AND created_at > NOW() - INTERVAL '60 seconds'
+     LIMIT 1`,
+    [restaurantId, `/pos/tables?table=${table_number}`]
+  );
+  if (debounceCheck.rowCount && debounceCheck.rowCount > 0) {
+    return res.status(429).json({ code: 'NOTIFICATION_DEBOUNCED', error: 'Please wait before sending another notification.' });
+  }
+
+  const title = notification_type === 'waiter' ? 'Повик од маса' : 'Барање за сметка';
+  const message = notification_type === 'waiter'
+    ? `Маса ${table_number} бара келнер.`
+    : `Маса ${table_number} бара сметка.`;
+
+  await pool.query(
+    `INSERT INTO notifications (restaurant_id, title, message, type, category, link) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [restaurantId, title, message, 'info', 'new_order', `/pos/tables?table=${table_number}`]
+  );
+
+  sseBroadcast(restaurantId, 'guest_notification', {
+    table_number,
+    notification_type,
+    timestamp: new Date().toISOString(),
+  });
+
+  res.status(201).json({ ok: true });
+}));
+
 // ── GLOBAL AUTH ENFORCEMENT ────────────────────────────────────────────────
 // All routes registered after this point require a valid Bearer token.
 // /events handles its own auth via single-use ticket (see GET /events below).
