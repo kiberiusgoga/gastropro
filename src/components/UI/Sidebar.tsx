@@ -14,6 +14,7 @@ import {
   Moon,
   Sun,
   CreditCard,
+  CalendarDays,
   X
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -53,6 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: t('nav_service'),
       items: [
         { id: 'tables', icon: Users, label: t('tables') },
+        { id: 'reservations', icon: CalendarDays, label: t('reservations') },
         { id: 'orders', icon: ClipboardList, label: t('orders') },
         { id: 'kitchen', icon: ChefHat, label: t('kitchen') },
         { id: 'menu', icon: UtensilsCrossed, label: t('menu') },

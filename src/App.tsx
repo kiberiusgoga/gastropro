@@ -13,6 +13,7 @@ import StaffView from './components/StaffView';
 import CustomerCRM from './components/CRM/CustomerCRM';
 import MenuList from './components/MenuList';
 import POSModule from './components/POS/POSModule';
+import ReservationView from './components/POS/ReservationView';
 import KitchenDisplay from './components/Kitchen/KitchenDisplay';
 import AnalyticsDashboard from './pages/Analytics/AnalyticsDashboard';
 import OrdersView from './components/OrdersView';
@@ -121,6 +122,8 @@ const AppContent = () => {
       case 'tables':
       case 'pos':
         return <POSModule />;
+      case 'reservations':
+        return <ReservationView />;
       case 'crm':
         return <CustomerCRM />;
       case 'orders':
