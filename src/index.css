@@ -194,6 +194,17 @@ input, select, textarea, button {
          transition-all font-medium;
 }
 
+/* ── Autofill override — prevents Chrome/Edge painting inputs white/yellow ───  */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--color-warm-input) inset !important;
+  -webkit-text-fill-color: var(--color-cream) !important;
+  caret-color: var(--color-cream);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* ── Status badges ────────────────────────────────────────────────────────────  */
 .status-badge     { @apply px-2.5 py-1 rounded-lg text-xs font-semibold; }
 .status-completed { @apply bg-emerald-500/10 text-emerald-400; }
