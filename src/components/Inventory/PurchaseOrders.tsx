@@ -28,18 +28,15 @@ const PurchaseOrders = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'orders' | 'suppliers'>('orders');
 
-  // Create PO modal
   const [showCreatePO, setShowCreatePO] = useState(false);
   const [poForm, setPoForm] = useState({ supplierId: '', supplierName: '', expectedDate: '', notes: '' });
   const [poItems, setPoItems] = useState<PoItem[]>([{ productId: '', productName: '', quantity: 1, unitPrice: 0 }]);
   const [savingPO, setSavingPO] = useState(false);
 
-  // Create supplier modal
   const [showCreateSupplier, setShowCreateSupplier] = useState(false);
   const [supplierForm, setSupplierForm] = useState({ name: '', contactPerson: '', email: '', phone: '' });
   const [savingSupplier, setSavingSupplier] = useState(false);
 
-  // Receive modal
   const [receivingPO, setReceivingPO] = useState<PurchaseOrder | null>(null);
   const [receiveItems, setReceiveItems] = useState<ReceiveItem[]>([]);
   const [receivingLoading, setReceivingLoading] = useState(false);
@@ -67,10 +64,10 @@ const PurchaseOrders = () => {
 
   const getStatusColor = (status: PurchaseOrder['status']) => {
     switch (status) {
-      case 'received':  return 'bg-green-100 text-green-700 border-green-200';
-      case 'ordered':   return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'cancelled': return 'bg-red-100 text-red-700 border-red-200';
-      default:          return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'received':  return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+      case 'ordered':   return 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+      case 'cancelled': return 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+      default:          return 'bg-surface-2 text-cream-muted border-warm-line';
     }
   };
 
@@ -193,33 +190,39 @@ const PurchaseOrders = () => {
     }
   };
 
-  const activeOrdersCount = pos.filter(po => po.status === 'ordered').length;
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{t('purchase_orders')}</h2>
-          <p className="text-slate-500 font-medium">{t('manage_your_supplier_orders')}</p>
+          <h2 className="text-3xl font-serif italic text-cream tracking-tight">{t('purchase_orders')}</h2>
+          <p className="text-cream-muted font-medium">{t('manage_your_supplier_orders')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="bg-white border border-slate-200 rounded-xl flex p-1 shadow-sm">
+          <div className="bg-surface-2 border border-warm-line rounded-xl flex p-1">
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'orders' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'orders'
+                  ? 'bg-accent text-[#faf5ee] shadow-card'
+                  : 'text-cream-muted hover:bg-surface hover:text-cream'
+              }`}
             >
               {t('inv_tab_purchase_orders')}
             </button>
             <button
               onClick={() => setActiveTab('suppliers')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'suppliers' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'suppliers'
+                  ? 'bg-accent text-[#faf5ee] shadow-card'
+                  : 'text-cream-muted hover:bg-surface hover:text-cream'
+              }`}
             >
               {t('suppliers')}
             </button>
           </div>
           <button
             onClick={() => activeTab === 'orders' ? setShowCreatePO(true) : setShowCreateSupplier(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+            className="btn btn-primary"
           >
             <Plus size={20} />
             {activeTab === 'orders' ? t('create_purchase_order') : t('add_supplier')}
@@ -230,44 +233,44 @@ const PurchaseOrders = () => {
       {activeTab === 'orders' ? (
         loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
           </div>
         ) : pos.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center">
-            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 mx-auto mb-4">
+          <div className="card p-12 text-center">
+            <div className="w-16 h-16 bg-surface-2 rounded-2xl flex items-center justify-center text-cream-faint mx-auto mb-4">
               <ShoppingBag size={32} />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">{t('no_orders_found')}</h3>
+            <h3 className="text-lg font-bold text-cream">{t('no_orders_found')}</h3>
           </div>
         ) : (
-          <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+          <div className="card overflow-hidden">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">ID</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('supplier')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('date')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('status')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">{t('total')}</th>
+                <tr className="bg-surface-2 border-b border-warm-line">
+                  <th className="px-6 py-4 text-xs font-bold text-cream-faint uppercase tracking-widest">ID</th>
+                  <th className="px-6 py-4 text-xs font-bold text-cream-faint uppercase tracking-widest">{t('supplier')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-cream-faint uppercase tracking-widest">{t('date')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-cream-faint uppercase tracking-widest">{t('status')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-cream-faint uppercase tracking-widest text-right">{t('total')}</th>
                   <th className="px-6 py-4" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-warm-line">
                 {pos.map(po => (
-                  <tr key={po.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={po.id} className="hover:bg-surface-2/50 transition-colors">
                     <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-slate-900">#{po.id.slice(-6).toUpperCase()}</span>
+                      <span className="text-sm font-bold text-cream">#{po.id.slice(-6).toUpperCase()}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
+                        <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center text-accent-light">
                           <Truck size={16} />
                         </div>
-                        <span className="text-sm font-bold text-slate-700">{po.supplierName}</span>
+                        <span className="text-sm font-bold text-cream-muted">{po.supplierName}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-slate-500 text-sm">
+                      <div className="flex items-center gap-2 text-cream-muted text-sm">
                         <Calendar size={14} />
                         {format(new Date(po.orderDate), 'dd.MM.yyyy')}
                       </div>
@@ -278,7 +281,7 @@ const PurchaseOrders = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="text-sm font-black text-slate-900">{po.totalCost.toLocaleString()} ден.</span>
+                      <span className="text-sm font-black text-cream">{po.totalCost.toLocaleString()} ден.</span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       {po.status === 'ordered' && (
@@ -299,34 +302,34 @@ const PurchaseOrders = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {suppliers.map(supplier => (
-            <div key={supplier.id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all">
+            <div key={supplier.id} className="card p-6 hover:shadow-card-lg transition-all">
               <div className="flex items-start justify-between mb-6">
-                <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center text-accent-light">
                   <Truck size={28} />
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-1">{supplier.name}</h3>
-              <p className="text-sm text-slate-500 mb-4">{supplier.contactPerson || t('no_data')}</p>
+              <h3 className="text-lg font-bold text-cream mb-1">{supplier.name}</h3>
+              <p className="text-sm text-cream-muted mb-4">{supplier.contactPerson || t('no_data')}</p>
               <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-2 text-slate-600 text-sm">
-                  <FileText size={14} className="text-slate-400" />
+                <div className="flex items-center gap-2 text-cream-muted text-sm">
+                  <FileText size={14} className="text-cream-faint" />
                   <span>{supplier.email || t('no_data')}</span>
                 </div>
-                <div className="flex items-center gap-2 text-slate-600 text-sm">
-                  <Truck size={14} className="text-slate-400" />
+                <div className="flex items-center gap-2 text-cream-muted text-sm">
+                  <Truck size={14} className="text-cream-faint" />
                   <span>{supplier.phone || t('no_data')}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('ordered')}</span>
-                <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold">
+              <div className="flex items-center justify-between pt-4 border-t border-warm-line">
+                <span className="text-xs font-bold text-cream-faint uppercase tracking-widest">{t('ordered')}</span>
+                <span className="px-2 py-1 bg-accent/10 text-accent-light rounded-lg text-xs font-bold">
                   {pos.filter(po => po.supplierId === supplier.id && po.status === 'ordered').length}
                 </span>
               </div>
             </div>
           ))}
           {suppliers.length === 0 && !loading && (
-            <div className="col-span-3 flex flex-col items-center justify-center py-20 text-slate-400">
+            <div className="col-span-3 flex flex-col items-center justify-center py-20 text-cream-faint">
               <Truck size={64} className="mb-4 opacity-10" />
               <p className="text-lg font-medium">{t('no_suppliers_found')}</p>
             </div>
@@ -336,18 +339,21 @@ const PurchaseOrders = () => {
 
       {/* Create PO Modal */}
       {showCreatePO && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
-              <h3 className="text-xl font-bold text-slate-900">{t('create_purchase_order')}</h3>
-              <button onClick={() => setShowCreatePO(false)} className="p-2 text-slate-400 hover:bg-white hover:text-slate-900 rounded-full transition-all shadow-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-base/80 backdrop-blur-sm">
+          <div className="bg-surface border border-warm-line w-full max-w-3xl rounded-2xl shadow-card-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-8 py-6 border-b border-warm-line flex items-center justify-between bg-surface-2/50 shrink-0">
+              <h3 className="text-xl font-serif italic text-cream">{t('create_purchase_order')}</h3>
+              <button
+                onClick={() => setShowCreatePO(false)}
+                className="p-2 text-cream-faint hover:bg-surface-2 hover:text-cream rounded-full transition-all"
+              >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleCreatePO} className="flex-1 overflow-y-auto p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="label">{t('supplier')}</label>
+                  <label className="block text-sm font-medium text-cream-muted mb-2">{t('supplier')}</label>
                   <select
                     className="input"
                     value={poForm.supplierId}
@@ -359,7 +365,7 @@ const PurchaseOrders = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="label">{t('expected_delivery_date')}</label>
+                  <label className="block text-sm font-medium text-cream-muted mb-2">{t('expected_delivery_date')}</label>
                   <input
                     type="date"
                     className="input"
@@ -371,11 +377,11 @@ const PurchaseOrders = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="label mb-0">{t('po_items')}</label>
+                  <label className="block text-sm font-medium text-cream-muted">{t('po_items')}</label>
                   <button
                     type="button"
                     onClick={() => setPoItems(p => [...p, { productId: '', productName: '', quantity: 1, unitPrice: 0 }])}
-                    className="text-blue-600 text-sm font-bold hover:text-blue-700 flex items-center gap-1"
+                    className="text-accent-light text-sm font-bold hover:text-cream flex items-center gap-1 transition-colors"
                   >
                     <Plus size={16} />
                     {t('add_po_item')}
@@ -421,7 +427,11 @@ const PurchaseOrders = () => {
                       </div>
                       <div className="col-span-1 flex justify-center">
                         {poItems.length > 1 && (
-                          <button type="button" onClick={() => setPoItems(p => p.filter((_, i) => i !== idx))} className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors">
+                          <button
+                            type="button"
+                            onClick={() => setPoItems(p => p.filter((_, i) => i !== idx))}
+                            className="p-1.5 text-cream-faint hover:text-rose-400 rounded-lg transition-colors"
+                          >
                             <Trash2 size={16} />
                           </button>
                         )}
@@ -429,13 +439,13 @@ const PurchaseOrders = () => {
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 text-right text-sm font-bold text-slate-900">
+                <div className="mt-4 text-right text-sm font-bold text-cream">
                   {t('total_cost')}: {poTotal.toLocaleString('mk-MK', { minimumFractionDigits: 2 })} ден.
                 </div>
               </div>
 
               <div>
-                <label className="label">{t('notes')}</label>
+                <label className="block text-sm font-medium text-cream-muted mb-2">{t('notes')}</label>
                 <input
                   type="text"
                   className="input"
@@ -445,7 +455,7 @@ const PurchaseOrders = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-warm-line">
                 <button type="button" onClick={() => setShowCreatePO(false)} className="btn btn-secondary">{t('cancel')}</button>
                 <button type="submit" className="btn btn-primary px-8" disabled={savingPO}>
                   <CheckCircle2 size={20} />
@@ -459,17 +469,20 @@ const PurchaseOrders = () => {
 
       {/* Create Supplier Modal */}
       {showCreateSupplier && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-xl font-bold text-slate-900">{t('add_supplier')}</h3>
-              <button onClick={() => setShowCreateSupplier(false)} className="p-2 text-slate-400 hover:bg-white hover:text-slate-900 rounded-full transition-all shadow-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-base/80 backdrop-blur-sm">
+          <div className="bg-surface border border-warm-line w-full max-w-lg rounded-2xl shadow-card-lg overflow-hidden">
+            <div className="px-8 py-6 border-b border-warm-line flex items-center justify-between bg-surface-2/50">
+              <h3 className="text-xl font-serif italic text-cream">{t('add_supplier')}</h3>
+              <button
+                onClick={() => setShowCreateSupplier(false)}
+                className="p-2 text-cream-faint hover:bg-surface-2 hover:text-cream rounded-full transition-all"
+              >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleCreateSupplier} className="p-8 space-y-4">
               <div>
-                <label className="label">{t('company_name')}</label>
+                <label className="block text-sm font-medium text-cream-muted mb-2">{t('company_name')}</label>
                 <input
                   type="text"
                   className="input"
@@ -480,7 +493,7 @@ const PurchaseOrders = () => {
                 />
               </div>
               <div>
-                <label className="label">{t('contact_person')}</label>
+                <label className="block text-sm font-medium text-cream-muted mb-2">{t('contact_person')}</label>
                 <input
                   type="text"
                   className="input"
@@ -490,7 +503,7 @@ const PurchaseOrders = () => {
                 />
               </div>
               <div>
-                <label className="label">{t('email')}</label>
+                <label className="block text-sm font-medium text-cream-muted mb-2">{t('email')}</label>
                 <input
                   type="email"
                   className="input"
@@ -500,7 +513,7 @@ const PurchaseOrders = () => {
                 />
               </div>
               <div>
-                <label className="label">{t('phone')}</label>
+                <label className="block text-sm font-medium text-cream-muted mb-2">{t('phone')}</label>
                 <input
                   type="text"
                   className="input"
@@ -509,7 +522,7 @@ const PurchaseOrders = () => {
                   placeholder={t('enter_phone')}
                 />
               </div>
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-warm-line">
                 <button type="button" onClick={() => setShowCreateSupplier(false)} className="btn btn-secondary">{t('cancel')}</button>
                 <button type="submit" className="btn btn-primary px-8" disabled={savingSupplier}>
                   <CheckCircle2 size={20} />
@@ -523,31 +536,34 @@ const PurchaseOrders = () => {
 
       {/* Receive PO Modal */}
       {receivingPO && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-base/80 backdrop-blur-sm">
+          <div className="bg-surface border border-warm-line w-full max-w-3xl rounded-2xl shadow-card-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-8 py-6 border-b border-warm-line flex items-center justify-between bg-surface-2/50 shrink-0">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">{t('receive_po_title')}</h3>
-                <p className="text-sm text-slate-500">{receivingPO.supplierName} · #{receivingPO.id.slice(-6).toUpperCase()}</p>
+                <h3 className="text-xl font-serif italic text-cream">{t('receive_po_title')}</h3>
+                <p className="text-sm text-cream-muted">{receivingPO.supplierName} · #{receivingPO.id.slice(-6).toUpperCase()}</p>
               </div>
-              <button onClick={() => setReceivingPO(null)} className="p-2 text-slate-400 hover:bg-white hover:text-slate-900 rounded-full transition-all shadow-sm">
+              <button
+                onClick={() => setReceivingPO(null)}
+                className="p-2 text-cream-faint hover:bg-surface-2 hover:text-cream rounded-full transition-all"
+              >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleReceive} className="flex-1 overflow-y-auto p-8 space-y-6">
               {receiveItems.length === 0 ? (
-                <p className="text-slate-500 text-center py-8">{t('no_po_items')}</p>
+                <p className="text-cream-muted text-center py-8">{t('no_po_items')}</p>
               ) : (
                 <div className="space-y-4">
                   {receiveItems.map((item, idx) => (
-                    <div key={idx} className="bg-slate-50 rounded-2xl p-4 space-y-3">
+                    <div key={idx} className="bg-surface-2 rounded-2xl p-4 space-y-3 border border-warm-line">
                       <div className="flex items-center gap-2">
-                        <Package size={16} className="text-slate-400" />
-                        <span className="font-bold text-slate-900">{item.productName}</span>
+                        <Package size={16} className="text-accent-light" />
+                        <span className="font-bold text-cream">{item.productName}</span>
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         <div>
-                          <label className="label">{t('quantity')}</label>
+                          <label className="block text-sm font-medium text-cream-muted mb-2">{t('quantity')}</label>
                           <input
                             type="number"
                             className="input"
@@ -563,7 +579,7 @@ const PurchaseOrders = () => {
                           />
                         </div>
                         <div>
-                          <label className="label">{t('unit_price')}</label>
+                          <label className="block text-sm font-medium text-cream-muted mb-2">{t('unit_price')}</label>
                           <input
                             type="number"
                             className="input"
@@ -579,7 +595,7 @@ const PurchaseOrders = () => {
                           />
                         </div>
                         <div>
-                          <label className="label">{t('expiry_date')} ({t('optional')})</label>
+                          <label className="block text-sm font-medium text-cream-muted mb-2">{t('expiry_date')} ({t('optional')})</label>
                           <input
                             type="date"
                             className="input"
@@ -596,7 +612,7 @@ const PurchaseOrders = () => {
                   ))}
                 </div>
               )}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-warm-line">
                 <button type="button" onClick={() => setReceivingPO(null)} className="btn btn-secondary">{t('cancel')}</button>
                 <button type="submit" className="btn btn-primary px-8" disabled={receivingLoading || receiveItems.length === 0}>
                   <CheckCircle2 size={20} />

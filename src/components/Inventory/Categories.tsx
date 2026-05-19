@@ -51,10 +51,13 @@ const Categories = () => {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{t('categories')}</h2>
-          <p className="text-slate-500 font-medium">{t('manage_product_categories')}</p>
+          <h2 className="text-3xl font-serif italic text-cream tracking-tight">{t('categories')}</h2>
+          <p className="text-cream-muted font-medium">{t('manage_product_categories')}</p>
         </div>
-        <button onClick={() => { setEditingCategory(null); setName(''); setIsModalOpen(true); }} className="btn btn-primary">
+        <button
+          onClick={() => { setEditingCategory(null); setName(''); setIsModalOpen(true); }}
+          className="btn btn-primary"
+        >
           <Plus size={20} />
           {t('add_category')}
         </button>
@@ -62,23 +65,23 @@ const Categories = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {categories.map((cat) => (
-          <div key={cat.id} className="card p-6 flex items-center justify-between hover:shadow-lg transition-all group">
+          <div key={cat.id} className="card p-6 flex items-center justify-between group">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-accent/10 text-accent-light flex items-center justify-center">
                 <Layers size={24} />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">{cat.name}</h3>
+              <h3 className="text-lg font-bold text-cream">{cat.name}</h3>
             </div>
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
+              <button
                 onClick={() => { setEditingCategory(cat); setName(cat.name); setIsModalOpen(true); }}
-                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                className="p-2 text-cream-faint hover:text-accent-light hover:bg-accent/10 rounded-xl transition-all"
               >
                 <Edit2 size={18} />
               </button>
-              <button 
+              <button
                 onClick={() => handleDelete(cat.id)}
-                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                className="p-2 text-cream-faint hover:text-rose-400 hover:bg-rose-900/20 rounded-xl transition-all"
               >
                 <Trash2 size={18} />
               </button>
@@ -89,20 +92,27 @@ const Categories = () => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-xl font-bold text-slate-900">{editingCategory ? t('edit_category') : t('add_category')}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 hover:bg-white hover:text-slate-900 rounded-full transition-all shadow-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-base/80 backdrop-blur-sm">
+          <div className="bg-surface border border-warm-line w-full max-w-md rounded-2xl shadow-card-lg overflow-hidden">
+            <div className="px-8 py-6 border-b border-warm-line flex items-center justify-between bg-surface-2/50">
+              <h3 className="text-xl font-serif italic text-cream">
+                {editingCategory ? t('edit_category') : t('add_category')}
+              </h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-2 text-cream-faint hover:bg-surface-2 hover:text-cream rounded-full transition-all"
+              >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div>
-                <label className="label">{t('category_name')}</label>
-                <input 
-                  type="text" 
-                  className="input" 
+                <label className="block text-sm font-medium text-cream-muted mb-2">
+                  {t('category_name')}
+                </label>
+                <input
+                  type="text"
+                  className="input"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required

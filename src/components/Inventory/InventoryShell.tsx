@@ -39,15 +39,15 @@ const InventoryShell = () => {
   return (
     <div className="space-y-6">
       <div className="overflow-x-auto">
-        <div className="bg-white border border-slate-200 rounded-xl flex p-1 shadow-sm min-w-max">
+        <div className="bg-surface-2 border border-warm-line rounded-xl flex p-1 min-w-max">
           {TABS.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+              className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
                 activeTab === tab.key
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-500 hover:bg-slate-50'
+                  ? 'bg-accent text-[#faf5ee]'
+                  : 'text-cream-muted hover:bg-surface hover:text-cream'
               }`}
             >
               {t(tab.labelKey)}
