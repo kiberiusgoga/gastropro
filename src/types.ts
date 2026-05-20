@@ -1,4 +1,4 @@
-export type UserRole = 'SuperAdmin' | 'Admin' | 'Manager' | 'Warehouse Worker' | 'Waiter' | 'Chef' | 'Cashier' | 'Driver';
+export type UserRole = 'Admin' | 'Manager' | 'Warehouse Worker' | 'Waiter' | 'Chef' | 'Cashier' | 'Driver';
 export type OrderPriority = 'normal' | 'rush' | 'VIP';
 export type PreparationStation = 'kitchen' | 'bar' | 'grill' | 'dessert' | 'salad';
 
@@ -31,7 +31,7 @@ export interface Discount {
 
 export interface User {
   id: string;
-  restaurantId?: string; // Optional for SuperAdmin
+  restaurantId?: string;
   name: string;
   email: string;
   role: UserRole;

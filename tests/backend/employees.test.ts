@@ -125,4 +125,23 @@ describe('POST /api/employees', () => {
 
     expect(res.status).toBe(401)
   })
+
+  it.each([
+    'Admin', 'Manager', 'Warehouse Worker', 'Waiter', 'Chef', 'Cashier', 'Driver',
+  ] as const)('8 — role "%s" is accepted (201)', async (role) => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ ...createdRow, role }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+
+    mockBcryptHash.mockResolvedValueOnce('hashed' as never)
+
+    const res = await request(app)
+      .post('/api/employees')
+      .set('Authorization', `Bearer ${tokenAdmin()}`)
+      .send({ name: 'Test User', email: `test-${role.toLowerCase().replace(' ', '-')}@r1.com`, role })
+
+    expect(res.status).toBe(201)
+    expect(res.body.role).toBe(role)
+  })
 })
