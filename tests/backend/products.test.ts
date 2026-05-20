@@ -32,6 +32,7 @@ const tokenWaiter = () => generateAccessToken({ id: 'u2', email: 'b@r1.com', rol
 const CAT1 = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
 const P1   = '550e8400-e29b-41d4-a716-446655440001'
 const INV1 = '550e8400-e29b-41d4-a716-446655440020'
+const WH1  = '550e8400-e29b-41d4-a716-446655440050'
 
 const validProduct = {
   name: 'Брашно',
@@ -67,17 +68,31 @@ function mockProductInsert(row = createdRow) {
 }
 
 // Helper: appends createInvoiceWithReceipt sequence for one item (purchase_price > 0)
+// Call sequence (Phase B):
+//   [1]  SELECT products
+//   [2]  INSERT invoices
+//   [3]  SELECT warehouses (main)                           ← Phase B
+//   [4]  INSERT invoice_items
+//   [5]  updateStock: SELECT warehouses (validation)        ← Phase B
+//   [6]  updateStock: INSERT stock_levels ON CONFLICT       ← Phase B
+//   [7]  updateStock: SELECT stock_levels FOR UPDATE
+//   [8]  updateStock: UPDATE stock_levels
+//   [9]  updateStock: INSERT transactions
+//   [10] UPDATE products purchase_price                     (price > 0 only)
 function appendReceiptMocks({ price = 40 }: { price?: number } = {}) {
   const product = { id: P1, name: 'Брашно', default_expiry_days: null }
   mockClient.query
-    .mockResolvedValueOnce({ rows: [product], rowCount: 1 })                    // SELECT products
-    .mockResolvedValueOnce({ rows: [{ id: INV1 }], rowCount: 1 })               // INSERT invoices
-    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                            // INSERT invoice_items
-    .mockResolvedValueOnce({ rows: [{ current_stock: '0.000' }], rowCount: 1 }) // updateStock SELECT
-    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                            // updateStock UPDATE
-    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                            // updateStock INSERT txn
+    .mockResolvedValueOnce({ rows: [product], rowCount: 1 })               // [1] SELECT products
+    .mockResolvedValueOnce({ rows: [{ id: INV1 }], rowCount: 1 })          // [2] INSERT invoices
+    .mockResolvedValueOnce({ rows: [{ id: WH1 }], rowCount: 1 })           // [3] SELECT warehouses main
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                       // [4] INSERT invoice_items
+    .mockResolvedValueOnce({ rows: [{ id: WH1 }] })                        // [5] updateStock: validation
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 })                       // [6] updateStock: INSERT stock_levels
+    .mockResolvedValueOnce({ rows: [{ quantity: '0.000' }], rowCount: 1 }) // [7] updateStock: SELECT FOR UPDATE
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                       // [8] updateStock: UPDATE stock_levels
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                       // [9] updateStock: INSERT txn
   if (price > 0) {
-    mockClient.query.mockResolvedValueOnce({ rows: [], rowCount: 1 })            // UPDATE purchase_price
+    mockClient.query.mockResolvedValueOnce({ rows: [], rowCount: 1 })       // [10] UPDATE purchase_price
   }
   // no PO update — source_purchase_order_id is null for initial inventory
 }
@@ -99,7 +114,7 @@ describe('POST /products', () => {
     expect(mockClient.query).toHaveBeenCalledTimes(3)
   })
 
-  it('2 — current_stock=5, purchase_price=40 → 201, hybrid flow (11 client calls)', async () => {
+  it('2 — current_stock=5, purchase_price=40 → 201, hybrid flow (13 client calls)', async () => {
     mockProductInsert()
     appendReceiptMocks({ price: 40 })
     mockClient.query.mockResolvedValueOnce({ rows: [] }) // COMMIT
@@ -111,11 +126,12 @@ describe('POST /products', () => {
 
     expect(res.status).toBe(201)
     expect(res.body.id).toBe(P1)
-    // BEGIN + INSERT + SELECT products + INSERT invoices + INSERT items + updateStock(3) + UPDATE purchase_price + COMMIT = 10
-    expect(mockClient.query).toHaveBeenCalledTimes(10)
+    // BEGIN + INSERT products + SELECT products + INSERT invoices + SELECT warehouses + INSERT items
+    // + updateStock(5) + UPDATE purchase_price + COMMIT = 13
+    expect(mockClient.query).toHaveBeenCalledTimes(13)
   })
 
-  it('3 — current_stock=5, purchase_price=0 → no purchase_price UPDATE (10 client calls)', async () => {
+  it('3 — current_stock=5, purchase_price=0 → no purchase_price UPDATE (12 client calls)', async () => {
     mockProductInsert({ ...createdRow, purchase_price: '0.00' })
     appendReceiptMocks({ price: 0 })
     mockClient.query.mockResolvedValueOnce({ rows: [] }) // COMMIT
@@ -126,8 +142,9 @@ describe('POST /products', () => {
       .send({ ...validProduct, purchase_price: 0, current_stock: 5 })
 
     expect(res.status).toBe(201)
-    // BEGIN + INSERT + SELECT products + INSERT invoices + INSERT items + updateStock(3) + COMMIT = 9
-    expect(mockClient.query).toHaveBeenCalledTimes(9)
+    // BEGIN + INSERT products + SELECT products + INSERT invoices + SELECT warehouses + INSERT items
+    // + updateStock(5) + COMMIT = 12
+    expect(mockClient.query).toHaveBeenCalledTimes(12)
   })
 
   it('4 — default_expiry_days=30 → 201, value forwarded to INSERT', async () => {

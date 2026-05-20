@@ -5,6 +5,7 @@ import net from 'net';
 import { createHash, randomBytes } from 'crypto';
 import pool from './db';
 import { deductForOrderItem, restoreForOrderItem } from './services/inventoryDeductionService';
+import { updateStock } from './services/stockService';
 import { authenticateToken, AuthRequest, authorizeRole, generateAccessToken, generateRefreshToken } from './auth';
 import { sseAdd, sseRemove, sseBroadcast } from './lib/sse';
 import { asyncHandler } from './middleware/errorMiddleware';
@@ -45,6 +46,7 @@ const setupSchema = z.object({
   userName: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
+  lang: z.enum(['mk', 'en', 'sq']).default('mk'),
 });
 
 const categorySchema = z.object({
@@ -115,8 +117,14 @@ const createEmployeeSchema = z.object({
 
 // --- RESTAURANT SETUP ---
 
+function mainWarehouseName(lang: 'mk' | 'en' | 'sq'): string {
+  if (lang === 'en') return 'Main Warehouse';
+  if (lang === 'sq') return 'Magazina Kryesore';
+  return 'Главен магацин';
+}
+
 router.post('/restaurants/setup', asyncHandler(async (req, res) => {
-  const { restaurantName, userName, email, password } = setupSchema.parse(req.body);
+  const { restaurantName, userName, email, password, lang } = setupSchema.parse(req.body);
   const client = await pool.connect();
   
   try {
@@ -133,7 +141,12 @@ router.post('/restaurants/setup', asyncHandler(async (req, res) => {
       [restaurantName]
     );
     const restaurantId = restResult.rows[0].id;
-    
+
+    await client.query(
+      'INSERT INTO warehouses (restaurant_id, name, is_main) VALUES ($1, $2, TRUE)',
+      [restaurantId, mainWarehouseName(lang)],
+    );
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const userResult = await client.query(
       'INSERT INTO users (name, email, role, password_hash, restaurant_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, role, restaurant_id',
@@ -721,50 +734,38 @@ router.delete('/products/:id', authenticateToken, authorizeRole(['Admin', 'Manag
   res.json({ message: 'Product deleted successfully' });
 }));
 
-// --- INVENTORY TRANSACTION ENGINE ---
+// --- WAREHOUSES ---
 
-async function updateStock(client: { query: (text: string, params?: unknown[]) => Promise<{rowCount: number | null, rows: any[]}> }, productId: string, type: 'input' | 'output' | 'receipt' | 'inventory_check' | 'storno', quantity: number, userId: string, restaurantId: string, note?: string, referenceId?: string) {
-  const productResult = await client.query('SELECT current_stock FROM products WHERE id = $1 AND restaurant_id = $2 FOR UPDATE', [productId, restaurantId]);
-  if (!productResult.rowCount || productResult.rowCount === 0) throw new NotFoundError(`Product not found`);
-
-  const currentStock = parseFloat(productResult.rows[0].current_stock);
-  const movementQty = parseFloat(quantity.toString());
-
-  let newStock = currentStock;
-  if (type === 'output') {
-    newStock -= movementQty;
-  } else if (type === 'input' || type === 'receipt' || type === 'storno') {
-    newStock += movementQty;
-  } else if (type === 'inventory_check') {
-    newStock = movementQty;
-  }
-
-  if (newStock < 0) {
-    throw new ValidationError(`Insufficient stock for product ${productId}`);
-  }
-
-  await client.query('UPDATE products SET current_stock = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND restaurant_id = $3', [newStock, productId, restaurantId]);
-
-  const diff = type === 'inventory_check' ? Math.abs(newStock - currentStock) : movementQty;
-
-  await client.query(
-    'INSERT INTO transactions (product_id, type, quantity, previous_stock, new_stock, user_id, reference_id, note, restaurant_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-    [productId, type, diff, currentStock, newStock, userId, referenceId, note, restaurantId]
+router.get('/warehouses', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const result = await pool.query(
+    'SELECT * FROM warehouses WHERE restaurant_id = $1 ORDER BY is_main DESC, name',
+    [req.user?.restaurantId],
   );
-  
-  logger.info('Inventory transaction recorded', {
-    productId,
-    type,
-    quantity: diff,
-    previousStock: currentStock,
-    newStock,
-    userId,
-    referenceId,
-    restaurantId
-  });
+  res.json(result.rows);
+}));
 
-  return newStock;
-}
+router.get('/warehouses/:id/products', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user?.restaurantId;
+  const warehouseRes = await pool.query(
+    'SELECT id FROM warehouses WHERE id = $1 AND restaurant_id = $2',
+    [req.params.id, restaurantId],
+  );
+  if (!warehouseRes.rowCount) throw new NotFoundError('Warehouse not found');
+
+  const result = await pool.query(
+    `SELECT p.*, COALESCE(sl.quantity, 0) AS warehouse_stock
+     FROM products p
+     LEFT JOIN stock_levels sl
+       ON sl.product_id = p.id AND sl.warehouse_id = $1
+     WHERE p.restaurant_id = $2
+     ORDER BY p.name`,
+    [req.params.id, restaurantId],
+  );
+  res.json(result.rows);
+}));
+
+// --- INVENTORY TRANSACTION ENGINE ---
+// updateStock() is defined in ./services/stockService and imported above.
 
 // Deducts or restores inventory for all menu items in an order that have a bundle (normative) defined.
 // direction='deduct' → called on order creation; direction='storno' → called on order cancellation.
@@ -785,6 +786,14 @@ async function applyOrderInventory(
 
   if (!itemsRes.rowCount || itemsRes.rowCount === 0) return;
 
+  // Only look up warehouse when there are bundles to process.
+  const mwRes = await client.query(
+    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
+    [restaurantId],
+  );
+  if (!mwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
+  const mainWarehouseId: string = mwRes.rows[0].id;
+
   for (const oi of itemsRes.rows) {
     const bundleItemsRes = await client.query(
       'SELECT product_id, quantity FROM bundle_items WHERE bundle_id = $1',
@@ -793,12 +802,12 @@ async function applyOrderInventory(
 
     for (const bi of bundleItemsRes.rows) {
       const qty = Number(bi.quantity) * Number(oi.quantity);
-      const type = direction === 'deduct' ? 'output' : 'storno';
+      const type = direction === 'deduct' ? 'output_manual' : 'storno';
       const note = direction === 'deduct'
         ? `Нарачка #${orderId.slice(0, 8)}`
         : `Сторно нарачка #${orderId.slice(0, 8)}`;
       try {
-        await updateStock(client, bi.product_id, type, qty, userId, restaurantId, note, orderId);
+        await updateStock(client, bi.product_id, mainWarehouseId, type, qty, userId, restaurantId, note, orderId, { referenceType: 'manual' });
       } catch {
         // Log but never block the order — stock deficit is visible in inventory, not a hard stop
         logger.warn(`Inventory ${direction} skipped`, { productId: bi.product_id, orderId });
@@ -895,6 +904,13 @@ async function createInvoiceWithReceipt(
   );
   const invoiceId = invoiceResult.rows[0].id;
 
+  const invoiceMwRes = await client.query(
+    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
+    [restaurantId],
+  );
+  if (!invoiceMwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
+  const invoiceMainWarehouseId: string = invoiceMwRes.rows[0].id;
+
   for (const item of data.items) {
     const product = productsById.get(item.product_id)!;
 
@@ -916,8 +932,9 @@ async function createInvoiceWithReceipt(
        item.quantity * item.price, product.name, restaurantId, effectiveExpiry],
     );
 
-    await updateStock(client, item.product_id, 'receipt', item.quantity,
-      userId, restaurantId, `Invoice #${data.invoice_number}`, invoiceId);
+    await updateStock(client, item.product_id, invoiceMainWarehouseId, 'receipt', item.quantity,
+      userId, restaurantId, `Invoice #${data.invoice_number}`, invoiceId,
+      { referenceType: data.source_purchase_order_id ? 'po_receive' : 'invoice' });
 
     // Skip price update when zero — prevents wiping a known purchase_price on blank submission.
     if (item.price > 0) {
@@ -999,7 +1016,13 @@ async function recordMovement(req: AuthRequest, res: express.Response) {
 
   try {
     await client.query('BEGIN');
-    const newStock = await updateStock(client, product_id, type, quantity, req.user?.id || '', restaurantId, note);
+    const mwRes = await client.query(
+      'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
+      [restaurantId],
+    );
+    if (!mwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
+    const mainWarehouseId: string = mwRes.rows[0].id;
+    const newStock = await updateStock(client, product_id, mainWarehouseId, type, quantity, req.user?.id || '', restaurantId, note, undefined, { referenceType: 'manual' });
     await client.query('COMMIT');
     res.json({ message: 'Movement recorded successfully', newStock });
   } catch (error: unknown) {
@@ -1012,8 +1035,8 @@ async function recordMovement(req: AuthRequest, res: express.Response) {
 }
 
 router.post('/inventory/movement', authenticateToken, recordMovement);
-router.post('/inventory/input', authenticateToken, (req: AuthRequest, res) => { req.body.type = 'input'; recordMovement(req, res); });
-router.post('/inventory/output', authenticateToken, (req: AuthRequest, res) => { req.body.type = 'output'; recordMovement(req, res); });
+router.post('/inventory/input', authenticateToken, (req: AuthRequest, res) => { req.body.type = 'receipt'; recordMovement(req, res); });
+router.post('/inventory/output', authenticateToken, (req: AuthRequest, res) => { req.body.type = 'output_manual'; recordMovement(req, res); });
 
 router.post('/inventory/bundle-output', authenticateToken, async (req: AuthRequest, res) => {
   const { bundle_id, quantity, note } = req.body;
@@ -1034,10 +1057,17 @@ router.post('/inventory/bundle-output', authenticateToken, async (req: AuthReque
     
     if (itemsResult.rowCount === 0) throw new Error('Bundle not found or has no items');
 
+    const bundleMwRes = await client.query(
+      'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
+      [restaurantId],
+    );
+    if (!bundleMwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
+    const bundleMainWarehouseId: string = bundleMwRes.rows[0].id;
+
     // 2. Deduct each item
     for (const item of itemsResult.rows) {
       const totalDeduction = item.quantity * quantity;
-      await updateStock(client, item.product_id, 'output', totalDeduction, req.user?.id || '', restaurantId, `Bundle deduction: ${note || ''}`, bundle_id);
+      await updateStock(client, item.product_id, bundleMainWarehouseId, 'output_manual', totalDeduction, req.user?.id || '', restaurantId, `Bundle deduction: ${note || ''}`, bundle_id, { referenceType: 'manual' });
     }
 
     await client.query('COMMIT');
@@ -1060,7 +1090,7 @@ router.get('/transactions', authenticateToken, asyncHandler(async (req: AuthRequ
      JOIN products p ON t.product_id = p.id
      JOIN users u ON t.user_id = u.id
      WHERE t.restaurant_id = $1
-     ORDER BY t.date DESC LIMIT 100`,
+     ORDER BY t.created_at DESC LIMIT 100`,
     [req.user?.restaurantId]
   );
   res.json(result.rows);
@@ -1304,6 +1334,12 @@ router.post('/inventory-checks', authenticateToken, asyncHandler(async (req: Aut
       [userId, 'completed', restaurantId]
     );
     const checkId = checkResult.rows[0].id;
+    const checkMwRes = await client.query(
+      'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
+      [restaurantId],
+    );
+    if (!checkMwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
+    const checkMainWarehouseId: string = checkMwRes.rows[0].id;
     for (const item of items) {
       const diff = item.realQty - item.systemQty;
       await client.query(
@@ -1311,7 +1347,7 @@ router.post('/inventory-checks', authenticateToken, asyncHandler(async (req: Aut
         [checkId, item.productId, item.systemQty, item.realQty, diff]
       );
       if (diff !== 0) {
-        await updateStock(client, item.productId, 'inventory_check', item.realQty, userId, restaurantId, `Inventory check diff (${diff > 0 ? '+' : ''}${diff})`, checkId);
+        await updateStock(client, item.productId, checkMainWarehouseId, 'inventory_check', item.realQty, userId, restaurantId, `Inventory check diff (${diff > 0 ? '+' : ''}${diff})`, checkId, { referenceType: 'inventory_check' });
       }
     }
     await client.query('COMMIT');
@@ -2263,7 +2299,7 @@ router.delete('/orders/:id', authenticateToken, asyncHandler(async (req: AuthReq
       [req.params.id],
     );
     for (const item of readyItems.rows) {
-      await restoreForOrderItem(item.id, client);
+      await restoreForOrderItem(item.id, client, req.user!.id);
     }
 
     await client.query(
@@ -2356,10 +2392,10 @@ router.put('/orders/:id/items/:itemId', authenticateToken, asyncHandler(async (r
     let deductionWarnings: any[] = [];
     if (status === 'ready' && prevStatus !== 'ready') {
       // Order item e spremen → odzemi od zaliha
-      deductionWarnings = await deductForOrderItem(req.params.itemId, client);
+      deductionWarnings = await deductForOrderItem(req.params.itemId, client, req.user!.id);
     } else if (status === 'cancelled' && prevStatus === 'ready') {
       // Ready item e otkazan → vrati ja zalihata
-      await restoreForOrderItem(req.params.itemId, client);
+      await restoreForOrderItem(req.params.itemId, client, req.user!.id);
     }
 
     await client.query('COMMIT');

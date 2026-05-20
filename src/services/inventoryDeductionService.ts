@@ -1,4 +1,5 @@
 import { PoolClient } from 'pg';
+import { updateStock } from './stockService';
 
 // ============================================================
 // MAPA ZA KONVERZIJA NA EDINICI
@@ -58,6 +59,7 @@ export interface DeductionWarning {
 export async function deductForOrderItem(
   orderItemId: string,
   client: PoolClient,
+  userId: string,
 ): Promise<DeductionWarning[]> {
   const warnings: DeductionWarning[] = [];
 
@@ -71,6 +73,13 @@ export async function deductForOrderItem(
   );
   if (oiRes.rowCount === 0) throw new Error(`Order item ${orderItemId} not found`);
   const { menu_item_id, portions, restaurant_id } = oiRes.rows[0];
+
+  const mwRes = await client.query(
+    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
+    [restaurant_id],
+  );
+  if (!mwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
+  const mainWarehouseId: string = mwRes.rows[0].id;
 
   // 2. Gi ucituouvame sostojkite od normativot
   const recipeRes = await client.query(
@@ -97,30 +106,22 @@ export async function deductForOrderItem(
 
     const currentStock = Number(ing.current_stock);
     const wouldGoNegative = currentStock - amount < 0;
-    const reason = wouldGoNegative ? 'low_stock_override' : 'order_completed';
 
-    // Odzemuva (dozvolouva negativna zaliha per spec)
-    await client.query(
-      'UPDATE products SET current_stock = current_stock - $1 WHERE id = $2',
-      [amount, ing.product_id],
-    );
-
-    // Audit trail vo inventory_transactions
-    await client.query(
-      `INSERT INTO inventory_transactions
-         (restaurant_id, inventory_item_id, change_amount, reason,
-          reference_type, reference_id, note)
-       VALUES ($1, $2, $3, $4, 'order_item', $5, $6)`,
-      [
-        restaurant_id,
-        ing.product_id,
-        -amount,
-        reason,
-        orderItemId,
-        wouldGoNegative
-          ? `Zaliha negativna. Bese: ${currentStock} ${ing.inv_unit}, odzeto: ${amount} ${ing.inv_unit}`
-          : null,
-      ],
+    await updateStock(
+      client,
+      ing.product_id,
+      mainWarehouseId,
+      'output_sale',
+      amount,
+      userId,
+      restaurant_id,
+      undefined,
+      orderItemId,
+      {
+        allowNegative: true,
+        referenceType: 'order_item',
+        reason: wouldGoNegative ? 'low_stock_override' : 'order_completed',
+      },
     );
 
     if (wouldGoNegative) {
@@ -154,6 +155,7 @@ export async function deductForOrderItem(
 export async function restoreForOrderItem(
   orderItemId: string,
   client: PoolClient,
+  userId: string,
 ): Promise<void> {
   const oiRes = await client.query(
     `SELECT oi.menu_item_id, oi.quantity AS portions, o.restaurant_id
@@ -164,6 +166,13 @@ export async function restoreForOrderItem(
   );
   if (oiRes.rowCount === 0) return;
   const { menu_item_id, portions, restaurant_id } = oiRes.rows[0];
+
+  const mwRes = await client.query(
+    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
+    [restaurant_id],
+  );
+  if (!mwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
+  const mainWarehouseId: string = mwRes.rows[0].id;
 
   const recipeRes = await client.query(
     `SELECT ri.quantity AS recipe_qty, ri.recipe_unit,
@@ -182,17 +191,20 @@ export async function restoreForOrderItem(
       '',
     );
 
-    await client.query(
-      'UPDATE products SET current_stock = current_stock + $1 WHERE id = $2',
-      [amount, ing.product_id],
-    );
-
-    await client.query(
-      `INSERT INTO inventory_transactions
-         (restaurant_id, inventory_item_id, change_amount, reason,
-          reference_type, reference_id)
-       VALUES ($1, $2, $3, 'order_cancelled_restore', 'order_item', $4)`,
-      [restaurant_id, ing.product_id, amount, orderItemId],
+    await updateStock(
+      client,
+      ing.product_id,
+      mainWarehouseId,
+      'restore_cancel',
+      amount,
+      userId,
+      restaurant_id,
+      undefined,
+      orderItemId,
+      {
+        referenceType: 'order_item',
+        reason: 'order_cancelled_restore',
+      },
     );
   }
 }

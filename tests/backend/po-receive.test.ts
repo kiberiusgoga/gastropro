@@ -37,6 +37,7 @@ const PO1  = '550e8400-e29b-41d4-a716-446655440010'
 const POI1 = '550e8400-e29b-41d4-a716-446655440030'
 const POI2 = '550e8400-e29b-41d4-a716-446655440031'
 const INV1 = '550e8400-e29b-41d4-a716-446655440020'
+const WH1  = '550e8400-e29b-41d4-a716-446655440050'
 const FAKE = '550e8400-e29b-41d4-a716-446655440099'
 
 const managerToken = () =>
@@ -62,16 +63,19 @@ function mockPoLoad(po = defaultPo) {
 
 // Sets up client.query mock sequence for a single-item receive.
 // Call order inside createInvoiceWithReceipt (sourced to PO, price > 0):
-//   [0] BEGIN
-//   [1] SELECT products
-//   [2] INSERT invoices RETURNING id
-//   [3] INSERT invoice_items
-//   [4] updateStock SELECT current_stock
-//   [5] updateStock UPDATE current_stock
-//   [6] updateStock INSERT transactions
-//   [7] UPDATE products SET purchase_price  (if price > 0)
-//   [8] UPDATE purchase_orders SET status='received'
-//   [9] COMMIT
+//   [0]  BEGIN
+//   [1]  SELECT products
+//   [2]  INSERT invoices RETURNING id
+//   [3]  SELECT warehouses (main)                    ← Phase B
+//   [4]  INSERT invoice_items
+//   [5]  updateStock: SELECT warehouses validation   ← Phase B
+//   [6]  updateStock: INSERT stock_levels            ← Phase B
+//   [7]  updateStock: SELECT stock_levels FOR UPDATE
+//   [8]  updateStock: UPDATE stock_levels
+//   [9]  updateStock: INSERT transactions
+//   [10] UPDATE products SET purchase_price          (if price > 0)
+//   [11] UPDATE purchase_orders SET status='received'
+//   [12] COMMIT
 function mockReceiveFull({
   product = flourProduct,
   invoiceId = INV1,
@@ -87,10 +91,13 @@ function mockReceiveFull({
     .mockResolvedValueOnce({ rows: [] })                                              // BEGIN
     .mockResolvedValueOnce({ rows: [product], rowCount: 1 })                          // SELECT products
     .mockResolvedValueOnce({ rows: [{ id: invoiceId }], rowCount: 1 })               // INSERT invoices
+    .mockResolvedValueOnce({ rows: [{ id: WH1 }], rowCount: 1 })                     // SELECT warehouses main
     .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                 // INSERT invoice_items
-    .mockResolvedValueOnce({ rows: [{ current_stock: currentStock }], rowCount: 1 })  // updateStock SELECT
-    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                 // updateStock UPDATE stock
-    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                 // updateStock INSERT txn
+    .mockResolvedValueOnce({ rows: [{ id: WH1 }], rowCount: 1 })                     // updateStock: SELECT warehouses validation
+    .mockResolvedValueOnce({ rows: [], rowCount: 0 })                                 // updateStock: INSERT stock_levels
+    .mockResolvedValueOnce({ rows: [{ quantity: currentStock }], rowCount: 1 })       // updateStock: SELECT stock_levels FOR UPDATE
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                 // updateStock: UPDATE stock_levels
+    .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                 // updateStock: INSERT transactions
 
   if (price > 0) {
     mockClient.query.mockResolvedValueOnce({ rows: [], rowCount: 1 })                 // UPDATE purchase_price
@@ -201,9 +208,9 @@ describe('Stock update', () => {
       .set('Authorization', `Bearer ${managerToken()}`)
       .send({})
 
-    // updateStock UPDATE sets current_stock = old + qty. $1 = newStock, $2 = product_id
+    // updateStock: UPDATE stock_levels SET quantity = $1. $1 = newStock, $2 = warehouseId, $3 = productId
     const stockUpdate = mockClient.query.mock.calls.find(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('SET current_stock'),
+      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('UPDATE stock_levels'),
     )
     expect(stockUpdate).toBeDefined()
     // 10 (old) + 5 (qty from PO) = 15
@@ -404,8 +411,9 @@ describe('Atomic rollback', () => {
       .mockResolvedValueOnce({ rows: [] })                                             // BEGIN
       .mockResolvedValueOnce({ rows: [flourProduct], rowCount: 1 })                    // SELECT products
       .mockResolvedValueOnce({ rows: [{ id: INV1 }], rowCount: 1 })                   // INSERT invoices
+      .mockResolvedValueOnce({ rows: [{ id: WH1 }], rowCount: 1 })                    // SELECT warehouses main
       .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                // INSERT invoice_items
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                                // updateStock SELECT → 0 rows → NotFoundError
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                                // updateStock: validation → 0 rows → ValidationError
       .mockResolvedValueOnce({ rows: [] })                                             // ROLLBACK
 
     const res = await request(app)
@@ -413,7 +421,7 @@ describe('Atomic rollback', () => {
       .set('Authorization', `Bearer ${managerToken()}`)
       .send({})
 
-    expect(res.status).toBe(404)
+    expect(res.status).toBe(400)
 
     const commit   = mockClient.query.mock.calls.find((c: unknown[]) => c[0] === 'COMMIT')
     const rollback = mockClient.query.mock.calls.find((c: unknown[]) => c[0] === 'ROLLBACK')
@@ -438,10 +446,13 @@ describe('Regression: POST /invoices', () => {
       .mockResolvedValueOnce({ rows: [] })                                             // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: P, name: 'Flour', default_expiry_days: null }], rowCount: 1 }) // SELECT products
       .mockResolvedValueOnce({ rows: [{ id: INV1 }], rowCount: 1 })                   // INSERT invoices
+      .mockResolvedValueOnce({ rows: [{ id: WH1 }], rowCount: 1 })                    // SELECT warehouses main
       .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                // INSERT invoice_items
-      .mockResolvedValueOnce({ rows: [{ current_stock: '10.000' }], rowCount: 1 })     // updateStock SELECT
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                // updateStock UPDATE
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                // updateStock INSERT txn
+      .mockResolvedValueOnce({ rows: [{ id: WH1 }] })                                 // updateStock: validation
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                                // updateStock: INSERT stock_levels
+      .mockResolvedValueOnce({ rows: [{ quantity: '10.000' }], rowCount: 1 })          // updateStock: SELECT FOR UPDATE
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                // updateStock: UPDATE stock_levels
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                // updateStock: INSERT txn
       .mockResolvedValueOnce({ rows: [], rowCount: 1 })                                // UPDATE purchase_price
       .mockResolvedValueOnce({ rows: [] })                                             // COMMIT
 
