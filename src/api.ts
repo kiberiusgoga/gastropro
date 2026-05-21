@@ -745,6 +745,20 @@ router.get('/warehouses', authenticateToken, asyncHandler(async (req: AuthReques
   res.json(result.rows);
 }));
 
+router.get('/warehouses/stats', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const result = await pool.query(
+    `SELECT sl.warehouse_id,
+            COUNT(DISTINCT sl.product_id) FILTER (WHERE sl.quantity > 0) AS product_count,
+            COALESCE(SUM(sl.quantity * p.purchase_price) FILTER (WHERE sl.quantity > 0), 0) AS total_value
+     FROM stock_levels sl
+     JOIN products p ON p.id = sl.product_id
+     WHERE sl.restaurant_id = $1
+     GROUP BY sl.warehouse_id`,
+    [req.user?.restaurantId],
+  );
+  res.json(result.rows);
+}));
+
 router.get('/warehouses/:id/products', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const restaurantId = req.user?.restaurantId;
   const warehouseRes = await pool.query(
@@ -763,6 +777,90 @@ router.get('/warehouses/:id/products', authenticateToken, asyncHandler(async (re
     [req.params.id, restaurantId],
   );
   res.json(result.rows);
+}));
+
+router.post('/warehouses', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const { name } = z.object({ name: z.string().min(1).max(100) }).parse(req.body);
+
+  const exists = await pool.query(
+    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND name = $2',
+    [restaurantId, name],
+  );
+  if (exists.rowCount) throw new ConflictError('Магацин со ова име веќе постои', 'WAREHOUSE_NAME_EXISTS');
+
+  const result = await pool.query(
+    `INSERT INTO warehouses (restaurant_id, name, is_main) VALUES ($1, $2, FALSE) RETURNING *`,
+    [restaurantId, name],
+  );
+  res.status(201).json(result.rows[0]);
+}));
+
+router.put('/warehouses/:id', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const { name } = z.object({ name: z.string().min(1).max(100) }).parse(req.body);
+
+  const wh = await pool.query(
+    'SELECT id FROM warehouses WHERE id = $1 AND restaurant_id = $2',
+    [req.params.id, restaurantId],
+  );
+  if (!wh.rowCount) throw new NotFoundError('Warehouse not found');
+
+  const dup = await pool.query(
+    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND name = $2 AND id != $3',
+    [restaurantId, name, req.params.id],
+  );
+  if (dup.rowCount) throw new ConflictError('Магацин со ова име веќе постои', 'WAREHOUSE_NAME_EXISTS');
+
+  const result = await pool.query(
+    'UPDATE warehouses SET name = $1, updated_at = NOW() WHERE id = $2 AND restaurant_id = $3 RETURNING *',
+    [name, req.params.id, restaurantId],
+  );
+  res.json(result.rows[0]);
+}));
+
+router.delete('/warehouses/:id', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const { id } = req.params;
+
+  // 1. Exists and belongs to restaurant
+  const wh = await pool.query(
+    'SELECT id, is_main FROM warehouses WHERE id = $1 AND restaurant_id = $2',
+    [id, restaurantId],
+  );
+  if (!wh.rowCount) throw new NotFoundError('Warehouse not found');
+
+  // 2. Not main
+  if (wh.rows[0].is_main) throw new ConflictError('Не може да се избрише главниот магацин', 'CANNOT_DELETE_MAIN');
+
+  // 3. No stock
+  const stock = await pool.query(
+    'SELECT 1 FROM stock_levels WHERE warehouse_id = $1 AND quantity > 0 LIMIT 1',
+    [id],
+  );
+  if (stock.rowCount) throw new ConflictError('Магацинот содржи залиха. Префрлете ja прво на друг магацин.', 'WAREHOUSE_HAS_STOCK');
+
+  // 4. No assigned tables
+  const tables = await pool.query(
+    'SELECT 1 FROM restaurant_tables WHERE warehouse_id = $1 LIMIT 1',
+    [id],
+  );
+  if (tables.rowCount) throw new ConflictError('Маси се поврзани со овој магацин. Преназначете ги прво.', 'WAREHOUSE_HAS_TABLES');
+
+  // 5. No transfer history
+  const transfers = await pool.query(
+    'SELECT 1 FROM internal_transfers WHERE source_warehouse_id = $1 OR destination_warehouse_id = $1 LIMIT 1',
+    [id],
+  );
+  if (transfers.rowCount) throw new ConflictError('Магацинот е користен во префрлувања. Не може да се избрише.', 'WAREHOUSE_HAS_TRANSFERS');
+
+  // 6. Null out transaction refs (nullable FK, no CASCADE)
+  await pool.query('UPDATE transactions SET warehouse_id = NULL WHERE warehouse_id = $1', [id]);
+
+  // 7. Delete
+  await pool.query('DELETE FROM warehouses WHERE id = $1', [id]);
+
+  res.json({ deleted: true });
 }));
 
 // --- INTERNAL TRANSFERS ---

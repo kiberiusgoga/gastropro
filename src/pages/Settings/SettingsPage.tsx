@@ -11,6 +11,7 @@ import {
   Wifi,
   Monitor,
   Tag,
+  Warehouse,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +19,7 @@ import apiClient from '../../lib/apiClient';
 import { useStore } from '../../store/useStore';
 import { Printer as PrinterType } from '../../types';
 import CategoryManager from '../../components/Settings/CategoryManager';
+import WarehousesTab from '../../components/Settings/WarehousesTab';
 
 interface RestaurantSettings {
   name: string;
@@ -379,6 +381,10 @@ const SettingsPage: React.FC = () => {
 
       <Section icon={Tag} title={t('cat_settings_title')} subtitle={t('cat_settings_subtitle')}>
         <CategoryManager />
+      </Section>
+
+      <Section icon={Warehouse} title={t('warehouses')} subtitle="Управување со магацинскиот простор">
+        <WarehousesTab />
       </Section>
 
       <Section icon={Lock} title="Промени лозинка" subtitle="Смена на лозинка за тековната сметка">

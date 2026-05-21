@@ -409,6 +409,21 @@ const mk = {
   unit_price: 'Единечна цена',
   expiry_date: 'Рок на траење',
   no_po_items: 'Нема ставки',
+
+  // Warehouses (Settings — Phase D.1)
+  warehouses: 'Магацини',
+  new_warehouse: 'Нов магацин',
+  edit_warehouse: 'Уреди магацин',
+  delete_warehouse: 'Избриши магацин',
+  warehouse_name: 'Име на магацин',
+  warehouse_name_exists: 'Магацин со ова име веќе постои',
+  cannot_delete_main: 'Ова е главниот магацин — не може да се избрише',
+  warehouse_has_stock: 'Магацинот содржи залиха. Префрлете ja прво на друг магацин.',
+  warehouse_has_tables: 'Маси се поврзани со овој магацин. Преназначете ги прво.',
+  warehouse_has_transfers: 'Магацинот е користен во префрлувања. Не може да се избрише.',
+  main_warehouse_label: 'Главен',
+  products_count: 'Производи',
+  total_stock_value: 'Вредност на залиха',
 };
 
 const en: Record<keyof typeof mk, string> = {
@@ -795,6 +810,21 @@ const en: Record<keyof typeof mk, string> = {
   unit_price: 'Unit price',
   expiry_date: 'Expiry date',
   no_po_items: 'No items',
+
+  // Warehouses (Settings — Phase D.1)
+  warehouses: 'Warehouses',
+  new_warehouse: 'New Warehouse',
+  edit_warehouse: 'Edit Warehouse',
+  delete_warehouse: 'Delete Warehouse',
+  warehouse_name: 'Warehouse Name',
+  warehouse_name_exists: 'A warehouse with this name already exists',
+  cannot_delete_main: 'This is the main warehouse — it cannot be deleted',
+  warehouse_has_stock: 'Warehouse contains stock. Transfer it to another warehouse first.',
+  warehouse_has_tables: 'Tables are assigned to this warehouse. Reassign them first.',
+  warehouse_has_transfers: 'Warehouse was used in transfers. Cannot delete.',
+  main_warehouse_label: 'Main',
+  products_count: 'Products',
+  total_stock_value: 'Stock Value',
 };
 
 const sq: Record<keyof typeof mk, string> = {
@@ -1181,6 +1211,21 @@ const sq: Record<keyof typeof mk, string> = {
   unit_price: 'Çmimi njësi',
   expiry_date: 'Data e skadencës',
   no_po_items: 'Nuk ka artikuj',
+
+  // Warehouses (Settings — Phase D.1)
+  warehouses: 'Magazinat',
+  new_warehouse: 'Magazinë e Re',
+  edit_warehouse: 'Modifiko Magazinë',
+  delete_warehouse: 'Fshi Magazinë',
+  warehouse_name: 'Emri i Magazinës',
+  warehouse_name_exists: 'Një magazinë me këtë emër tashmë ekziston',
+  cannot_delete_main: 'Kjo është magazina kryesore — nuk mund të fshihet',
+  warehouse_has_stock: 'Magazina ka stok. Transferoni atë në një magazinë tjetër fillimisht.',
+  warehouse_has_tables: 'Tavolinat janë caktuar në këtë magazinë. Ricaktojini ato fillimisht.',
+  warehouse_has_transfers: 'Magazina është përdorur në transferimet. Nuk mund të fshihet.',
+  main_warehouse_label: 'Kryesore',
+  products_count: 'Produkte',
+  total_stock_value: 'Vlera e Stokut',
 };
 
 i18n
