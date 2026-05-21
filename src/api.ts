@@ -6,6 +6,7 @@ import { createHash, randomBytes } from 'crypto';
 import pool from './db';
 import { deductForOrderItem, restoreForOrderItem } from './services/inventoryDeductionService';
 import { updateStock } from './services/stockService';
+import { getMainWarehouse } from './services/warehouseResolver';
 import { authenticateToken, AuthRequest, authorizeRole, generateAccessToken, generateRefreshToken } from './auth';
 import { sseAdd, sseRemove, sseBroadcast } from './lib/sse';
 import { asyncHandler } from './middleware/errorMiddleware';
@@ -760,6 +761,122 @@ router.get('/warehouses/:id/products', authenticateToken, asyncHandler(async (re
      WHERE p.restaurant_id = $2
      ORDER BY p.name`,
     [req.params.id, restaurantId],
+  );
+  res.json(result.rows);
+}));
+
+// --- INTERNAL TRANSFERS ---
+
+router.post(
+  '/transfers',
+  authenticateToken,
+  authorizeRole(['Admin', 'Manager', 'Warehouse Worker']),
+  asyncHandler(async (req: AuthRequest, res) => {
+    const userId = req.user!.id;
+    const restaurantId = req.user!.restaurantId;
+
+    const schema = z.object({
+      source_warehouse_id: z.string().uuid(),
+      destination_warehouse_id: z.string().uuid(),
+      product_id: z.string().uuid(),
+      quantity: z.number().positive(),
+      note: z.string().max(500).optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    if (data.source_warehouse_id === data.destination_warehouse_id) {
+      throw new ValidationError('Source and destination must be different');
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Validate both warehouses belong to this restaurant
+      const warehouseCheck = await client.query(
+        `SELECT id FROM warehouses
+         WHERE id = ANY($1::uuid[]) AND restaurant_id = $2`,
+        [[data.source_warehouse_id, data.destination_warehouse_id], restaurantId],
+      );
+      if (warehouseCheck.rows.length !== 2) {
+        throw new ValidationError('Invalid warehouse(s) for restaurant');
+      }
+
+      // Validate product belongs to this restaurant
+      const productCheck = await client.query(
+        `SELECT id FROM products
+         WHERE id = $1 AND restaurant_id = $2 AND active = TRUE`,
+        [data.product_id, restaurantId],
+      );
+      if (productCheck.rows.length === 0) {
+        throw new NotFoundError('Product not found');
+      }
+
+      // Deduct from source first — throws ValidationError if insufficient stock
+      await updateStock(
+        client, data.product_id, data.source_warehouse_id,
+        'output_manual', data.quantity, userId, restaurantId,
+        data.note ?? 'Internal transfer (out)', undefined,
+        { allowNegative: false, referenceType: 'manual', reason: 'internal_transfer_out' },
+      );
+
+      // Add to destination
+      await updateStock(
+        client, data.product_id, data.destination_warehouse_id,
+        'receipt', data.quantity, userId, restaurantId,
+        data.note ?? 'Internal transfer (in)', undefined,
+        { allowNegative: false, referenceType: 'manual', reason: 'internal_transfer_in' },
+      );
+
+      // Log the transfer
+      const transferResult = await client.query(
+        `INSERT INTO internal_transfers
+         (restaurant_id, source_warehouse_id, destination_warehouse_id,
+          product_id, quantity, user_id, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, created_at`,
+        [restaurantId, data.source_warehouse_id, data.destination_warehouse_id,
+         data.product_id, data.quantity, userId, data.note ?? null],
+      );
+
+      await client.query('COMMIT');
+      res.status(201).json({
+        id: transferResult.rows[0].id,
+        created_at: transferResult.rows[0].created_at,
+        source_warehouse_id: data.source_warehouse_id,
+        destination_warehouse_id: data.destination_warehouse_id,
+        product_id: data.product_id,
+        quantity: data.quantity,
+        note: data.note ?? null,
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+router.get('/transfers', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const result = await pool.query(
+    `SELECT
+       t.id, t.quantity, t.note, t.created_at,
+       t.source_warehouse_id, sw.name AS source_warehouse_name,
+       t.destination_warehouse_id, dw.name AS destination_warehouse_name,
+       t.product_id, p.name AS product_name, p.unit,
+       t.user_id, u.name AS user_name
+     FROM internal_transfers t
+     JOIN warehouses sw ON sw.id = t.source_warehouse_id
+     JOIN warehouses dw ON dw.id = t.destination_warehouse_id
+     JOIN products p ON p.id = t.product_id
+     LEFT JOIN users u ON u.id = t.user_id
+     WHERE t.restaurant_id = $1
+     ORDER BY t.created_at DESC
+     LIMIT 100`,
+    [restaurantId],
   );
   res.json(result.rows);
 }));
@@ -1907,8 +2024,9 @@ router.delete('/menu-items/:id/image', authenticateToken, asyncHandler(async (re
 // --- TABLES ---
 router.get('/tables', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const result = await pool.query(`
-    SELECT t.*, o.id as current_order_id
+    SELECT t.*, w.name AS warehouse_name, o.id AS current_order_id
     FROM restaurant_tables t
+    LEFT JOIN warehouses w ON w.id = t.warehouse_id
     LEFT JOIN orders o ON t.id = o.table_id AND o.status = 'open'
     WHERE t.restaurant_id = $1
     ORDER BY CASE WHEN t.number ~ '^[0-9]+$' THEN t.number::integer ELSE 9999 END, t.number
@@ -1921,24 +2039,59 @@ router.get('/tables', authenticateToken, asyncHandler(async (req: AuthRequest, r
     zone: row.zone,
     status: row.status,
     active: row.active,
+    warehouseId: row.warehouse_id,
+    warehouseName: row.warehouse_name,
     currentOrderId: row.current_order_id || undefined,
   })));
 }));
 
 router.post('/tables', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { number, capacity, zone, status, active } = req.body;
+  const { number, capacity, zone, status, active, warehouse_id } = req.body;
+  const restaurantId = req.user!.restaurantId;
+
+  let resolvedWarehouseId: string;
+  if (warehouse_id) {
+    const whCheck = await pool.query(
+      'SELECT id FROM warehouses WHERE id = $1 AND restaurant_id = $2',
+      [warehouse_id, restaurantId],
+    );
+    if (!whCheck.rowCount) throw new ValidationError('Invalid warehouse for restaurant');
+    resolvedWarehouseId = warehouse_id;
+  } else {
+    const mwRes = await pool.query(
+      'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
+      [restaurantId],
+    );
+    if (!mwRes.rowCount) throw new Error('No main warehouse found for restaurant');
+    resolvedWarehouseId = mwRes.rows[0].id;
+  }
+
   const result = await pool.query(
-    'INSERT INTO restaurant_tables (restaurant_id, number, capacity, zone, status, active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-    [req.user?.restaurantId, number, capacity || 2, zone, status || 'free', active !== false]
+    `INSERT INTO restaurant_tables (restaurant_id, number, capacity, zone, status, active, warehouse_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [restaurantId, number, capacity || 2, zone, status || 'free', active !== false, resolvedWarehouseId],
   );
   res.status(201).json(result.rows[0]);
 }));
 
 router.put('/tables/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { number, capacity, zone, status, active } = req.body;
+  const { number, capacity, zone, status, active, warehouse_id } = req.body;
+  const restaurantId = req.user!.restaurantId;
+
+  if (warehouse_id !== undefined) {
+    const whCheck = await pool.query(
+      'SELECT id FROM warehouses WHERE id = $1 AND restaurant_id = $2',
+      [warehouse_id, restaurantId],
+    );
+    if (!whCheck.rowCount) throw new ValidationError('Invalid warehouse for restaurant');
+  }
+
   const result = await pool.query(
-    'UPDATE restaurant_tables SET number = $1, capacity = $2, zone = $3, status = $4, active = $5 WHERE id = $6 AND restaurant_id = $7 RETURNING *',
-    [number, capacity, zone, status, active, req.params.id, req.user?.restaurantId]
+    `UPDATE restaurant_tables
+     SET number = $1, capacity = $2, zone = $3, status = $4, active = $5,
+         warehouse_id = COALESCE($6::uuid, warehouse_id)
+     WHERE id = $7 AND restaurant_id = $8 RETURNING *`,
+    [number, capacity, zone, status, active, warehouse_id ?? null, req.params.id, restaurantId],
   );
   res.json(result.rows[0]);
 }));

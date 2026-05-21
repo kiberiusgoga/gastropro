@@ -1,5 +1,6 @@
 import { PoolClient } from 'pg';
 import { updateStock } from './stockService';
+import { resolveWarehouseForOrder } from './warehouseResolver';
 
 // ============================================================
 // MAPA ZA KONVERZIJA NA EDINICI
@@ -65,21 +66,18 @@ export async function deductForOrderItem(
 
   // 1. Zemame gi podatocite za order_item-ot (menu_item_id + kolicina porcii)
   const oiRes = await client.query(
-    `SELECT oi.menu_item_id, oi.quantity AS portions, o.restaurant_id
+    `SELECT oi.menu_item_id, oi.quantity AS portions, o.restaurant_id,
+            o.id AS order_id, o.table_id
      FROM order_items oi
      JOIN orders o ON o.id = oi.order_id
      WHERE oi.id = $1`,
     [orderItemId],
   );
   if (oiRes.rowCount === 0) throw new Error(`Order item ${orderItemId} not found`);
-  const { menu_item_id, portions, restaurant_id } = oiRes.rows[0];
+  const { menu_item_id, portions, restaurant_id, order_id } = oiRes.rows[0];
 
-  const mwRes = await client.query(
-    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
-    [restaurant_id],
-  );
-  if (!mwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
-  const mainWarehouseId: string = mwRes.rows[0].id;
+  // Route to table's warehouse; falls back to main for takeaway/delivery.
+  const warehouseId: string = await resolveWarehouseForOrder(order_id, client);
 
   // 2. Gi ucituouvame sostojkite od normativot
   const recipeRes = await client.query(
@@ -110,7 +108,7 @@ export async function deductForOrderItem(
     await updateStock(
       client,
       ing.product_id,
-      mainWarehouseId,
+      warehouseId,
       'output_sale',
       amount,
       userId,
@@ -158,21 +156,18 @@ export async function restoreForOrderItem(
   userId: string,
 ): Promise<void> {
   const oiRes = await client.query(
-    `SELECT oi.menu_item_id, oi.quantity AS portions, o.restaurant_id
+    `SELECT oi.menu_item_id, oi.quantity AS portions, o.restaurant_id,
+            o.id AS order_id, o.table_id
      FROM order_items oi
      JOIN orders o ON o.id = oi.order_id
      WHERE oi.id = $1`,
     [orderItemId],
   );
   if (oiRes.rowCount === 0) return;
-  const { menu_item_id, portions, restaurant_id } = oiRes.rows[0];
+  const { menu_item_id, portions, restaurant_id, order_id } = oiRes.rows[0];
 
-  const mwRes = await client.query(
-    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
-    [restaurant_id],
-  );
-  if (!mwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
-  const mainWarehouseId: string = mwRes.rows[0].id;
+  // Restore to the same warehouse the deduction came from.
+  const warehouseId: string = await resolveWarehouseForOrder(order_id, client);
 
   const recipeRes = await client.query(
     `SELECT ri.quantity AS recipe_qty, ri.recipe_unit,
@@ -194,7 +189,7 @@ export async function restoreForOrderItem(
     await updateStock(
       client,
       ing.product_id,
-      mainWarehouseId,
+      warehouseId,
       'restore_cancel',
       amount,
       userId,
