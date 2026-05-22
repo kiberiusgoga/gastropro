@@ -19,6 +19,7 @@ import AnalyticsDashboard from './pages/Analytics/AnalyticsDashboard';
 import OrdersView from './components/OrdersView';
 import SettingsPage from './pages/Settings/SettingsPage';
 import StockDashboard from './components/Stock/StockDashboard';
+import TransfersPage from './components/Transfers/TransfersPage';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
@@ -142,6 +143,8 @@ const AppContent = () => {
         return <AnalyticsDashboard />;
       case 'stock':
         return <StockDashboard />;
+      case 'transfers':
+        return <TransfersPage />;
       case 'settings':
         return <SettingsPage />;
       default:

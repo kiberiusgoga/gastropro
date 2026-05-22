@@ -15,7 +15,8 @@ import {
   Sun,
   CreditCard,
   CalendarDays,
-  X
+  X,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -65,6 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'inventory', icon: Package, label: t('inventory') },
         { id: 'stock', icon: BarChart3, label: t('stock_dashboard') },
+        { id: 'transfers', icon: ArrowRightLeft, label: t('transfers_sidebar') },
         { id: 'staff', icon: UserCog, label: t('staff'), badge: notificationCount > 0 ? notificationCount : undefined },
         { id: 'crm', icon: Heart, label: t('crm') },
         { id: 'billing', icon: CreditCard, label: t('billing') },
