@@ -768,11 +768,18 @@ router.get('/warehouses/:id/products', authenticateToken, asyncHandler(async (re
   if (!warehouseRes.rowCount) throw new NotFoundError('Warehouse not found');
 
   const result = await pool.query(
-    `SELECT p.*, COALESCE(sl.quantity, 0) AS warehouse_stock
+    `SELECT p.*,
+            COALESCE(sl.quantity, 0) AS warehouse_stock,
+            CASE
+              WHEN sl.product_id IS NULL        THEN 'not_assigned'
+              WHEN sl.quantity = 0              THEN 'out_of_stock'
+              WHEN sl.quantity <= p.min_stock   THEN 'low_stock'
+              ELSE                                   'ok'
+            END AS stock_status
      FROM products p
      LEFT JOIN stock_levels sl
        ON sl.product_id = p.id AND sl.warehouse_id = $1
-     WHERE p.restaurant_id = $2
+     WHERE p.restaurant_id = $2 AND p.active = TRUE
      ORDER BY p.name`,
     [req.params.id, restaurantId],
   );
@@ -2194,9 +2201,78 @@ router.put('/tables/:id', authenticateToken, asyncHandler(async (req: AuthReques
   res.json(result.rows[0]);
 }));
 
-router.delete('/tables/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  await pool.query('DELETE FROM restaurant_tables WHERE id = $1 AND restaurant_id = $2', [req.params.id, req.user?.restaurantId]);
-  res.json({ message: 'Deleted' });
+router.delete('/tables/:id', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const tableId = req.params.id;
+
+  const tableCheck = await pool.query(
+    'SELECT id FROM restaurant_tables WHERE id = $1 AND restaurant_id = $2',
+    [tableId, restaurantId],
+  );
+  if (!tableCheck.rowCount) throw new NotFoundError('Table not found');
+
+  const activeOrders = await pool.query(
+    `SELECT id FROM orders WHERE table_id = $1 AND status IN ('open','sent_to_kitchen','partial')`,
+    [tableId],
+  );
+  if (activeOrders.rowCount) throw new ValidationError('Table has active orders, cannot delete', undefined, 'TABLE_HAS_ACTIVE_ORDERS');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE orders SET table_id = NULL WHERE table_id = $1', [tableId]);
+    await client.query('UPDATE reservations SET table_id = NULL WHERE table_id = $1', [tableId]);
+    await client.query('DELETE FROM restaurant_tables WHERE id = $1', [tableId]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  res.status(204).send();
+}));
+
+router.patch('/tables/bulk', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const { table_ids, warehouse_id } = z.object({
+    table_ids:    z.array(z.string().uuid()).min(1).max(50),
+    warehouse_id: z.string().uuid(),
+  }).parse(req.body);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const whCheck = await client.query(
+      'SELECT id FROM warehouses WHERE id = $1 AND restaurant_id = $2',
+      [warehouse_id, restaurantId],
+    );
+    if (!whCheck.rowCount) throw new ValidationError('Invalid warehouse for restaurant');
+
+    const tCheck = await client.query(
+      `SELECT id FROM restaurant_tables WHERE id = ANY($1::uuid[]) AND restaurant_id = $2`,
+      [table_ids, restaurantId],
+    );
+    if (tCheck.rowCount !== table_ids.length) throw new NotFoundError('One or more tables not found');
+
+    const result = await client.query(
+      `UPDATE restaurant_tables
+       SET warehouse_id = $1
+       WHERE id = ANY($2::uuid[]) AND restaurant_id = $3
+       RETURNING id, number, capacity, zone, status, warehouse_id`,
+      [warehouse_id, table_ids, restaurantId],
+    );
+
+    await client.query('COMMIT');
+    res.json(result.rows);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }));
 
 // --- PRINTERS ---

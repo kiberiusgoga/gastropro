@@ -7,8 +7,9 @@ import Invoices from './Invoices';
 import PurchaseOrders from './PurchaseOrders';
 import Inventory from './Inventory';
 import InventoryCheck from './InventoryCheck';
+import PerWarehouse from './PerWarehouse';
 
-type Tab = 'products' | 'categories' | 'bundles' | 'invoices' | 'purchase_orders' | 'movements' | 'inventory_checks';
+type Tab = 'products' | 'categories' | 'bundles' | 'invoices' | 'purchase_orders' | 'movements' | 'inventory_checks' | 'per_warehouse';
 
 const TABS: { key: Tab; labelKey: string }[] = [
   { key: 'products',          labelKey: 'inv_tab_products' },
@@ -18,6 +19,7 @@ const TABS: { key: Tab; labelKey: string }[] = [
   { key: 'purchase_orders',   labelKey: 'inv_tab_purchase_orders' },
   { key: 'movements',         labelKey: 'inv_tab_movements' },
   { key: 'inventory_checks',  labelKey: 'inv_tab_inventory_checks' },
+  { key: 'per_warehouse',     labelKey: 'inv_tab_per_warehouse' },
 ];
 
 const InventoryShell = () => {
@@ -33,6 +35,7 @@ const InventoryShell = () => {
       case 'purchase_orders':  return <PurchaseOrders />;
       case 'movements':        return <Inventory />;
       case 'inventory_checks': return <InventoryCheck />;
+      case 'per_warehouse':    return <PerWarehouse />;
     }
   };
 

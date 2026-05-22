@@ -332,6 +332,9 @@ export interface Table {
   status: 'free' | 'occupied' | 'reserved';
   zone: string;
   currentOrderId?: string;
+  warehouseId?: string;
+  warehouseName?: string;
+  active?: boolean;
 }
 
 export interface OrderItem {

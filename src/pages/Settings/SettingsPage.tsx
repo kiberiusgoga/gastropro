@@ -12,6 +12,7 @@ import {
   Monitor,
   Tag,
   Warehouse,
+  LayoutGrid,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +21,7 @@ import { useStore } from '../../store/useStore';
 import { Printer as PrinterType } from '../../types';
 import CategoryManager from '../../components/Settings/CategoryManager';
 import WarehousesTab from '../../components/Settings/WarehousesTab';
+import TablesSection from '../../components/Settings/TablesSection';
 
 interface RestaurantSettings {
   name: string;
@@ -385,6 +387,10 @@ const SettingsPage: React.FC = () => {
 
       <Section icon={Warehouse} title={t('warehouses')} subtitle="Управување со магацинскиот простор">
         <WarehousesTab />
+      </Section>
+
+      <Section icon={LayoutGrid} title={t('tables_section_title')} subtitle="Управување со маси и магацинско назначување">
+        <TablesSection />
       </Section>
 
       <Section icon={Lock} title="Промени лозинка" subtitle="Смена на лозинка за тековната сметка">
