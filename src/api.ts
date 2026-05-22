@@ -3764,4 +3764,85 @@ router.get('/analytics', authenticateToken, asyncHandler(async (req: AuthRequest
   }
 }));
 
+// ── GET /stock/summary ────────────────────────────────────────────────────────
+router.get('/stock/summary', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+
+  const [valueRes, lowRes, outRes, whRes, transferRes] = await Promise.all([
+    pool.query(
+      `SELECT COALESCE(SUM(sl.quantity * p.purchase_price), 0) AS total
+       FROM stock_levels sl
+       JOIN products p ON p.id = sl.product_id
+       WHERE p.restaurant_id = $1`,
+      [restaurantId]
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS cnt
+       FROM stock_levels sl
+       JOIN products p ON p.id = sl.product_id
+       WHERE p.restaurant_id = $1 AND sl.quantity > 0 AND sl.quantity <= p.min_stock`,
+      [restaurantId]
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS cnt
+       FROM stock_levels sl
+       JOIN products p ON p.id = sl.product_id
+       WHERE p.restaurant_id = $1 AND sl.quantity = 0`,
+      [restaurantId]
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS cnt FROM warehouses WHERE restaurant_id = $1`,
+      [restaurantId]
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS cnt FROM internal_transfers
+       WHERE restaurant_id = $1 AND created_at >= NOW() - INTERVAL '7 days'`,
+      [restaurantId]
+    ),
+  ]);
+
+  res.json({
+    total_stock_value:     Number(valueRes.rows[0].total),
+    low_stock_count:       Number(lowRes.rows[0].cnt),
+    out_of_stock_count:    Number(outRes.rows[0].cnt),
+    warehouses_count:      Number(whRes.rows[0].cnt),
+    recent_transfers_count: Number(transferRes.rows[0].cnt),
+  });
+}));
+
+// ── GET /stock/matrix ─────────────────────────────────────────────────────────
+router.get('/stock/matrix', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+
+  const [warehouseRes, productRes] = await Promise.all([
+    pool.query(
+      `SELECT id, name, is_main FROM warehouses
+       WHERE restaurant_id = $1
+       ORDER BY is_main DESC, name ASC`,
+      [restaurantId]
+    ),
+    pool.query(
+      `SELECT p.id, p.name, p.unit, p.min_stock, p.category_id,
+              COALESCE(
+                json_object_agg(sl.warehouse_id::text, sl.quantity)
+                  FILTER (WHERE sl.warehouse_id IS NOT NULL),
+                '{}'::json
+              ) AS stock_by_warehouse
+       FROM products p
+       LEFT JOIN stock_levels sl
+         ON sl.product_id = p.id
+         AND sl.warehouse_id IN (SELECT id FROM warehouses WHERE restaurant_id = $1)
+       WHERE p.restaurant_id = $1 AND p.active = TRUE
+       GROUP BY p.id, p.name, p.unit, p.min_stock, p.category_id
+       ORDER BY p.name`,
+      [restaurantId]
+    ),
+  ]);
+
+  res.json({
+    warehouses: warehouseRes.rows,
+    products:   productRes.rows,
+  });
+}));
+
 export default router;

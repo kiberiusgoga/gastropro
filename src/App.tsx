@@ -18,6 +18,7 @@ import KitchenDisplay from './components/Kitchen/KitchenDisplay';
 import AnalyticsDashboard from './pages/Analytics/AnalyticsDashboard';
 import OrdersView from './components/OrdersView';
 import SettingsPage from './pages/Settings/SettingsPage';
+import StockDashboard from './components/Stock/StockDashboard';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
@@ -139,6 +140,8 @@ const AppContent = () => {
         return <KitchenDisplay />;
       case 'analytics':
         return <AnalyticsDashboard />;
+      case 'stock':
+        return <StockDashboard />;
       case 'settings':
         return <SettingsPage />;
       default:
