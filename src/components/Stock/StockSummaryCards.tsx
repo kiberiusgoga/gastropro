@@ -20,6 +20,7 @@ const StockSummaryCards: React.FC<Props> = ({ summary }) => {
   const cards = [
     {
       label: t('total_stock_value'),
+      subtitle: t('calculated_at_purchase_cost'),
       value: `${Number(summary.total_stock_value).toLocaleString('mk-MK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${t('mkd_short')}`,
       icon: DollarSign,
       iconCls: 'text-emerald-400',
@@ -27,6 +28,7 @@ const StockSummaryCards: React.FC<Props> = ({ summary }) => {
     },
     {
       label: t('low_stock_items'),
+      subtitle: null,
       value: String(summary.low_stock_count),
       icon: AlertTriangle,
       iconCls: 'text-amber-400',
@@ -34,6 +36,7 @@ const StockSummaryCards: React.FC<Props> = ({ summary }) => {
     },
     {
       label: t('out_of_stock_items'),
+      subtitle: null,
       value: String(summary.out_of_stock_count),
       icon: PackageX,
       iconCls: 'text-rose-400',
@@ -41,6 +44,7 @@ const StockSummaryCards: React.FC<Props> = ({ summary }) => {
     },
     {
       label: t('warehouses_count'),
+      subtitle: null,
       value: String(summary.warehouses_count),
       icon: Warehouse,
       iconCls: 'text-accent-light',
@@ -48,6 +52,7 @@ const StockSummaryCards: React.FC<Props> = ({ summary }) => {
     },
     {
       label: t('recent_transfers_7d'),
+      subtitle: null,
       value: `${summary.recent_transfers_count} ${t('in_last_7d')}`,
       icon: ArrowLeftRight,
       iconCls: 'text-cream-muted',
@@ -68,6 +73,9 @@ const StockSummaryCards: React.FC<Props> = ({ summary }) => {
           <div>
             <div className="text-xl font-black text-cream leading-tight">{card.value}</div>
             <div className="text-xs font-bold text-cream-faint mt-0.5 uppercase tracking-wider">{card.label}</div>
+            {card.subtitle && (
+              <div className="text-xs text-cream-faint/70 mt-0.5">{card.subtitle}</div>
+            )}
           </div>
         </div>
       ))}

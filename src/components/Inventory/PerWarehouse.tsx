@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Package, ChevronDown, Search } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 import { Warehouse } from '../Settings/WarehousesList';
+import { CostOrMargin } from '../UI/CostOrMargin';
 
 type StockStatus = 'ok' | 'low_stock' | 'out_of_stock' | 'not_assigned';
 
@@ -16,6 +17,9 @@ interface WarehouseProduct {
   category_id: string | null;
   warehouse_stock: number;
   stock_status: StockStatus;
+  purchase_cost: number;
+  margin_percent: number | null;
+  product_type: 'sellable' | 'ingredient';
 }
 
 const STATUS_CONFIG: Record<StockStatus, { cls: string; labelKey: string }> = {
@@ -82,7 +86,7 @@ const PerWarehouse: React.FC = () => {
 
   const stats = useMemo(() => {
     const total = products.filter(p => p.stock_status !== 'not_assigned').length;
-    const totalValue = products.reduce((acc, p) => acc + p.warehouse_stock * p.purchase_price, 0);
+    const totalValue = products.reduce((acc, p) => acc + p.warehouse_stock * (p.purchase_cost ?? p.purchase_price), 0);
     const lowCount = products.filter(p => p.stock_status === 'low_stock' || p.stock_status === 'out_of_stock').length;
     return { total, totalValue, lowCount };
   }, [products]);
@@ -120,13 +124,14 @@ const PerWarehouse: React.FC = () => {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: t('products_count'), value: stats.total },
-          { label: t('total_stock_value'), value: stats.totalValue.toLocaleString('mk-MK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ден.' },
-          { label: t('low_stock_count'), value: stats.lowCount },
-        ].map(({ label, value }) => (
+          { label: t('products_count'), value: stats.total, subtitle: null },
+          { label: t('total_stock_value'), value: stats.totalValue.toLocaleString('mk-MK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ден.', subtitle: t('calculated_at_purchase_cost') },
+          { label: t('low_stock_count'), value: stats.lowCount, subtitle: null },
+        ].map(({ label, value, subtitle }) => (
           <div key={label} className="bg-surface-2 border border-warm-line rounded-card p-4">
             <p className="text-xs text-cream-faint uppercase tracking-widest font-black mb-1">{label}</p>
             <p className="text-lg font-bold text-cream tabular-nums">{value}</p>
+            {subtitle && <p className="text-xs text-cream-faint mt-0.5">{subtitle}</p>}
           </div>
         ))}
       </div>
@@ -180,6 +185,7 @@ const PerWarehouse: React.FC = () => {
                 <th className="table-header text-left py-3 px-4">{t('unit')}</th>
                 <th className="table-header text-right py-3 px-4">{t('stock')}</th>
                 <th className="table-header text-right py-3 px-4">{t('min_stock')}</th>
+                <th className="table-header text-left py-3 px-4">{t('cost_or_margin')}</th>
                 <th className="table-header text-left py-3 px-4">{t('status')}</th>
               </tr>
             </thead>
@@ -195,6 +201,13 @@ const PerWarehouse: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-right text-cream-muted tabular-nums">
                       {p.min_stock.toLocaleString('mk-MK', { maximumFractionDigits: 3 })}
+                    </td>
+                    <td className="py-3 px-4">
+                      <CostOrMargin
+                        purchaseCost={p.purchase_cost ?? p.purchase_price}
+                        marginPercent={p.margin_percent}
+                        productType={p.product_type}
+                      />
                     </td>
                     <td className="py-3 px-4">
                       <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium ${cfg.cls}`}>

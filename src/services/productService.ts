@@ -15,6 +15,9 @@ const mapProduct = (row: any): Product => ({
   minStock: Number(row.min_stock || 0),
   active: row.active,
   defaultExpiryDays: row.default_expiry_days != null ? Number(row.default_expiry_days) : null,
+  purchaseCost: row.purchase_cost != null ? Number(row.purchase_cost) : undefined,
+  marginPercent: row.margin_percent != null ? Number(row.margin_percent) : null,
+  productType: row.product_type as 'sellable' | 'ingredient' | undefined,
 });
 
 const toProductPayload = (data: Partial<Product>) => ({

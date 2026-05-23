@@ -255,6 +255,9 @@ export interface Product {
   minStock: number;
   active: boolean;
   defaultExpiryDays?: number | null;
+  purchaseCost?: number;
+  marginPercent?: number | null;
+  productType?: 'sellable' | 'ingredient';
 }
 
 export interface Invoice {

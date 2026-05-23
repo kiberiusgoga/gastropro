@@ -17,6 +17,7 @@ import {
 import { useStore } from '../../store/useStore';
 import { cn } from '../../utils/cn';
 import { productService } from '../../services/productService';
+import { CostOrMargin } from '../UI/CostOrMargin';
 
 const Products = () => {
   const { products, categories, fetchProducts, fetchCategories } = useStore();
@@ -160,7 +161,7 @@ const Products = () => {
                 <th className="table-header">{t('name')}</th>
                 <th className="table-header">{t('barcode')}</th>
                 <th className="table-header">{t('category')}</th>
-                <th className="table-header">{t('purchase_price')}</th>
+                <th className="table-header">{t('cost_or_margin')}</th>
                 <th className="table-header">{t('selling_price')}</th>
                 <th className="table-header">{t('current_stock')}</th>
                 <th className="table-header text-right">{t('actions')}</th>
@@ -185,7 +186,13 @@ const Products = () => {
                   <td className="table-cell text-cream-muted">
                     {categories.find(c => c.id === product.categoryId)?.name || '-'}
                   </td>
-                  <td className="table-cell font-medium text-cream-muted">{product.purchasePrice.toLocaleString()} ден.</td>
+                  <td className="table-cell">
+                    <CostOrMargin
+                      purchaseCost={product.purchaseCost ?? product.purchasePrice}
+                      marginPercent={product.marginPercent}
+                      productType={product.productType}
+                    />
+                  </td>
                   <td className="table-cell font-bold text-accent-light">{product.sellingPrice.toLocaleString()} ден.</td>
                   <td className="table-cell">
                     <div className="flex items-center gap-2">

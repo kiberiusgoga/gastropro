@@ -650,7 +650,18 @@ router.delete('/categories/:id', authenticateToken, authorizeRole(['Admin', 'Man
 // --- PRODUCTS ---
 
 router.get('/products', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const result = await pool.query('SELECT * FROM products WHERE restaurant_id = $1 ORDER BY name', [req.user?.restaurantId]);
+  const result = await pool.query(
+    `SELECT p.*,
+            p.purchase_price AS purchase_cost,
+            CASE WHEN p.selling_price > 0
+              THEN ROUND(((p.selling_price - p.purchase_price) / p.selling_price) * 100, 1)
+              ELSE NULL
+            END AS margin_percent,
+            CASE WHEN p.selling_price > 0 THEN 'sellable' ELSE 'ingredient' END AS product_type
+     FROM products p
+     WHERE p.restaurant_id = $1 ORDER BY p.name`,
+    [req.user?.restaurantId],
+  );
   res.json(result.rows);
 }));
 
@@ -775,7 +786,13 @@ router.get('/warehouses/:id/products', authenticateToken, asyncHandler(async (re
               WHEN sl.quantity = 0              THEN 'out_of_stock'
               WHEN sl.quantity <= p.min_stock   THEN 'low_stock'
               ELSE                                   'ok'
-            END AS stock_status
+            END AS stock_status,
+            p.purchase_price AS purchase_cost,
+            CASE WHEN p.selling_price > 0
+              THEN ROUND(((p.selling_price - p.purchase_price) / p.selling_price) * 100, 1)
+              ELSE NULL
+            END AS margin_percent,
+            CASE WHEN p.selling_price > 0 THEN 'sellable' ELSE 'ingredient' END AS product_type
      FROM products p
      LEFT JOIN stock_levels sl
        ON sl.product_id = p.id AND sl.warehouse_id = $1
@@ -3797,6 +3814,7 @@ router.get('/stock/matrix', authenticateToken, asyncHandler(async (req: AuthRequ
     ),
     pool.query(
       `SELECT p.id, p.name, p.unit, p.min_stock, p.category_id,
+              p.purchase_price AS purchase_cost,
               COALESCE(
                 json_object_agg(sl.warehouse_id::text, sl.quantity)
                   FILTER (WHERE sl.warehouse_id IS NOT NULL),
@@ -3807,7 +3825,7 @@ router.get('/stock/matrix', authenticateToken, asyncHandler(async (req: AuthRequ
          ON sl.product_id = p.id
          AND sl.warehouse_id IN (SELECT id FROM warehouses WHERE restaurant_id = $1)
        WHERE p.restaurant_id = $1 AND p.active = TRUE
-       GROUP BY p.id, p.name, p.unit, p.min_stock, p.category_id
+       GROUP BY p.id, p.name, p.unit, p.min_stock, p.category_id, p.purchase_price
        ORDER BY p.name`,
       [restaurantId]
     ),
