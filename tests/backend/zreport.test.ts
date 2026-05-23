@@ -108,12 +108,14 @@ function setupComputeMocks(opts: {
   itemRows?: ReturnType<typeof mockItemQuery>['rows'];
   discountRows?: ReturnType<typeof mockDiscountQuery>['rows'];
   shiftOverrides?: Parameters<typeof mockShiftQuery>[0];
+  perWarehouseRows?: unknown[];
 } = {}) {
   mockPool.query
     .mockResolvedValueOnce(mockShiftQuery(opts.shiftOverrides))
     .mockResolvedValueOnce(mockOrderAggQuery(opts.orderRows ?? []))
     .mockResolvedValueOnce(mockItemQuery(opts.itemRows ?? []))
     .mockResolvedValueOnce(mockDiscountQuery(opts.discountRows ?? []))
+    .mockResolvedValueOnce({ rows: opts.perWarehouseRows ?? [] }) // Q5: per_warehouse
 }
 
 beforeEach(() => {

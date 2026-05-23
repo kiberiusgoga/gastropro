@@ -150,6 +150,76 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
             <Row label="Вкупно гости" value={String(z.totals.guest_count)} />
           </Section>
 
+          {/* ── Per-location breakdown (informational, screen-only) ── */}
+          {z.per_warehouse && z.per_warehouse.length > 0 && (
+            <div className="print:hidden">
+              <Section title={t('per_warehouse_breakdown')}>
+                <p className="text-xs text-cream-faint mb-3">{t('revenue_by_location')}</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-[10px] font-black uppercase tracking-widest text-cream-faint border-b border-warm-line">
+                        <th className="text-left pb-2">{t('location')}</th>
+                        <th className="text-right pb-2">{t('orders')}</th>
+                        <th className="text-right pb-2">{t('subtotal_gross')}</th>
+                        <th className="text-right pb-2">{t('net_revenue')}</th>
+                        <th className="text-right pb-2">{t('percent_of_total')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const totalSubtotal = z.per_warehouse!.reduce((s, w) => s + w.subtotal, 0);
+                        return z.per_warehouse!.map(w => {
+                          const pct = totalSubtotal > 0 ? (w.subtotal / totalSubtotal) * 100 : 0;
+                          return (
+                            <tr key={w.warehouse_id} className="border-b border-warm-line/50 last:border-0">
+                              <td className="py-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-cream-muted">{w.warehouse_name}</span>
+                                  {w.is_main && (
+                                    <span className="bg-accent/15 text-accent-light text-[10px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
+                                      Main
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2 text-right text-cream">{w.order_count}</td>
+                              <td className="py-2 text-right text-cream-muted">{fmt(w.subtotal)} ден.</td>
+                              <td className="py-2 text-right text-cream font-black">{fmt(w.net_revenue)} ден.</td>
+                              <td className="py-2 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-16 h-1.5 bg-surface-2 rounded-full overflow-hidden">
+                                    <div className="h-full bg-accent rounded-full" style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <span className="text-cream-faint text-xs w-10 text-right">{fmtPct(pct)}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-warm-line bg-surface-2/30">
+                        <td className="py-2 text-cream font-black">{t('total')}</td>
+                        <td className="py-2 text-right text-cream font-black">
+                          {z.per_warehouse!.reduce((s, w) => s + w.order_count, 0)}
+                        </td>
+                        <td className="py-2 text-right text-cream-muted">
+                          {fmt(z.per_warehouse!.reduce((s, w) => s + w.subtotal, 0))} ден.
+                        </td>
+                        <td className="py-2 text-right text-cream font-black">
+                          {fmt(z.per_warehouse!.reduce((s, w) => s + w.net_revenue, 0))} ден.
+                        </td>
+                        <td className="py-2 text-right text-cream-faint text-xs">100.0%</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </Section>
+            </div>
+          )}
+
           {/* ── VAT breakdown ── */}
           {z.vat_breakdown.length > 0 && (
             <Section title={t('vat_breakdown')}>

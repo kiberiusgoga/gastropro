@@ -492,6 +492,13 @@ const mk = {
   view_stock: 'Прегледај залиха',
   stock_critical_label: 'Критично',
   stock_alert_badge: 'Залиха алерти',
+  per_warehouse_breakdown: 'Поделба по локации',
+  revenue_by_location: 'Приход по локација во оваа смена',
+  location: 'Локација',
+  subtotal_gross: 'Бруто',
+  percent_of_total: '% од вкупно',
+  takeaway_delivery: 'За носење / Достава',
+  per_location_info: 'Информативно — не е дел од фискалниот извештај',
 };
 
 const en: Record<keyof typeof mk, string> = {
@@ -961,6 +968,13 @@ const en: Record<keyof typeof mk, string> = {
   view_stock: 'View Stock',
   stock_critical_label: 'Critical',
   stock_alert_badge: 'Stock alerts',
+  per_warehouse_breakdown: 'Per-Location Breakdown',
+  revenue_by_location: 'Revenue by location in this shift',
+  location: 'Location',
+  subtotal_gross: 'Gross',
+  percent_of_total: '% of Total',
+  takeaway_delivery: 'Takeaway / Delivery',
+  per_location_info: 'Informational — not part of the fiscal report',
 };
 
 const sq: Record<keyof typeof mk, string> = {
@@ -1430,6 +1444,13 @@ const sq: Record<keyof typeof mk, string> = {
   view_stock: 'Shiko stokun',
   stock_critical_label: 'Kritike',
   stock_alert_badge: 'Alarme stoku',
+  per_warehouse_breakdown: 'Ndarja sipas vendndodhjeve',
+  revenue_by_location: 'Të ardhura sipas vendndodhjes në këtë turn',
+  location: 'Vendndodhja',
+  subtotal_gross: 'Bruto',
+  percent_of_total: '% e totalit',
+  takeaway_delivery: 'Marrje / Dorëzim',
+  per_location_info: 'Informative — nuk është pjesë e raportit fiskal',
 };
 
 i18n

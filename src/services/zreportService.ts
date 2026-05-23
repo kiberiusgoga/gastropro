@@ -82,6 +82,17 @@ export interface ZReportData {
     cancelled_order_count: number;
     cancelled_value: number;
   };
+
+  // Per-location breakdown (informational, not legal/fiscal)
+  per_warehouse?: Array<{
+    warehouse_id: string;
+    warehouse_name: string;
+    is_main: boolean;
+    order_count: number;
+    subtotal: number;
+    vat_amount: number;
+    net_revenue: number;
+  }>;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -316,6 +327,51 @@ export async function computeZReport(
   const discountTotalAmount = round2(discountRows.reduce((s, r) => s + Number(r.total), 0));
   const discountApplicationCount = discountRows.reduce((s, r) => s + Number(r.cnt), 0);
 
+  // ── Q5: Per-warehouse revenue breakdown (informational) ───────────────────
+  // Routes paid orders through table → warehouse. Orders without a table
+  // (takeaway/delivery) appear as a separate 'no_table' row.
+  // VAT back-calculated assuming price_includes_vat (decimal rate, e.g. 0.10).
+  const perWarehouseRes = await pool.query<{
+    warehouse_id: string;
+    warehouse_name: string;
+    is_main: boolean;
+    order_count: string;
+    subtotal: string | null;
+    vat_amount: string | null;
+    net_revenue: string | null;
+  }>(
+    `SELECT
+       COALESCE(rt.warehouse_id::text, 'no_table') AS warehouse_id,
+       COALESCE(w.name, 'Takeaway/Delivery') AS warehouse_name,
+       COALESCE(w.is_main, FALSE) AS is_main,
+       COUNT(DISTINCT o.id) AS order_count,
+       SUM(oi.quantity * oi.price) AS subtotal,
+       SUM(oi.quantity * oi.price * COALESCE(oi.vat_rate, 0.10)
+           / (1 + COALESCE(oi.vat_rate, 0.10))) AS vat_amount,
+       SUM(oi.quantity * oi.price
+           / (1 + COALESCE(oi.vat_rate, 0.10))) AS net_revenue
+     FROM orders o
+     LEFT JOIN restaurant_tables rt ON rt.id = o.table_id
+     LEFT JOIN warehouses w ON w.id = rt.warehouse_id
+     LEFT JOIN order_items oi ON oi.order_id = o.id
+     WHERE o.shift_id = $1
+       AND o.restaurant_id = $2
+       AND o.status = 'paid'
+     GROUP BY rt.warehouse_id, w.name, w.is_main
+     ORDER BY w.is_main DESC NULLS LAST, w.name ASC NULLS LAST`,
+    [shiftId, restaurantId],
+  );
+
+  const perWarehouse = perWarehouseRes.rows.map(r => ({
+    warehouse_id: r.warehouse_id,
+    warehouse_name: r.warehouse_name,
+    is_main: r.is_main,
+    order_count: parseInt(r.order_count),
+    subtotal: round2(parseFloat(r.subtotal ?? '0')),
+    vat_amount: round2(parseFloat(r.vat_amount ?? '0')),
+    net_revenue: round2(parseFloat(r.net_revenue ?? '0')),
+  }));
+
   return {
     shift_id: shiftId,
     restaurant: {
@@ -368,5 +424,7 @@ export async function computeZReport(
       cancelled_order_count: cancelledOrderCount,
       cancelled_value: cancelledValue,
     },
+
+    per_warehouse: perWarehouse,
   };
 }
