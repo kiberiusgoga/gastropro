@@ -3810,6 +3810,34 @@ router.get('/stock/summary', authenticateToken, asyncHandler(async (req: AuthReq
   });
 }));
 
+// ── GET /stock/alerts ─────────────────────────────────────────────────────────
+router.get('/stock/alerts', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+
+  const [outRes, lowRes] = await Promise.all([
+    pool.query(
+      `SELECT p.id, p.name, p.unit, p.min_stock, sl.quantity::float, sl.warehouse_id, w.name AS warehouse_name
+       FROM stock_levels sl
+       JOIN products p ON p.id = sl.product_id
+       JOIN warehouses w ON w.id = sl.warehouse_id
+       WHERE p.restaurant_id = $1 AND sl.quantity = 0
+       ORDER BY p.name`,
+      [restaurantId],
+    ),
+    pool.query(
+      `SELECT p.id, p.name, p.unit, p.min_stock, sl.quantity::float, sl.warehouse_id, w.name AS warehouse_name
+       FROM stock_levels sl
+       JOIN products p ON p.id = sl.product_id
+       JOIN warehouses w ON w.id = sl.warehouse_id
+       WHERE p.restaurant_id = $1 AND sl.quantity > 0 AND sl.quantity <= p.min_stock
+       ORDER BY sl.quantity ASC, p.name`,
+      [restaurantId],
+    ),
+  ]);
+
+  res.json({ out_of_stock: outRes.rows, low_stock: lowRes.rows });
+}));
+
 // ── GET /stock/matrix ─────────────────────────────────────────────────────────
 router.get('/stock/matrix', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const restaurantId = req.user!.restaurantId;

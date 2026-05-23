@@ -40,7 +40,7 @@ export const ProductCombobox: React.FC<ProductComboboxProps> = ({
 
   const selected = products.find((p) => p.id === value);
   const filtered = search.trim()
-    ? products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    ? products.filter((p) => p.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
     : products;
 
   return (

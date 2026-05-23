@@ -486,6 +486,12 @@ const mk = {
   date_time: 'Датум',
   from_to: 'Од → До',
   by_user: 'Од',
+  out_of_stock_alert: 'Производи без залиха',
+  urgent_restock_needed: '{{count}} производи бараат итно дополнување',
+  login_stock_alert: 'Предупредување: {{count}} производи со критична залиха',
+  view_stock: 'Прегледај залиха',
+  stock_critical_label: 'Критично',
+  stock_alert_badge: 'Залиха алерти',
 };
 
 const en: Record<keyof typeof mk, string> = {
@@ -949,6 +955,12 @@ const en: Record<keyof typeof mk, string> = {
   date_time: 'Date',
   from_to: 'From → To',
   by_user: 'By',
+  out_of_stock_alert: 'Out of Stock Items',
+  urgent_restock_needed: '{{count}} items need urgent restocking',
+  login_stock_alert: 'Warning: {{count}} items with critical stock levels',
+  view_stock: 'View Stock',
+  stock_critical_label: 'Critical',
+  stock_alert_badge: 'Stock alerts',
 };
 
 const sq: Record<keyof typeof mk, string> = {
@@ -1412,6 +1424,12 @@ const sq: Record<keyof typeof mk, string> = {
   date_time: 'Data',
   from_to: 'Nga → Tek',
   by_user: 'Nga',
+  out_of_stock_alert: 'Produkte pa stok',
+  urgent_restock_needed: '{{count}} produkte kanë nevojë për rimbushje urgente',
+  login_stock_alert: 'Paralajmërim: {{count}} produkte me stok kritik',
+  view_stock: 'Shiko stokun',
+  stock_critical_label: 'Kritike',
+  stock_alert_badge: 'Alarme stoku',
 };
 
 i18n

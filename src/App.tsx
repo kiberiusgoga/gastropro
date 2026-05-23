@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { StoreProvider } from './store/StoreProvider';
 import { useStore } from './store/useStore';
 import Sidebar from './components/UI/Sidebar';
@@ -20,6 +20,7 @@ import OrdersView from './components/OrdersView';
 import SettingsPage from './pages/Settings/SettingsPage';
 import StockDashboard from './components/Stock/StockDashboard';
 import TransfersPage from './components/Transfers/TransfersPage';
+import { StockAlertsProvider, useStockAlerts } from './contexts/StockAlertsContext';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
@@ -40,6 +41,8 @@ const AppContent = () => {
   } = useStore();
 
   const { t } = useTranslation();
+  const { outOfStockCount, lowStockCount } = useStockAlerts();
+  const stockAlertCount = outOfStockCount + lowStockCount;
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -70,6 +73,24 @@ const AppContent = () => {
     };
     fetchSubAndFlags();
   }, [user?.restaurantId]);
+
+  // Login toast: fire once per session when stock alerts are found after login
+  const loginToastShown = useRef(false);
+  useEffect(() => {
+    if (user && !loginToastShown.current && stockAlertCount > 0) {
+      if (!sessionStorage.getItem('alerts_toast_shown')) {
+        loginToastShown.current = true;
+        sessionStorage.setItem('alerts_toast_shown', '1');
+        toast.warning(t('login_stock_alert', { count: stockAlertCount }), {
+          action: { label: t('view_stock'), onClick: () => setActiveTab('stock') },
+        });
+      }
+    }
+    if (!user) {
+      loginToastShown.current = false;
+      sessionStorage.removeItem('alerts_toast_shown');
+    }
+  }, [user, stockAlertCount, t]);
 
   const path = window.location.pathname;
   if (path === '/forgot-password') return <><Toaster position="top-right" richColors /><ForgotPasswordPage /></>;
@@ -167,6 +188,7 @@ const AppContent = () => {
           localStorage.setItem('darkMode', String(next));
         }}
         onLogout={() => setUser(null)}
+        stockAlertCount={stockAlertCount}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -225,7 +247,9 @@ const AppContent = () => {
 
 const App = () => (
   <StoreProvider>
-    <AppContent />
+    <StockAlertsProvider>
+      <AppContent />
+    </StockAlertsProvider>
   </StoreProvider>
 );
 

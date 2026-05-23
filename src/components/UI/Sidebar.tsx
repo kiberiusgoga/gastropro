@@ -27,6 +27,7 @@ interface SidebarProps {
   toggleDarkMode: () => void;
   onLogout: () => void;
   notificationCount?: number;
+  stockAlertCount?: number;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -38,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   toggleDarkMode,
   onLogout,
   notificationCount = 0,
+  stockAlertCount = 0,
   isOpen,
   onClose
 }) => {
@@ -65,9 +67,9 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: t('nav_management'),
       items: [
         { id: 'inventory', icon: Package, label: t('inventory') },
-        { id: 'stock', icon: BarChart3, label: t('stock_dashboard') },
+        { id: 'stock', icon: BarChart3, label: t('stock_dashboard'), badge: stockAlertCount > 0 ? stockAlertCount : undefined, badgeVariant: 'rose' as const },
         { id: 'transfers', icon: ArrowRightLeft, label: t('transfers_sidebar') },
-        { id: 'staff', icon: UserCog, label: t('staff'), badge: notificationCount > 0 ? notificationCount : undefined },
+        { id: 'staff', icon: UserCog, label: t('staff'), badge: notificationCount > 0 ? notificationCount : undefined, badgeVariant: 'accent' as const },
         { id: 'crm', icon: Heart, label: t('crm') },
         { id: 'billing', icon: CreditCard, label: t('billing') },
         { id: 'settings', icon: Settings, label: t('settings') },
@@ -137,7 +139,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                       )}
 
                       {item.badge && (
-                        <span className="relative z-10 bg-accent text-[#faf5ee] text-[10px] font-black px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-card">
+                        <span className={`relative z-10 text-[10px] font-black px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-card ${
+                          item.badgeVariant === 'rose'
+                            ? 'bg-rose-500 text-white'
+                            : 'bg-accent text-[#faf5ee]'
+                        }`}>
                           {item.badge}
                         </span>
                       )}

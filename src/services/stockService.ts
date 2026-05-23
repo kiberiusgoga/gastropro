@@ -75,7 +75,11 @@ export async function updateStock(
   }
 
   if (newQuantity < 0 && !options?.allowNegative) {
-    throw new ValidationError(`Insufficient stock for product ${productId}`);
+    const pResult = await client.query('SELECT name FROM products WHERE id = $1', [productId]);
+    const productName = pResult.rows[0]?.name ?? productId;
+    throw new ValidationError(
+      `Insufficient stock for "${productName}": available ${previousQuantity}, requested ${movementQty}`,
+    );
   }
 
   // Write to stock_levels — trigger trg_stock_levels_sync_current_stock

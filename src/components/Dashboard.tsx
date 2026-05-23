@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { cn } from '../utils/cn';
+import { CriticalAlertsSection } from './Dashboard/CriticalAlertsSection';
 import { seedService } from '../services/seedService';
 import { analyticsService } from '../services/analyticsService';
 
@@ -150,6 +151,9 @@ const Dashboard = () => {
           </button>
         )}
       </div>
+
+      {/* ── Critical Stock Alerts ── */}
+      <CriticalAlertsSection />
 
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
