@@ -988,55 +988,8 @@ router.get('/transfers', authenticateToken, asyncHandler(async (req: AuthRequest
 
 // --- INVENTORY TRANSACTION ENGINE ---
 // updateStock() is defined in ./services/stockService and imported above.
-
-// Deducts or restores inventory for all menu items in an order that have a bundle (normative) defined.
-// direction='deduct' → called on order creation; direction='storno' → called on order cancellation.
-async function applyOrderInventory(
-  client: { query: (text: string, params?: unknown[]) => Promise<{rowCount: number | null, rows: any[]}> },
-  orderId: string,
-  direction: 'deduct' | 'storno',
-  userId: string,
-  restaurantId: string
-) {
-  const itemsRes = await client.query(
-    `SELECT oi.quantity, mi.bundle_id
-     FROM order_items oi
-     JOIN menu_items mi ON oi.menu_item_id = mi.id
-     WHERE oi.order_id = $1 AND mi.bundle_id IS NOT NULL`,
-    [orderId]
-  );
-
-  if (!itemsRes.rowCount || itemsRes.rowCount === 0) return;
-
-  // Only look up warehouse when there are bundles to process.
-  const mwRes = await client.query(
-    'SELECT id FROM warehouses WHERE restaurant_id = $1 AND is_main = TRUE',
-    [restaurantId],
-  );
-  if (!mwRes.rows[0]) throw new Error('No main warehouse found for restaurant');
-  const mainWarehouseId: string = mwRes.rows[0].id;
-
-  for (const oi of itemsRes.rows) {
-    const bundleItemsRes = await client.query(
-      'SELECT product_id, quantity FROM bundle_items WHERE bundle_id = $1',
-      [oi.bundle_id]
-    );
-
-    for (const bi of bundleItemsRes.rows) {
-      const qty = Number(bi.quantity) * Number(oi.quantity);
-      const type = direction === 'deduct' ? 'output_manual' : 'storno';
-      const note = direction === 'deduct'
-        ? `Нарачка #${orderId.slice(0, 8)}`
-        : `Сторно нарачка #${orderId.slice(0, 8)}`;
-      try {
-        await updateStock(client, bi.product_id, mainWarehouseId, type, qty, userId, restaurantId, note, orderId, { referenceType: 'manual' });
-      } catch {
-        // Log but never block the order — stock deficit is visible in inventory, not a hard stop
-        logger.warn(`Inventory ${direction} skipped`, { productId: bi.product_id, orderId });
-      }
-    }
-  }
-}
+// Real-time stock deduction fires in PUT /orders/:id/items/:itemId via
+// deductForOrderItem (reads recipe_ingredients, triggers on item 'ready').
 
 // --- TENANT OWNERSHIP GUARD ---
 
@@ -2530,8 +2483,6 @@ router.post('/orders', authenticateToken, asyncHandler(async (req: AuthRequest, 
       await client.query("UPDATE restaurant_tables SET status = 'occupied' WHERE id = $1 AND restaurant_id = $2", [table_id, req.user?.restaurantId]);
     }
 
-    await applyOrderInventory(client, order.id, 'deduct', req.user?.id || '', req.user?.restaurantId || '');
-
     await client.query('COMMIT');
 
     sseBroadcast(req.user?.restaurantId || '', 'orders_updated', { type: 'created', orderId: order.id });
@@ -2577,11 +2528,6 @@ router.put('/orders/:id', authenticateToken, asyncHandler(async (req: AuthReques
       if (openOrdersRes.rowCount === 0) {
         await client.query("UPDATE restaurant_tables SET status = 'free' WHERE id = $1 AND restaurant_id = $2", [result.rows[0].table_id, req.user?.restaurantId]);
       }
-    }
-
-    // Restore inventory when order is cancelled (storno for all bundle-linked items)
-    if (status === 'cancelled') {
-      await applyOrderInventory(client, req.params.id, 'storno', req.user?.id || '', req.user?.restaurantId || '');
     }
 
     await client.query('COMMIT');
