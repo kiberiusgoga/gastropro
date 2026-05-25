@@ -93,6 +93,20 @@ export interface ZReportData {
     vat_amount: number;
     net_revenue: number;
   }>;
+
+  // Non-fiscal B2B invoices (parallel section — not added to fiscal totals)
+  non_fiscal_sales?: {
+    order_linked: {
+      count: number;
+      total_amount: number;
+      total_vat: number;
+      total_subtotal: number;
+    };
+    standalone: {
+      count: number;
+      total_amount: number;
+    };
+  };
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -372,6 +386,42 @@ export async function computeZReport(
     net_revenue: round2(parseFloat(r.net_revenue ?? '0')),
   }));
 
+  // ── Non-fiscal B2B invoices (parallel, not fiscal) ────────────────────────
+  const [nonFiscalLinkedRes, nonFiscalStandaloneRes] = await Promise.all([
+    pool.query(
+      `SELECT COUNT(DISTINCT nfi.id) AS count,
+              COALESCE(SUM(nfi.total_amount), 0) AS total_amount,
+              COALESCE(SUM(nfi.vat_amount), 0) AS total_vat,
+              COALESCE(SUM(nfi.subtotal), 0) AS total_subtotal
+       FROM non_fiscal_invoices nfi
+       JOIN orders o ON o.non_fiscal_invoice_id = nfi.id
+       WHERE o.shift_id = $1 AND o.restaurant_id = $2`,
+      [shiftId, restaurantId],
+    ),
+    pool.query(
+      `SELECT COUNT(*) AS count,
+              COALESCE(SUM(total_amount), 0) AS total_amount
+       FROM non_fiscal_invoices
+       WHERE restaurant_id = $1
+         AND order_id IS NULL
+         AND issue_date::date = (SELECT start_time::date FROM shifts WHERE id = $2)`,
+      [restaurantId, shiftId],
+    ),
+  ]);
+
+  const nonFiscalSales = {
+    order_linked: {
+      count: parseInt(nonFiscalLinkedRes.rows[0].count),
+      total_amount: round2(parseFloat(nonFiscalLinkedRes.rows[0].total_amount)),
+      total_vat: round2(parseFloat(nonFiscalLinkedRes.rows[0].total_vat)),
+      total_subtotal: round2(parseFloat(nonFiscalLinkedRes.rows[0].total_subtotal)),
+    },
+    standalone: {
+      count: parseInt(nonFiscalStandaloneRes.rows[0].count),
+      total_amount: round2(parseFloat(nonFiscalStandaloneRes.rows[0].total_amount)),
+    },
+  };
+
   return {
     shift_id: shiftId,
     restaurant: {
@@ -426,5 +476,6 @@ export async function computeZReport(
     },
 
     per_warehouse: perWarehouse,
+    non_fiscal_sales: nonFiscalSales,
   };
 }

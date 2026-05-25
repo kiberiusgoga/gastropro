@@ -18,6 +18,7 @@ import { logAuthEvent } from './services/authAudit';
 import { checkPasswordChangeRequired } from './middleware/passwordChangeRequired';
 import { issueTokenPair, rotateToken, revokeAllForUser } from './services/refreshTokenService';
 import { sendEmail } from './services/emailService';
+import nodemailer from 'nodemailer';
 import { computeZReport } from './services/zreportService';
 import { requireActiveShift } from './utils/shiftValidator';
 import { getImageStorage } from './services/imageStorage';
@@ -206,11 +207,14 @@ router.put('/restaurants/:id', authenticateToken, asyncHandler(async (req: AuthR
   if (req.params.id !== req.user?.restaurantId) {
     throw new AuthenticationError('Unauthorized access to restaurant');
   }
-  const { name, address, phone, tax_number, currency, timezone } = req.body;
+  const { name, address, phone, tax_number, currency, timezone, edb, bank_account, city, postal_code } = req.body;
   const result = await pool.query(
-    `UPDATE restaurants SET name=$1, address=$2, phone=$3, tax_number=$4, currency=$5, timezone=$6
-     WHERE id=$7 RETURNING *`,
-    [name, address ?? null, phone ?? null, tax_number ?? null, currency ?? 'MKD', timezone ?? 'Europe/Skopje', req.params.id],
+    `UPDATE restaurants
+     SET name=$1, address=$2, phone=$3, tax_number=$4, currency=$5, timezone=$6,
+         edb=$7, bank_account=$8, city=$9, postal_code=$10
+     WHERE id=$11 RETURNING *`,
+    [name, address ?? null, phone ?? null, tax_number ?? null, currency ?? 'MKD', timezone ?? 'Europe/Skopje',
+     edb ?? null, bank_account ?? null, city ?? null, postal_code ?? null, req.params.id],
   );
   if (result.rowCount === 0) throw new NotFoundError('Restaurant not found');
   res.json(result.rows[0]);
@@ -2903,6 +2907,11 @@ router.post('/shifts/:id/close', authenticateToken, asyncHandler(async (req: Aut
   });
 
   res.json({ shift_id: shiftId, zreport });
+
+  // Fire-and-forget auto-send supplier emails if configured (does not block response)
+  void queueSupplierEmails(shiftId, req.user!.restaurantId).catch(err =>
+    console.error('[EMAIL] Auto-send queue error:', err.message),
+  );
 }));
 
 // GET /shifts/:id/preview — same computation as close but does NOT persist; for pre-close display
@@ -3835,6 +3844,775 @@ router.get('/stock/matrix', authenticateToken, asyncHandler(async (req: AuthRequ
     warehouses: warehouseRes.rows,
     products:   productRes.rows,
   });
+}));
+
+// ── Companies ────────────────────────────────────────────────────────────────
+
+router.get('/companies', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const result = await pool.query(
+    `SELECT c.*,
+            COUNT(nfi.id) FILTER (WHERE nfi.status != 'cancelled') AS invoice_count
+     FROM companies c
+     LEFT JOIN non_fiscal_invoices nfi ON nfi.company_id = c.id
+     WHERE c.restaurant_id = $1 AND c.deleted_at IS NULL
+     GROUP BY c.id
+     ORDER BY c.name`,
+    [req.user!.restaurantId],
+  );
+  res.json(result.rows);
+}));
+
+router.post('/companies', authenticateToken, authorizeRole(['Admin', 'Manager']),
+  asyncHandler(async (req: AuthRequest, res) => {
+    const schema = z.object({
+      name:               z.string().min(2),
+      tin:                z.string().length(13).regex(/^\d+$/, 'TIN must be 13 digits'),
+      embs:               z.string().optional(),
+      address:            z.string().optional(),
+      city:               z.string().optional(),
+      postal_code:        z.string().optional(),
+      contact_person:     z.string().optional(),
+      email:              z.string().email().optional().or(z.literal('')),
+      phone:              z.string().optional(),
+      bank_account:       z.string().optional(),
+      payment_terms_days: z.number().int().min(1).max(365).default(15),
+      notes:              z.string().optional(),
+    });
+    const d = schema.parse(req.body);
+    const result = await pool.query(
+      `INSERT INTO companies
+         (restaurant_id, name, tin, embs, address, city, postal_code,
+          contact_person, email, phone, bank_account, payment_terms_days, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       RETURNING *`,
+      [req.user!.restaurantId, d.name, d.tin, d.embs ?? null, d.address ?? null,
+       d.city ?? null, d.postal_code ?? null, d.contact_person ?? null,
+       d.email || null, d.phone ?? null, d.bank_account ?? null,
+       d.payment_terms_days, d.notes ?? null],
+    );
+    res.status(201).json(result.rows[0]);
+  }),
+);
+
+router.put('/companies/:id', authenticateToken, authorizeRole(['Admin', 'Manager']),
+  asyncHandler(async (req: AuthRequest, res) => {
+    const schema = z.object({
+      name:               z.string().min(2),
+      tin:                z.string().length(13).regex(/^\d+$/, 'TIN must be 13 digits'),
+      embs:               z.string().optional(),
+      address:            z.string().optional(),
+      city:               z.string().optional(),
+      postal_code:        z.string().optional(),
+      contact_person:     z.string().optional(),
+      email:              z.string().email().optional().or(z.literal('')),
+      phone:              z.string().optional(),
+      bank_account:       z.string().optional(),
+      payment_terms_days: z.number().int().min(1).max(365),
+      notes:              z.string().optional(),
+    });
+    const d = schema.parse(req.body);
+    const result = await pool.query(
+      `UPDATE companies
+       SET name=$1, tin=$2, embs=$3, address=$4, city=$5, postal_code=$6,
+           contact_person=$7, email=$8, phone=$9, bank_account=$10,
+           payment_terms_days=$11, notes=$12, updated_at=NOW()
+       WHERE id=$13 AND restaurant_id=$14 AND deleted_at IS NULL
+       RETURNING *`,
+      [d.name, d.tin, d.embs ?? null, d.address ?? null, d.city ?? null,
+       d.postal_code ?? null, d.contact_person ?? null, d.email || null,
+       d.phone ?? null, d.bank_account ?? null, d.payment_terms_days,
+       d.notes ?? null, req.params.id, req.user!.restaurantId],
+    );
+    if (result.rowCount === 0) throw new NotFoundError('Company not found');
+    res.json(result.rows[0]);
+  }),
+);
+
+router.delete('/companies/:id', authenticateToken, authorizeRole(['Admin', 'Manager']),
+  asyncHandler(async (req: AuthRequest, res) => {
+    const inv = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM non_fiscal_invoices
+       WHERE company_id=$1 AND status != 'cancelled'`,
+      [req.params.id],
+    );
+    if (parseInt(inv.rows[0].cnt) > 0) {
+      throw new ValidationError(`Cannot delete — company has ${inv.rows[0].cnt} active invoices`);
+    }
+    const result = await pool.query(
+      `UPDATE companies SET deleted_at=NOW(), updated_at=NOW()
+       WHERE id=$1 AND restaurant_id=$2 AND deleted_at IS NULL`,
+      [req.params.id, req.user!.restaurantId],
+    );
+    if (result.rowCount === 0) throw new NotFoundError('Company not found');
+    res.status(204).send();
+  }),
+);
+
+// ── Non-fiscal invoices ───────────────────────────────────────────────────────
+
+async function generateInvoiceNumber(client: PoolClient, restaurantId: string): Promise<string> {
+  const year = new Date().getFullYear();
+  const result = await client.query(
+    `SELECT COUNT(*) AS count FROM non_fiscal_invoices
+     WHERE restaurant_id=$1 AND EXTRACT(YEAR FROM issue_date)=$2`,
+    [restaurantId, year],
+  );
+  const sequential = parseInt(result.rows[0].count) + 1;
+  return `NF-${year}-${sequential.toString().padStart(4, '0')}`;
+}
+
+router.get('/non-fiscal-invoices', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { status, company_id, from, to } = req.query as Record<string, string>;
+  const conditions: string[] = ['nfi.restaurant_id = $1'];
+  const params: unknown[] = [req.user!.restaurantId];
+  let i = 2;
+
+  if (status && status !== 'all') {
+    if (status === 'overdue') {
+      conditions.push(`(nfi.status = 'pending' AND nfi.due_date < CURRENT_DATE)`);
+    } else {
+      conditions.push(`nfi.status = $${i++}`);
+      params.push(status);
+    }
+  }
+  if (company_id) { conditions.push(`nfi.company_id = $${i++}`); params.push(company_id); }
+  if (from)       { conditions.push(`nfi.issue_date >= $${i++}`); params.push(from); }
+  if (to)         { conditions.push(`nfi.issue_date <= $${i++}`); params.push(to); }
+
+  const result = await pool.query(
+    `SELECT nfi.*,
+            CASE WHEN nfi.status = 'pending' AND nfi.due_date < CURRENT_DATE
+                 THEN 'overdue' ELSE nfi.status END AS computed_status,
+            c.name AS company_name, c.tin AS company_tin
+     FROM non_fiscal_invoices nfi
+     JOIN companies c ON c.id = nfi.company_id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY nfi.issue_date DESC, nfi.created_at DESC`,
+    params,
+  );
+  res.json(result.rows);
+}));
+
+router.get('/non-fiscal-invoices/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const [inv, items] = await Promise.all([
+    pool.query(
+      `SELECT nfi.*,
+              CASE WHEN nfi.status = 'pending' AND nfi.due_date < CURRENT_DATE
+                   THEN 'overdue' ELSE nfi.status END AS computed_status,
+              c.name AS company_name, c.tin AS company_tin,
+              c.address AS company_address, c.city AS company_city,
+              c.bank_account AS company_bank_account,
+              r.name AS restaurant_name, r.address AS restaurant_address,
+              r.tax_number AS restaurant_tax_number,
+              r.edb AS restaurant_edb, r.bank_account AS restaurant_bank_account,
+              r.city AS restaurant_city
+       FROM non_fiscal_invoices nfi
+       JOIN companies c ON c.id = nfi.company_id
+       JOIN restaurants r ON r.id = nfi.restaurant_id
+       WHERE nfi.id=$1 AND nfi.restaurant_id=$2`,
+      [req.params.id, req.user!.restaurantId],
+    ),
+    pool.query(
+      `SELECT * FROM non_fiscal_invoice_items WHERE invoice_id=$1 ORDER BY id`,
+      [req.params.id],
+    ),
+  ]);
+  if (!inv.rows.length) throw new NotFoundError('Invoice not found');
+  res.json({ ...inv.rows[0], items: items.rows });
+}));
+
+router.post('/non-fiscal-invoices', authenticateToken, authorizeRole(['Admin', 'Manager', 'Waiter']),
+  asyncHandler(async (req: AuthRequest, res) => {
+    const schema = z.object({
+      company_id:  z.string().uuid(),
+      order_id:    z.string().uuid().optional(),
+      due_date:    z.string(),
+      vat_rate:    z.number().min(0).max(100).default(18),
+      notes:       z.string().optional(),
+      items: z.array(z.object({
+        name:       z.string().min(1),
+        quantity:   z.number().positive(),
+        unit_price: z.number().nonnegative(),
+        vat_rate:   z.number().min(0).max(100).optional(),
+      })).min(1),
+    });
+    const d = schema.parse(req.body);
+    const restaurantId = req.user!.restaurantId;
+
+    // Validate restaurant has billing fields
+    const restRes = await pool.query(
+      `SELECT name, edb, bank_account FROM restaurants WHERE id=$1`,
+      [restaurantId],
+    );
+    const rest = restRes.rows[0];
+    if (!rest.edb || !rest.bank_account) {
+      throw new ValidationError('Restaurant billing profile incomplete — set EDB and bank account in Settings');
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const invoiceNumber = await generateInvoiceNumber(client, restaurantId);
+
+      const subtotal = d.items.reduce((s, it) => s + it.quantity * it.unit_price, 0);
+      const vatAmount = Math.round(subtotal * (d.vat_rate / 100) * 100) / 100;
+      const totalAmount = Math.round((subtotal + vatAmount) * 100) / 100;
+
+      const invRes = await client.query(
+        `INSERT INTO non_fiscal_invoices
+           (restaurant_id, invoice_number, due_date, company_id, order_id,
+            subtotal, vat_rate, vat_amount, total_amount, notes, created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         RETURNING *`,
+        [restaurantId, invoiceNumber, d.due_date, d.company_id, d.order_id ?? null,
+         subtotal, d.vat_rate, vatAmount, totalAmount, d.notes ?? null, req.user!.id],
+      );
+      const invoice = invRes.rows[0];
+
+      for (const it of d.items) {
+        const lineVat = it.vat_rate ?? d.vat_rate;
+        await client.query(
+          `INSERT INTO non_fiscal_invoice_items
+             (invoice_id, restaurant_id, name, quantity, unit_price, vat_rate, total)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [invoice.id, restaurantId, it.name, it.quantity, it.unit_price,
+           lineVat, Math.round(it.quantity * it.unit_price * 100) / 100],
+        );
+      }
+
+      if (d.order_id) {
+        await client.query(
+          `UPDATE orders
+           SET payment_type='non_fiscal', non_fiscal_invoice_id=$1, status='paid'
+           WHERE id=$2 AND restaurant_id=$3`,
+          [invoice.id, d.order_id, restaurantId],
+        );
+      }
+
+      await client.query('COMMIT');
+      res.status(201).json(invoice);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+router.post('/non-fiscal-invoices/:id/mark-paid', authenticateToken,
+  authorizeRole(['Admin', 'Manager']),
+  asyncHandler(async (req: AuthRequest, res) => {
+    const schema = z.object({
+      paid_amount:    z.number().positive(),
+      paid_method:    z.enum(['bank_transfer', 'cash', 'other']),
+      paid_reference: z.string().optional(),
+      paid_at:        z.string().datetime().optional(),
+    });
+    const data = schema.parse(req.body);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const inv = await client.query(
+        `SELECT id, status, total_amount FROM non_fiscal_invoices
+         WHERE id=$1 AND restaurant_id=$2 FOR UPDATE`,
+        [req.params.id, req.user!.restaurantId],
+      );
+      if (!inv.rows.length) throw new NotFoundError('Invoice not found');
+      if (inv.rows[0].status === 'paid') throw new ValidationError('Invoice already paid');
+      if (inv.rows[0].status === 'cancelled') throw new ValidationError('Cannot mark cancelled invoice as paid');
+
+      const result = await client.query(
+        `UPDATE non_fiscal_invoices
+         SET status='paid', paid_at=COALESCE($2,NOW()), paid_amount=$3,
+             paid_method=$4, paid_reference=$5, updated_at=NOW()
+         WHERE id=$1
+         RETURNING *`,
+        [req.params.id, data.paid_at ?? null, data.paid_amount, data.paid_method,
+         data.paid_reference ?? null],
+      );
+      await client.query('COMMIT');
+      res.json(result.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+router.post('/non-fiscal-invoices/:id/cancel', authenticateToken,
+  authorizeRole(['Admin', 'Manager']),
+  asyncHandler(async (req: AuthRequest, res) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const inv = await client.query(
+        `SELECT id, status, order_id FROM non_fiscal_invoices
+         WHERE id=$1 AND restaurant_id=$2 FOR UPDATE`,
+        [req.params.id, req.user!.restaurantId],
+      );
+      if (!inv.rows.length) throw new NotFoundError('Invoice not found');
+      if (inv.rows[0].status !== 'pending') {
+        throw new ValidationError('Only pending invoices can be cancelled');
+      }
+
+      if (inv.rows[0].order_id) {
+        await client.query(
+          `UPDATE orders
+           SET payment_type='fiscal', non_fiscal_invoice_id=NULL, status='open'
+           WHERE id=$1`,
+          [inv.rows[0].order_id],
+        );
+      }
+
+      await client.query(
+        `UPDATE non_fiscal_invoices SET status='cancelled', updated_at=NOW() WHERE id=$1`,
+        [req.params.id],
+      );
+      await client.query('COMMIT');
+      res.status(204).send();
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }),
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUPPLIER CONSUMPTION & EMAILS (Feature 4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SupplierConsumptionRow {
+  supplier_id: string;
+  supplier_name: string;
+  supplier_email: string | null;
+  contact_person: string | null;
+  product_count: number;
+  total_value: number;
+  products: Array<{
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+    total: number;
+  }>;
+}
+
+async function getSupplierConsumption(
+  shiftId: string,
+  restaurantId: string,
+): Promise<SupplierConsumptionRow[]> {
+  const res = await pool.query(
+    `WITH product_consumption AS (
+       SELECT
+         p.id                AS product_id,
+         p.name              AS product_name,
+         COALESCE(p.unit,'бр') AS unit,
+         COALESCE(p.purchase_price,0) AS unit_price,
+         p.supplier_id,
+         SUM(t.quantity)                       AS total_quantity,
+         SUM(t.quantity * COALESCE(p.purchase_price,0)) AS total_value
+       FROM transactions t
+       JOIN products p ON p.id = t.product_id AND p.supplier_id IS NOT NULL
+       JOIN shifts sh   ON sh.id = $1
+       WHERE t.type IN ('output_sale','output_manual')
+         AND t.restaurant_id = $2
+         AND t.created_at >= sh.start_time
+         AND t.created_at <= COALESCE(sh.end_time, NOW())
+       GROUP BY p.id, p.name, p.unit, p.purchase_price, p.supplier_id
+     )
+     SELECT
+       s.id                        AS supplier_id,
+       s.name                      AS supplier_name,
+       s.email                     AS supplier_email,
+       s.contact_person,
+       COUNT(pc.product_id)::int   AS product_count,
+       COALESCE(SUM(pc.total_value),0)::float AS total_value,
+       JSON_AGG(
+         JSON_BUILD_OBJECT(
+           'product_id',   pc.product_id,
+           'product_name', pc.product_name,
+           'quantity',     pc.total_quantity::float,
+           'unit',         pc.unit,
+           'unit_price',   pc.unit_price::float,
+           'total',        pc.total_value::float
+         ) ORDER BY pc.product_name
+       ) AS products
+     FROM product_consumption pc
+     JOIN suppliers s ON s.id = pc.supplier_id
+     WHERE s.restaurant_id = $2
+     GROUP BY s.id, s.name, s.email, s.contact_person
+     ORDER BY s.name`,
+    [shiftId, restaurantId],
+  );
+  return res.rows;
+}
+
+interface EmailSettingsRow {
+  smtp_host: string | null;
+  smtp_port: number;
+  smtp_user: string | null;
+  smtp_pass: string | null;
+  smtp_from: string | null;
+  auto_send_on_z_close: boolean;
+  subject_template: string;
+  body_template: string | null;
+}
+
+async function getEmailSettings(restaurantId: string): Promise<EmailSettingsRow | null> {
+  const res = await pool.query(
+    'SELECT * FROM email_settings WHERE restaurant_id = $1',
+    [restaurantId],
+  );
+  return res.rows[0] ?? null;
+}
+
+const DEFAULT_SUBJECT = 'Дневна потрошувачка — {date} — {restaurant_name}';
+const DEFAULT_BODY =
+  'Почитуван/а {contact_person},\n\nВе информираме за дневната потрошувачка за денот {date}.\n\n{products_table}\n\nВкупна вредност: {total_value} ден.\n\nСо почит,\n{restaurant_name}';
+
+function generateEmailContent(
+  supplier: SupplierConsumptionRow,
+  restaurantName: string,
+  settings: EmailSettingsRow | null,
+  shiftDate: string,
+): { subject: string; text: string; html: string } {
+  const fmt = (n: number) =>
+    n.toLocaleString('mk-MK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const subjectTpl = settings?.subject_template || DEFAULT_SUBJECT;
+  const bodyTpl = settings?.body_template || DEFAULT_BODY;
+
+  const productsHtml = `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-family:Arial,sans-serif">
+  <thead style="background:#f0f0f0">
+    <tr>
+      <th style="text-align:left">Производ</th>
+      <th style="text-align:right">Количина</th>
+      <th style="text-align:center">Единица</th>
+      <th style="text-align:right">Цена/ед.</th>
+      <th style="text-align:right">Вредност</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${supplier.products
+      .map(
+        p => `<tr>
+      <td>${p.product_name}</td>
+      <td style="text-align:right">${p.quantity}</td>
+      <td style="text-align:center">${p.unit}</td>
+      <td style="text-align:right">${fmt(p.unit_price)} ден.</td>
+      <td style="text-align:right">${fmt(p.total)} ден.</td>
+    </tr>`,
+      )
+      .join('\n')}
+  </tbody>
+  <tfoot>
+    <tr style="background:#f0f0f0">
+      <td colspan="4"><strong>Вкупно</strong></td>
+      <td style="text-align:right"><strong>${fmt(supplier.total_value)} ден.</strong></td>
+    </tr>
+  </tfoot>
+</table>`;
+
+  const productsText = [
+    'Производ                   Количина  Единица    Цена/ед.        Вредност',
+    '─'.repeat(75),
+    ...supplier.products.map(p =>
+      `${p.product_name.substring(0, 26).padEnd(26)} ${String(p.quantity).padStart(8)}  ${p.unit.padEnd(8)} ${fmt(p.unit_price).padStart(12)} ден.  ${fmt(p.total).padStart(12)} ден.`,
+    ),
+    '─'.repeat(75),
+    `${'Вкупно'.padEnd(48)}${fmt(supplier.total_value).padStart(12)} ден.`,
+  ].join('\n');
+
+  const replacePlaceholders = (tpl: string, html: boolean) =>
+    tpl
+      .replace(/{date}/g, shiftDate)
+      .replace(/{restaurant_name}/g, restaurantName)
+      .replace(/{supplier_name}/g, supplier.supplier_name)
+      .replace(/{total_value}/g, fmt(supplier.total_value))
+      .replace(/{contact_person}/g, supplier.contact_person || supplier.supplier_name)
+      .replace(/{products_table}/g, html ? productsHtml : productsText);
+
+  const subject = subjectTpl
+    .replace(/{date}/g, shiftDate)
+    .replace(/{restaurant_name}/g, restaurantName)
+    .replace(/{supplier_name}/g, supplier.supplier_name);
+
+  const text = replacePlaceholders(bodyTpl, false);
+  const html = `<html><body style="font-family:Arial,sans-serif;color:#333;max-width:800px">${replacePlaceholders(bodyTpl.replace(/\n/g, '<br>'), true)}</body></html>`;
+
+  return { subject, text, html };
+}
+
+async function sendOneSupplierEmail(
+  shiftId: string,
+  restaurantId: string,
+  supplier: SupplierConsumptionRow,
+  settings: EmailSettingsRow | null,
+  restaurantName: string,
+  shiftDate: string,
+): Promise<{ logId: string; status: 'sent' | 'failed' | 'manual' }> {
+  const { subject, text, html } = generateEmailContent(supplier, restaurantName, settings, shiftDate);
+
+  let status: 'sent' | 'failed' | 'manual' = 'manual';
+  let errorMessage: string | null = null;
+
+  if (supplier.supplier_email && settings?.smtp_host) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: settings.smtp_host,
+        port: settings.smtp_port ?? 587,
+        secure: (settings.smtp_port ?? 587) === 465,
+        auth: settings.smtp_user
+          ? { user: settings.smtp_user, pass: settings.smtp_pass ?? undefined }
+          : undefined,
+      });
+      await transporter.sendMail({
+        from: settings.smtp_from || 'GastroPro <noreply@gastropro.mk>',
+        to: supplier.supplier_email,
+        subject,
+        text,
+        html,
+      });
+      status = 'sent';
+    } catch (err: any) {
+      status = 'failed';
+      errorMessage = err.message?.slice(0, 500) ?? 'Unknown error';
+    }
+  }
+
+  const logRes = await pool.query(
+    `INSERT INTO supplier_email_log
+       (restaurant_id, supplier_id, supplier_name, supplier_email, shift_id, subject, body, status, error_message, sent_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     RETURNING id`,
+    [
+      restaurantId,
+      supplier.supplier_id,
+      supplier.supplier_name,
+      supplier.supplier_email,
+      shiftId,
+      subject,
+      text,
+      status,
+      errorMessage,
+      status === 'sent' ? new Date().toISOString() : null,
+    ],
+  );
+  return { logId: logRes.rows[0].id, status };
+}
+
+async function queueSupplierEmails(shiftId: string, restaurantId: string): Promise<void> {
+  const settings = await getEmailSettings(restaurantId);
+  if (!settings?.auto_send_on_z_close) return;
+
+  const shiftRes = await pool.query(
+    `SELECT r.name, COALESCE(s.end_time, NOW()) AS shift_date
+     FROM shifts s JOIN restaurants r ON r.id = s.restaurant_id
+     WHERE s.id = $1`,
+    [shiftId],
+  );
+  if (!shiftRes.rows.length) return;
+
+  const { name: restaurantName, shift_date } = shiftRes.rows[0];
+  const shiftDate = new Date(shift_date).toLocaleDateString('mk-MK');
+
+  const consumption = await getSupplierConsumption(shiftId, restaurantId);
+  for (const supplier of consumption) {
+    await sendOneSupplierEmail(shiftId, restaurantId, supplier, settings, restaurantName, shiftDate).catch(err =>
+      console.error(`[EMAIL] Failed for supplier ${supplier.supplier_name}:`, err.message),
+    );
+  }
+}
+
+// GET /supplier-consumption?shiftId=…
+router.get('/supplier-consumption', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { shiftId } = req.query as { shiftId?: string };
+  if (!shiftId) throw new ValidationError('shiftId required');
+  await assertOwns('shifts', shiftId, req.user!.restaurantId);
+  const rows = await getSupplierConsumption(shiftId, req.user!.restaurantId);
+  res.json(rows);
+}));
+
+// GET /email-settings
+router.get('/email-settings', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const row = await getEmailSettings(req.user!.restaurantId);
+  if (!row) {
+    return res.json({
+      smtpHost: '', smtpPort: 587, smtpUser: '', smtpPass: '', smtpFrom: '',
+      autoSendOnZClose: false,
+      subjectTemplate: DEFAULT_SUBJECT,
+      bodyTemplate: DEFAULT_BODY,
+    });
+  }
+  res.json({
+    smtpHost:          row.smtp_host          ?? '',
+    smtpPort:          row.smtp_port,
+    smtpUser:          row.smtp_user          ?? '',
+    smtpPass:          row.smtp_pass          ?? '',
+    smtpFrom:          row.smtp_from          ?? '',
+    autoSendOnZClose:  row.auto_send_on_z_close,
+    subjectTemplate:   row.subject_template,
+    bodyTemplate:      row.body_template      ?? DEFAULT_BODY,
+  });
+}));
+
+const emailSettingsSchema = z.object({
+  smtpHost:         z.string().max(200).optional().default(''),
+  smtpPort:         z.number().int().min(1).max(65535).optional().default(587),
+  smtpUser:         z.string().max(200).optional().default(''),
+  smtpPass:         z.string().max(500).optional().default(''),
+  smtpFrom:         z.string().max(200).optional().default(''),
+  autoSendOnZClose: z.boolean().optional().default(false),
+  subjectTemplate:  z.string().min(1).max(500).optional().default(DEFAULT_SUBJECT),
+  bodyTemplate:     z.string().max(5000).optional().default(DEFAULT_BODY),
+});
+
+// PUT /email-settings
+router.put('/email-settings', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const d = emailSettingsSchema.parse(req.body);
+  await pool.query(
+    `INSERT INTO email_settings
+       (restaurant_id, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from,
+        auto_send_on_z_close, subject_template, body_template, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+     ON CONFLICT (restaurant_id) DO UPDATE SET
+       smtp_host = EXCLUDED.smtp_host,
+       smtp_port = EXCLUDED.smtp_port,
+       smtp_user = EXCLUDED.smtp_user,
+       smtp_pass = EXCLUDED.smtp_pass,
+       smtp_from = EXCLUDED.smtp_from,
+       auto_send_on_z_close = EXCLUDED.auto_send_on_z_close,
+       subject_template = EXCLUDED.subject_template,
+       body_template = EXCLUDED.body_template,
+       updated_at = NOW()`,
+    [
+      req.user!.restaurantId,
+      d.smtpHost || null,
+      d.smtpPort,
+      d.smtpUser || null,
+      d.smtpPass || null,
+      d.smtpFrom || null,
+      d.autoSendOnZClose,
+      d.subjectTemplate,
+      d.bodyTemplate,
+    ],
+  );
+  res.json({ ok: true });
+}));
+
+// POST /email-settings/test
+router.post('/email-settings/test', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { to } = z.object({ to: z.string().email() }).parse(req.body);
+  const settings = await getEmailSettings(req.user!.restaurantId);
+  if (!settings?.smtp_host) {
+    return res.status(400).json({ error: 'SMTP не е конфигуриран' });
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      host: settings.smtp_host,
+      port: settings.smtp_port ?? 587,
+      secure: (settings.smtp_port ?? 587) === 465,
+      auth: settings.smtp_user
+        ? { user: settings.smtp_user, pass: settings.smtp_pass ?? undefined }
+        : undefined,
+    });
+    const info = await transporter.sendMail({
+      from: settings.smtp_from || 'GastroPro <noreply@gastropro.mk>',
+      to,
+      subject: 'GastroPro — Тест емаил',
+      text: 'Тест порака од GastroPro системот. SMTP конфигурацијата работи.',
+      html: '<p>Тест порака од <strong>GastroPro</strong> системот. SMTP конфигурацијата работи.</p>',
+    });
+    const previewUrl = nodemailer.getTestMessageUrl(info) || null;
+    res.json({ ok: true, previewUrl });
+  } catch (err: any) {
+    res.status(502).json({ error: err.message?.slice(0, 200) ?? 'SMTP error' });
+  }
+}));
+
+// POST /supplier-emails/preview — generate email content without sending
+router.post('/supplier-emails/preview', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { shiftId, supplierId } = z.object({
+    shiftId: z.string().uuid(),
+    supplierId: z.string().uuid(),
+  }).parse(req.body);
+  await assertOwns('shifts', shiftId, req.user!.restaurantId);
+
+  const consumption = await getSupplierConsumption(shiftId, req.user!.restaurantId);
+  const supplier = consumption.find(s => s.supplier_id === supplierId);
+  if (!supplier) throw new NotFoundError('Supplier not found in this shift consumption');
+
+  const settings = await getEmailSettings(req.user!.restaurantId);
+  const shiftRes = await pool.query(
+    'SELECT r.name, COALESCE(end_time, NOW()) AS shift_date FROM shifts s JOIN restaurants r ON r.id = s.restaurant_id WHERE s.id = $1',
+    [shiftId],
+  );
+  const restaurantName = shiftRes.rows[0]?.name ?? '';
+  const shiftDate = new Date(shiftRes.rows[0]?.shift_date).toLocaleDateString('mk-MK');
+
+  const { subject, text, html } = generateEmailContent(supplier, restaurantName, settings, shiftDate);
+  res.json({ subject, text, html, supplierEmail: supplier.supplier_email });
+}));
+
+// POST /supplier-emails/send — send or record manual
+router.post('/supplier-emails/send', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { shiftId, supplierId, subject, body } = z.object({
+    shiftId:    z.string().uuid(),
+    supplierId: z.string().uuid(),
+    subject:    z.string().min(1).max(500),
+    body:       z.string().min(1).max(10000),
+  }).parse(req.body);
+  await assertOwns('shifts', shiftId, req.user!.restaurantId);
+
+  const consumption = await getSupplierConsumption(shiftId, req.user!.restaurantId);
+  const supplier = consumption.find(s => s.supplier_id === supplierId);
+  if (!supplier) throw new NotFoundError('Supplier not found in this shift consumption');
+
+  const settings = await getEmailSettings(req.user!.restaurantId);
+  const shiftRes = await pool.query(
+    'SELECT r.name, COALESCE(end_time, NOW()) AS shift_date FROM shifts s JOIN restaurants r ON r.id = s.restaurant_id WHERE s.id = $1',
+    [shiftId],
+  );
+  const restaurantName = shiftRes.rows[0]?.name ?? '';
+  const shiftDate = new Date(shiftRes.rows[0]?.shift_date).toLocaleDateString('mk-MK');
+
+  const supplierWithOverrides = { ...supplier };
+  const { html } = generateEmailContent(supplierWithOverrides, restaurantName, settings, shiftDate);
+
+  const { logId, status } = await sendOneSupplierEmail(
+    shiftId, req.user!.restaurantId, supplier, settings, restaurantName, shiftDate,
+  );
+  res.json({ ok: true, logId, status });
+}));
+
+// GET /supplier-email-log
+router.get('/supplier-email-log', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const { shiftId, limit = '50', offset = '0' } = req.query as {
+    shiftId?: string; limit?: string; offset?: string;
+  };
+  const params: (string | number)[] = [req.user!.restaurantId];
+  let where = 'WHERE restaurant_id = $1';
+  if (shiftId) {
+    params.push(shiftId);
+    where += ` AND shift_id = $${params.length}`;
+  }
+  const rows = await pool.query(
+    `SELECT id, supplier_id, supplier_name, supplier_email, shift_id, subject,
+            status, error_message, sent_at, created_at
+     FROM supplier_email_log
+     ${where}
+     ORDER BY created_at DESC
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, Number(limit), Number(offset)],
+  );
+  res.json(rows.rows);
 }));
 
 export default router;
