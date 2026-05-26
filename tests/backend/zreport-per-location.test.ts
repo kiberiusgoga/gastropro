@@ -40,6 +40,8 @@ function mockQ2(orderRows: unknown[] = []) { mockPool.query.mockResolvedValueOnc
 function mockQ3(itemRows: unknown[] = []) { mockPool.query.mockResolvedValueOnce({ rows: itemRows }) }
 function mockQ4() { mockPool.query.mockResolvedValueOnce({ rows: [] }) }
 function mockQ5(whRows: unknown[] = []) { mockPool.query.mockResolvedValueOnce({ rows: whRows }) }
+function mockQ6() { mockPool.query.mockResolvedValueOnce({ rows: [{ count: '0', total_amount: '0', total_vat: '0', total_subtotal: '0' }] }) }
+function mockQ7() { mockPool.query.mockResolvedValueOnce({ rows: [{ count: '0', total_amount: '0' }] }) }
 
 function setupAll(whRows: unknown[] = []) {
   mockQ1()
@@ -47,6 +49,8 @@ function setupAll(whRows: unknown[] = []) {
   mockQ3()
   mockQ4()
   mockQ5(whRows)
+  mockQ6()
+  mockQ7()
 }
 
 beforeEach(() => { vi.clearAllMocks() })

@@ -116,6 +116,8 @@ function setupComputeMocks(opts: {
     .mockResolvedValueOnce(mockItemQuery(opts.itemRows ?? []))
     .mockResolvedValueOnce(mockDiscountQuery(opts.discountRows ?? []))
     .mockResolvedValueOnce({ rows: opts.perWarehouseRows ?? [] }) // Q5: per_warehouse
+    .mockResolvedValueOnce({ rows: [{ count: '0', total_amount: '0', total_vat: '0', total_subtotal: '0' }] }) // Q6: non_fiscal linked
+    .mockResolvedValueOnce({ rows: [{ count: '0', total_amount: '0' }] }) // Q7: non_fiscal standalone
 }
 
 beforeEach(() => {
