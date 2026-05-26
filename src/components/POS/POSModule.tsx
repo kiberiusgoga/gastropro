@@ -55,9 +55,11 @@ const POSModule = () => {
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [orderType, setOrderType] = useState<Order['orderType']>('dine_in');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mixed'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mixed' | 'non_fiscal'>('cash');
   const [cashAmount, setCashAmount] = useState<string>('');
   const [cardAmount, setCardAmount] = useState<string>('');
+  const [nfCompanies, setNfCompanies] = useState<Array<{ id: string; name: string; tin: string; payment_terms_days: number }>>([]);
+  const [nfCompanyId, setNfCompanyId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
@@ -135,13 +137,14 @@ const POSModule = () => {
     if (!user?.restaurantId) return;
     setLoading(true);
     try {
-      const [tData, mData, cData, custData, sData, resData] = await Promise.all([
+      const [tData, mData, cData, custData, sData, resData, compData] = await Promise.all([
         tableService.getAll(user.restaurantId),
         menuService.getItems(user.restaurantId),
         menuService.getCategories(user.restaurantId),
         crmService.getAll(user.restaurantId),
         shiftService.getActiveShift(user.id, user.restaurantId),
         reservationService.getTodayUpcoming(),
+        apiClient.get('/companies').then(r => r.data).catch(() => []),
       ]);
       setTables(tData);
       setMenuItems(mData);
@@ -149,6 +152,7 @@ const POSModule = () => {
       setCustomers(custData);
       setActiveShift(sData || null);
       setTodayReservations(resData);
+      setNfCompanies(compData);
       if (cData.length > 0) setActiveCategory(cData[0].id);
     } catch (error) {
       console.error('Error fetching POS data:', error);
@@ -414,6 +418,37 @@ const POSModule = () => {
     setSelectedTable(null);
     setSelectedCustomer(null);
     fetchData();
+  };
+
+  const handleIssueInvoice = async () => {
+    if (!currentOrder || !nfCompanyId) {
+      toast.error('Избери компанија');
+      return;
+    }
+    try {
+      const company = nfCompanies.find(c => c.id === nfCompanyId);
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + (company?.payment_terms_days ?? 15));
+      const items = currentOrder.items
+        .filter(i => i.status !== 'cancelled')
+        .map(i => ({ name: i.name, quantity: i.quantity, unit_price: i.price, vat_rate: 18 }));
+      await apiClient.post('/non-fiscal-invoices', {
+        company_id: nfCompanyId,
+        order_id: currentOrder.id,
+        due_date: dueDate.toISOString().split('T')[0],
+        vat_rate: 18,
+        items,
+      });
+      toast.success('Фактурата е издадена');
+      setShowPaymentModal(false);
+      setCurrentOrder(null);
+      setSelectedTable(null);
+      setNfCompanyId('');
+      setPaymentMethod('cash');
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error ?? 'Грешка при издавање на фактура');
+    }
   };
 
   const handlePrintKitchen = async () => {
@@ -944,7 +979,7 @@ const POSModule = () => {
                 <div className="text-4xl font-black text-cream">{currentOrder.totalAmount} ден</div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-8">
+              <div className="grid grid-cols-4 gap-3 mb-8">
                 <button
                   onClick={() => setPaymentMethod('cash')}
                   className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
@@ -978,6 +1013,17 @@ const POSModule = () => {
                   <Split size={24} />
                   <span className="text-sm font-bold">Мешано</span>
                 </button>
+                <button
+                  onClick={() => setPaymentMethod('non_fiscal')}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
+                    paymentMethod === 'non_fiscal'
+                      ? 'bg-accent/10 border-accent text-accent-light'
+                      : 'bg-surface-2 border-warm-line text-cream-muted hover:border-warm-line-strong'
+                  }`}
+                >
+                  <FileText size={24} />
+                  <span className="text-sm font-bold">Фактура</span>
+                </button>
               </div>
 
               {paymentMethod === 'mixed' && (
@@ -1005,21 +1051,47 @@ const POSModule = () => {
                 </div>
               )}
 
-              <button
-                onClick={handlePrintReceipt}
-                className="w-full py-4 mb-3 bg-surface-2 border border-warm-line text-cream-muted rounded-2xl font-bold text-lg hover:bg-warm-input transition-all flex items-center justify-center gap-2"
-              >
-                <FileText size={24} />
-                Печати Сметка
-              </button>
+              {paymentMethod === 'non_fiscal' && (
+                <div className="mb-8 p-4 bg-surface-2 rounded-2xl border border-warm-line space-y-3">
+                  <label className="block text-sm font-bold text-cream-muted">Компанија</label>
+                  {nfCompanies.length === 0 ? (
+                    <p className="text-xs text-cream-faint">Нема компании — додај компанија во Фактури.</p>
+                  ) : (
+                    <select
+                      value={nfCompanyId}
+                      onChange={e => setNfCompanyId(e.target.value)}
+                      className="w-full px-4 py-3 bg-warm-input border border-warm-line rounded-xl text-cream text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all"
+                    >
+                      <option value="">— Избери компанија —</option>
+                      {nfCompanies.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} (ЕДБ: {c.tin})</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {paymentMethod !== 'non_fiscal' && (
+                <button
+                  onClick={handlePrintReceipt}
+                  className="w-full py-4 mb-3 bg-surface-2 border border-warm-line text-cream-muted rounded-2xl font-bold text-lg hover:bg-warm-input transition-all flex items-center justify-center gap-2"
+                >
+                  <FileText size={24} />
+                  Печати Сметка
+                </button>
+              )}
 
               {/* keep emerald — closing/completing an order is semantic completion */}
               <button
-                onClick={handleCloseOrder}
-                className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-card flex items-center justify-center gap-2"
+                onClick={paymentMethod === 'non_fiscal' ? handleIssueInvoice : handleCloseOrder}
+                disabled={paymentMethod === 'non_fiscal' && !nfCompanyId}
+                className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold text-lg hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-card flex items-center justify-center gap-2"
               >
-                <CheckCircle2 size={24} />
-                Затвори Нарачка
+                {paymentMethod === 'non_fiscal' ? (
+                  <><FileText size={24} /> Издај фактура</>
+                ) : (
+                  <><CheckCircle2 size={24} /> Затвори Нарачка</>
+                )}
               </button>
             </div>
           </div>

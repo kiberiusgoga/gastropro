@@ -20,6 +20,7 @@ import OrdersView from './components/OrdersView';
 import SettingsPage from './pages/Settings/SettingsPage';
 import StockDashboard from './components/Stock/StockDashboard';
 import TransfersPage from './components/Transfers/TransfersPage';
+import NonFiscalInvoicesPage from './components/Invoices/NonFiscalInvoicesPage';
 import { StockAlertsProvider, useStockAlerts } from './contexts/StockAlertsContext';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
@@ -156,6 +157,8 @@ const AppContent = () => {
         return <ReservationView />;
       case 'crm':
         return <CustomerCRM />;
+      case 'b2b-invoices':
+        return <NonFiscalInvoicesPage />;
       case 'orders':
         return <OrdersView />;
       case 'kitchen':
@@ -214,7 +217,7 @@ const AppContent = () => {
         <header className="hidden lg:flex h-20 bg-surface/50 backdrop-blur-md border-b border-warm-line items-center justify-between px-10 shrink-0 relative z-30">
           <div className="flex items-center gap-6">
             <h2 className="text-xl font-bold text-cream font-serif italic">
-              {t(activeTab)}
+              {t(activeTab.replace(/-/g, '_'))}
             </h2>
             <div className="h-6 w-[1px] bg-warm-line" />
             <div className="flex items-center gap-2 text-xs font-bold text-cream-faint uppercase tracking-widest">

@@ -489,3 +489,106 @@ export interface FeatureFlag {
   planId: SubscriptionPlanId;
   flags: FeatureFlags;
 }
+
+export interface Company {
+  id: string;
+  restaurantId: string;
+  name: string;
+  tin: string;
+  embs?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  bankAccount?: string;
+  paymentTermsDays: number;
+  notes?: string;
+  invoiceCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NonFiscalInvoiceItem {
+  id: string;
+  invoiceId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  vatRate: number;
+  total: number;
+}
+
+export interface SupplierConsumptionProduct {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  total: number;
+}
+
+export interface SupplierConsumption {
+  supplier_id: string;
+  supplier_name: string;
+  supplier_email: string | null;
+  contact_person: string | null;
+  product_count: number;
+  total_value: number;
+  products: SupplierConsumptionProduct[];
+}
+
+export interface EmailSettings {
+  id?: string;
+  restaurantId: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpPass: string;
+  smtpFrom: string;
+  autoSendOnZClose: boolean;
+  subjectTemplate: string;
+  bodyTemplate: string;
+}
+
+export interface SupplierEmailLog {
+  id: string;
+  restaurant_id: string;
+  supplier_id: string | null;
+  supplier_name: string;
+  supplier_email: string | null;
+  shift_id: string | null;
+  subject: string | null;
+  body: string | null;
+  status: 'sent' | 'failed' | 'manual' | 'draft';
+  error_message: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
+export interface NonFiscalInvoice {
+  id: string;
+  restaurantId: string;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate: string;
+  companyId: string;
+  companyName?: string;
+  companyTin?: string;
+  orderId?: string;
+  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  computedStatus?: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  subtotal: number;
+  vatRate: number;
+  vatAmount: number;
+  totalAmount: number;
+  notes?: string;
+  paidAt?: string;
+  paidAmount?: number;
+  paidMethod?: string;
+  paidReference?: string;
+  items?: NonFiscalInvoiceItem[];
+  createdAt: string;
+  updatedAt: string;
+}

@@ -17,6 +17,7 @@ import {
   CalendarDays,
   X,
   ArrowRightLeft,
+  FileText,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -71,6 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         { id: 'transfers', icon: ArrowRightLeft, label: t('transfers_sidebar') },
         { id: 'staff', icon: UserCog, label: t('staff'), badge: notificationCount > 0 ? notificationCount : undefined, badgeVariant: 'accent' as const },
         { id: 'crm', icon: Heart, label: t('crm') },
+        { id: 'b2b-invoices', icon: FileText, label: t('b2b_invoices') },
         { id: 'billing', icon: CreditCard, label: t('billing') },
         { id: 'settings', icon: Settings, label: t('settings') },
       ]
