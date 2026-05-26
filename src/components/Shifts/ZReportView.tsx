@@ -2,6 +2,7 @@ import React from 'react';
 import { Printer, ArrowLeft, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ZReportData } from '../../services/zreportService';
+import SupplierConsumptionSection from '../ZReport/SupplierConsumptionSection';
 
 interface Props {
   zreport: ZReportData;
@@ -379,6 +380,9 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
           </p>
         </div>
       </div>
+
+      {/* Supplier consumption section — screen only, after report card */}
+      <SupplierConsumptionSection shiftId={z.shift_id} />
 
       {/* Print styles */}
       <style>{`
