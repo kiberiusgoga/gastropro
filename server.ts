@@ -57,9 +57,11 @@ async function startServer() {
   app.use(morgan('dev'));
 
   // 7. Global rate limit — 1000 req / IP / 15 min across all API routes
+  // NOTE: express-rate-limit v7+ uses `limit` (not `max`) as the option name.
   const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 1000,
+    limit: 1000,
+    skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
@@ -71,7 +73,7 @@ async function startServer() {
   // so a legitimate user who eventually succeeds doesn't burn their quota.
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    limit: 5,
     skipSuccessfulRequests: true,
     standardHeaders: true,
     legacyHeaders: false,
@@ -84,7 +86,7 @@ async function startServer() {
   // would skip every request — useless for that endpoint. Use a plain 5/15min limiter.
   const forgotPasswordLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    limit: 5,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again in 15 minutes.' },
@@ -94,7 +96,7 @@ async function startServer() {
   // Public guest-menu endpoints — no auth, but still rate-limited
   const publicMenuLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 30,
+    limit: 30,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
@@ -103,7 +105,7 @@ async function startServer() {
 
   const publicNotifyLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 5,
+    limit: 5,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many notification requests, please try again later.' },

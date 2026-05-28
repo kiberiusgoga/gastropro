@@ -192,6 +192,14 @@ router.get('/restaurants/:id', authenticateToken, asyncHandler(async (req: AuthR
     id: r.id,
     name: r.name,
     address: r.address ?? '',
+    phone: r.phone ?? '',
+    tax_number: r.tax_number ?? '',
+    edb: r.edb ?? '',
+    bank_account: r.bank_account ?? '',
+    city: r.city ?? '',
+    postal_code: r.postal_code ?? '',
+    currency: r.currency ?? 'MKD',
+    timezone: r.timezone ?? 'Europe/Skopje',
     ownerId: r.owner_id ?? '',
     subscriptionPlan: r.subscription_plan ?? 'pro',
     createdAt: r.created_at,
@@ -1300,7 +1308,7 @@ router.get('/dashboard/stats', authenticateToken, asyncHandler(async (req: AuthR
       (SELECT COUNT(*) FROM products WHERE restaurant_id = $1) as total_products,
       (SELECT COALESCE(SUM(current_stock * purchase_price), 0) FROM products WHERE restaurant_id = $1) as inventory_value,
       (SELECT COUNT(*) FROM products WHERE current_stock <= min_stock AND restaurant_id = $1) as low_stock_alerts,
-      (SELECT COUNT(*) FROM transactions WHERE date >= CURRENT_DATE AND restaurant_id = $1) as daily_transactions
+      (SELECT COUNT(*) FROM transactions WHERE created_at >= CURRENT_DATE AND restaurant_id = $1) as daily_transactions
   `, [req.user?.restaurantId]);
   res.json(stats.rows[0]);
 }));
