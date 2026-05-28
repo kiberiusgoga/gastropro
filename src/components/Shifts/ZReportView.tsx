@@ -371,6 +371,33 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
               </>
             )}
           </Section>
+
+          {/* ── Non-fiscal B2B invoices ── */}
+          {z.non_fiscal_sales && (
+            <Section title="Нефискални фактури (Б2Б)">
+              <p className="text-xs text-cream-faint mb-3">Не се вклучени во фискалниот промет</p>
+              {z.non_fiscal_sales.order_linked.count > 0 && (
+                <Row
+                  label={`Поврзани со нарачки (${z.non_fiscal_sales.order_linked.count})`}
+                  value={`${fmt(z.non_fiscal_sales.order_linked.total_amount)} ден.`}
+                />
+              )}
+              {z.non_fiscal_sales.standalone.count > 0 && (
+                <Row
+                  label={`Самостојни (${z.non_fiscal_sales.standalone.count})`}
+                  value={`${fmt(z.non_fiscal_sales.standalone.total_amount)} ден.`}
+                />
+              )}
+              <Row
+                label="Вкупно нефискални"
+                value={`${fmt(
+                  z.non_fiscal_sales.order_linked.total_amount +
+                  z.non_fiscal_sales.standalone.total_amount,
+                )} ден.`}
+                bold
+              />
+            </Section>
+          )}
         </div>
 
         {/* Footer */}

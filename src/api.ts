@@ -2111,10 +2111,10 @@ router.delete('/menu-items/:id/image', authenticateToken, asyncHandler(async (re
 // --- TABLES ---
 router.get('/tables', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
   const result = await pool.query(`
-    SELECT t.*, w.name AS warehouse_name, o.id AS current_order_id
+    SELECT t.*, w.name AS warehouse_name,
+      (SELECT o.id FROM orders o WHERE o.table_id = t.id AND o.status = 'open' LIMIT 1) AS current_order_id
     FROM restaurant_tables t
     LEFT JOIN warehouses w ON w.id = t.warehouse_id
-    LEFT JOIN orders o ON t.id = o.table_id AND o.status = 'open'
     WHERE t.restaurant_id = $1
     ORDER BY CASE WHEN t.number ~ '^[0-9]+$' THEN t.number::integer ELSE 9999 END, t.number
   `, [req.user?.restaurantId]);
@@ -2463,6 +2463,18 @@ router.get('/orders', authenticateToken, asyncHandler(async (req: AuthRequest, r
     order.items = itemsRes.rows;
   }
   res.json(orders);
+}));
+
+router.get('/orders/:id', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const orderRes = await pool.query(
+    'SELECT * FROM orders WHERE id = $1 AND restaurant_id = $2',
+    [req.params.id, req.user?.restaurantId],
+  );
+  if (!orderRes.rows.length) throw new NotFoundError('Order not found');
+  const order = orderRes.rows[0];
+  const itemsRes = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+  order.items = itemsRes.rows;
+  res.json(order);
 }));
 
 router.post('/orders', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
@@ -4090,12 +4102,26 @@ router.post('/non-fiscal-invoices', authenticateToken, authorizeRole(['Admin', '
       }
 
       if (d.order_id) {
-        await client.query(
+        const paidOrderRes = await client.query(
           `UPDATE orders
            SET payment_type='non_fiscal', non_fiscal_invoice_id=$1, status='paid'
-           WHERE id=$2 AND restaurant_id=$3`,
+           WHERE id=$2 AND restaurant_id=$3
+           RETURNING table_id`,
           [invoice.id, d.order_id, restaurantId],
         );
+        const tableId = paidOrderRes.rows[0]?.table_id;
+        if (tableId) {
+          const openRes = await client.query(
+            `SELECT id FROM orders WHERE table_id=$1 AND status='open'`,
+            [tableId],
+          );
+          if (openRes.rowCount === 0) {
+            await client.query(
+              `UPDATE restaurant_tables SET status='free' WHERE id=$1 AND restaurant_id=$2`,
+              [tableId, restaurantId],
+            );
+          }
+        }
       }
 
       await client.query('COMMIT');

@@ -131,12 +131,13 @@ export function CompaniesSection({ onCompaniesChange }: Props) {
 
   const openCreate = () => { setForm(emptyForm()); setCreating(true); };
   const openEdit = (c: Company) => {
+    const raw = c as any;
     setForm({
       name: c.name, tin: c.tin, embs: c.embs ?? '', address: c.address ?? '',
-      city: c.city ?? '', postal_code: c.postalCode ?? '',
-      contact_person: c.contactPerson ?? '', email: c.email ?? '',
-      phone: c.phone ?? '', bank_account: c.bankAccount ?? '',
-      payment_terms_days: c.paymentTermsDays, notes: c.notes ?? '',
+      city: c.city ?? '', postal_code: raw.postal_code ?? c.postalCode ?? '',
+      contact_person: raw.contact_person ?? c.contactPerson ?? '', email: c.email ?? '',
+      phone: c.phone ?? '', bank_account: raw.bank_account ?? c.bankAccount ?? '',
+      payment_terms_days: raw.payment_terms_days ?? c.paymentTermsDays ?? 15, notes: c.notes ?? '',
     });
     setEditing(c);
   };
@@ -230,10 +231,10 @@ export function CompaniesSection({ onCompaniesChange }: Props) {
                   </td>
                   <td className="py-3 px-3 text-sm text-cream-muted font-mono">{c.tin}</td>
                   <td className="py-3 px-3">
-                    {c.contactPerson && <p className="text-sm text-cream-muted">{c.contactPerson}</p>}
+                    {((c as any).contact_person ?? c.contactPerson) && <p className="text-sm text-cream-muted">{(c as any).contact_person ?? c.contactPerson}</p>}
                     {c.email && <p className="text-xs text-cream-faint">{c.email}</p>}
                   </td>
-                  <td className="py-3 px-3 text-sm text-cream-muted">{c.paymentTermsDays}</td>
+                  <td className="py-3 px-3 text-sm text-cream-muted">{(c as any).payment_terms_days ?? c.paymentTermsDays}</td>
                   <td className="py-3 px-3">
                     <div className="flex items-center gap-1 justify-end">
                       <button onClick={() => openEdit(c)}
