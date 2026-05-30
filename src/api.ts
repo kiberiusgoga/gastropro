@@ -4649,4 +4649,421 @@ router.get('/supplier-email-log', authenticateToken, asyncHandler(async (req: Au
   res.json(rows.rows);
 }));
 
+// ─────────────────────────────────────────────────────────────────────────────
+// HR — Work Hours (Feature 3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Helper: get or create hr_settings row for restaurant
+async function getHrSettings(restaurantId: string) {
+  const r = await pool.query(
+    `INSERT INTO hr_settings (restaurant_id)
+     VALUES ($1)
+     ON CONFLICT (restaurant_id) DO NOTHING`,
+    [restaurantId],
+  );
+  const row = await pool.query(
+    'SELECT * FROM hr_settings WHERE restaurant_id = $1',
+    [restaurantId],
+  );
+  return row.rows[0];
+}
+
+// Helper: compute hours_worked from timestamps and break
+function computeHours(clockIn: string, clockOut: string, breakMinutes: number): number {
+  const diffMs = new Date(clockOut).getTime() - new Date(clockIn).getTime();
+  const diffHours = diffMs / 3600000;
+  const net = diffHours - breakMinutes / 60;
+  return Math.max(0, Math.round(net * 100) / 100);
+}
+
+const clockOutSchema = z.object({
+  break_minutes: z.number().int().min(0).max(480).optional(),
+  notes: z.string().max(500).optional(),
+});
+
+const manualEntrySchema = z.object({
+  user_id: z.string().uuid(),
+  clock_in: z.string().datetime({ offset: true }),
+  clock_out: z.string().datetime({ offset: true }),
+  break_minutes: z.number().int().min(0).max(480).default(0),
+  notes: z.string().max(500).optional(),
+});
+
+const editEntrySchema = z.object({
+  clock_in: z.string().datetime({ offset: true }).optional(),
+  clock_out: z.string().datetime({ offset: true }).nullable().optional(),
+  break_minutes: z.number().int().min(0).max(480).optional(),
+  notes: z.string().max(500).nullable().optional(),
+});
+
+const hrSettingsSchema = z.object({
+  weekly_overtime_threshold: z.number().min(0).max(168).optional(),
+  daily_overtime_threshold: z.number().min(0).max(24).optional(),
+  week_starts_on: z.number().int().min(0).max(6).optional(),
+  default_break_minutes: z.number().int().min(0).max(120).optional(),
+});
+
+// POST /work-entries/clock-in
+router.post('/work-entries/clock-in', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const restaurantId = req.user!.restaurantId;
+
+  // Check for existing open entry
+  const existing = await pool.query(
+    'SELECT id FROM work_entries WHERE user_id = $1 AND clock_out IS NULL',
+    [userId],
+  );
+  if (existing.rowCount) {
+    throw new ValidationError('Веќе сте започнати');
+  }
+
+  const result = await pool.query(
+    `INSERT INTO work_entries (restaurant_id, user_id, clock_in, role)
+     VALUES ($1, $2, NOW(), $3)
+     RETURNING *`,
+    [restaurantId, userId, req.user!.role ?? null],
+  );
+  res.status(201).json(result.rows[0]);
+}));
+
+// POST /work-entries/clock-out
+router.post('/work-entries/clock-out', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const { break_minutes, notes } = clockOutSchema.parse(req.body);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const entryRes = await client.query(
+      'SELECT * FROM work_entries WHERE user_id = $1 AND clock_out IS NULL FOR UPDATE',
+      [userId],
+    );
+    if (!entryRes.rowCount) {
+      await client.query('ROLLBACK');
+      throw new ValidationError('Нема активна смена');
+    }
+    const entry = entryRes.rows[0];
+    const settings = await getHrSettings(req.user!.restaurantId);
+    const breakMin = break_minutes ?? settings.default_break_minutes ?? 0;
+    const clockOut = new Date().toISOString();
+    const hoursWorked = computeHours(entry.clock_in, clockOut, breakMin);
+
+    const updated = await client.query(
+      `UPDATE work_entries
+       SET clock_out = NOW(), break_minutes = $1, hours_worked = $2,
+           notes = COALESCE($3, notes), updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [breakMin, hoursWorked, notes ?? null, entry.id],
+    );
+    await client.query('COMMIT');
+    res.json(updated.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}));
+
+// GET /work-entries/current
+router.get('/work-entries/current', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const result = await pool.query(
+    `SELECT we.*, u.name AS user_name
+     FROM work_entries we
+     JOIN users u ON u.id = we.user_id
+     WHERE we.user_id = $1 AND we.clock_out IS NULL`,
+    [req.user!.id],
+  );
+  res.json(result.rows[0] ?? null);
+}));
+
+// GET /work-entries
+router.get('/work-entries', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const isManager = ['Admin', 'Manager'].includes(req.user!.role ?? '');
+  const { user_id, from_date, to_date, limit = '200' } = req.query as Record<string, string>;
+
+  const params: unknown[] = [restaurantId];
+  const conditions: string[] = ['we.restaurant_id = $1'];
+
+  // Employees see only their own entries
+  const effectiveUserId = isManager ? user_id : req.user!.id;
+  if (effectiveUserId) {
+    params.push(effectiveUserId);
+    conditions.push(`we.user_id = $${params.length}`);
+  }
+  if (from_date) {
+    params.push(from_date);
+    conditions.push(`we.clock_in >= $${params.length}`);
+  }
+  if (to_date) {
+    params.push(to_date);
+    conditions.push(`we.clock_in < ($${params.length}::date + INTERVAL '1 day')`);
+  }
+
+  params.push(Math.min(Number(limit), 500));
+  const result = await pool.query(
+    `SELECT we.*, u.name AS user_name, u.role AS user_role
+     FROM work_entries we
+     JOIN users u ON u.id = we.user_id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY we.clock_in DESC
+     LIMIT $${params.length}`,
+    params,
+  );
+  res.json(result.rows);
+}));
+
+// POST /work-entries (manual entry — Admin/Manager only)
+router.post('/work-entries', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const d = manualEntrySchema.parse(req.body);
+
+  if (new Date(d.clock_out) <= new Date(d.clock_in)) {
+    throw new ValidationError('Clock out must be after clock in');
+  }
+  // Verify target user belongs to restaurant
+  const userCheck = await pool.query(
+    'SELECT id, role FROM users WHERE id = $1 AND restaurant_id = $2',
+    [d.user_id, restaurantId],
+  );
+  if (!userCheck.rowCount) throw new ValidationError('User not found in restaurant');
+
+  const hoursWorked = computeHours(d.clock_in, d.clock_out, d.break_minutes);
+  const result = await pool.query(
+    `INSERT INTO work_entries
+       (restaurant_id, user_id, clock_in, clock_out, role, break_minutes, hours_worked, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING *`,
+    [restaurantId, d.user_id, d.clock_in, d.clock_out,
+     userCheck.rows[0].role, d.break_minutes, hoursWorked, d.notes ?? null],
+  );
+  res.status(201).json(result.rows[0]);
+}));
+
+// PUT /work-entries/:id (Admin/Manager)
+router.put('/work-entries/:id', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const restaurantId = req.user!.restaurantId;
+  const d = editEntrySchema.parse(req.body);
+
+  const existing = await pool.query(
+    'SELECT * FROM work_entries WHERE id = $1 AND restaurant_id = $2',
+    [id, restaurantId],
+  );
+  if (!existing.rowCount) throw new NotFoundError('Entry not found');
+  const entry = existing.rows[0];
+
+  const newClockIn  = d.clock_in  ?? entry.clock_in;
+  const newClockOut = d.clock_out !== undefined ? d.clock_out : entry.clock_out;
+  const newBreak    = d.break_minutes ?? entry.break_minutes ?? 0;
+
+  if (newClockOut && new Date(newClockOut) <= new Date(newClockIn)) {
+    throw new ValidationError('Clock out must be after clock in');
+  }
+
+  const newHours = newClockOut
+    ? computeHours(newClockIn, newClockOut, newBreak)
+    : null;
+
+  const result = await pool.query(
+    `UPDATE work_entries
+     SET clock_in = $1, clock_out = $2, break_minutes = $3,
+         hours_worked = $4, notes = COALESCE($5, notes), updated_at = NOW()
+     WHERE id = $6
+     RETURNING *`,
+    [newClockIn, newClockOut, newBreak, newHours, d.notes ?? null, id],
+  );
+  res.json(result.rows[0]);
+}));
+
+// DELETE /work-entries/:id (Admin only)
+router.delete('/work-entries/:id', authenticateToken, authorizeRole(['Admin']), asyncHandler(async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const result = await pool.query(
+    'DELETE FROM work_entries WHERE id = $1 AND restaurant_id = $2 RETURNING id',
+    [id, req.user!.restaurantId],
+  );
+  if (!result.rowCount) throw new NotFoundError('Entry not found');
+  res.status(204).end();
+}));
+
+// GET /work-hours/summary
+router.get('/work-hours/summary', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const settings = await getHrSettings(restaurantId);
+  const weekStart = settings.week_starts_on ?? 1;
+
+  const [summaryRes, clockedInRes] = await Promise.all([
+    pool.query(
+      `SELECT
+         COUNT(DISTINCT CASE WHEN DATE_TRUNC('week', clock_in AT TIME ZONE 'Europe/Skopje') =
+           DATE_TRUNC('week', NOW() AT TIME ZONE 'Europe/Skopje') THEN user_id END) AS active_employees,
+         COALESCE(SUM(CASE WHEN DATE_TRUNC('week', clock_in AT TIME ZONE 'Europe/Skopje') =
+           DATE_TRUNC('week', NOW() AT TIME ZONE 'Europe/Skopje') THEN hours_worked END), 0) AS total_hours_this_week,
+         COALESCE(SUM(CASE WHEN DATE_TRUNC('month', clock_in AT TIME ZONE 'Europe/Skopje') =
+           DATE_TRUNC('month', NOW() AT TIME ZONE 'Europe/Skopje') THEN hours_worked END), 0) AS total_hours_this_month
+       FROM work_entries
+       WHERE restaurant_id = $1 AND clock_out IS NOT NULL`,
+      [restaurantId],
+    ),
+    pool.query(
+      'SELECT COUNT(*) AS count FROM work_entries WHERE restaurant_id = $1 AND clock_out IS NULL',
+      [restaurantId],
+    ),
+  ]);
+
+  const s = summaryRes.rows[0];
+
+  // Overtime this week: per user, sum - threshold, max 0
+  const overtimeRes = await pool.query(
+    `SELECT user_id, SUM(hours_worked) AS total
+     FROM work_entries
+     WHERE restaurant_id = $1
+       AND clock_out IS NOT NULL
+       AND DATE_TRUNC('week', clock_in AT TIME ZONE 'Europe/Skopje') =
+           DATE_TRUNC('week', NOW() AT TIME ZONE 'Europe/Skopje')
+     GROUP BY user_id`,
+    [restaurantId],
+  );
+  const threshold = Number(settings.weekly_overtime_threshold ?? 40);
+  const overtimeWeek = overtimeRes.rows.reduce((acc, r) => {
+    const ot = Math.max(0, Number(r.total) - threshold);
+    return acc + ot;
+  }, 0);
+
+  // Top user this week
+  const topRes = await pool.query(
+    `SELECT u.name, SUM(we.hours_worked) AS total_hours
+     FROM work_entries we
+     JOIN users u ON u.id = we.user_id
+     WHERE we.restaurant_id = $1
+       AND we.clock_out IS NOT NULL
+       AND DATE_TRUNC('week', we.clock_in AT TIME ZONE 'Europe/Skopje') =
+           DATE_TRUNC('week', NOW() AT TIME ZONE 'Europe/Skopje')
+     GROUP BY u.id, u.name
+     ORDER BY total_hours DESC
+     LIMIT 1`,
+    [restaurantId],
+  );
+
+  res.json({
+    active_employees: Number(s.active_employees),
+    currently_clocked_in: Number(clockedInRes.rows[0].count),
+    total_hours_this_week: Math.round(Number(s.total_hours_this_week) * 100) / 100,
+    total_hours_this_month: Math.round(Number(s.total_hours_this_month) * 100) / 100,
+    overtime_this_week: Math.round(overtimeWeek * 100) / 100,
+    top_hours_user: topRes.rows[0]
+      ? { name: topRes.rows[0].name, hours: Math.round(Number(topRes.rows[0].total_hours) * 100) / 100 }
+      : null,
+  });
+}));
+
+// GET /work-hours/weekly
+router.get('/work-hours/weekly', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const { from_date, to_date } = req.query as Record<string, string>;
+  const settings = await getHrSettings(restaurantId);
+  const threshold = Number(settings.weekly_overtime_threshold ?? 40);
+
+  const fromDate = from_date ?? new Date(Date.now() - 28 * 86400000).toISOString().split('T')[0];
+  const toDate   = to_date   ?? new Date().toISOString().split('T')[0];
+
+  const result = await pool.query(
+    `SELECT
+       u.id AS user_id,
+       u.name AS user_name,
+       u.role AS user_role,
+       DATE_TRUNC('week', we.clock_in AT TIME ZONE 'Europe/Skopje') AS week_start,
+       COUNT(we.id) AS entry_count,
+       COALESCE(SUM(we.hours_worked), 0) AS total_hours
+     FROM work_entries we
+     JOIN users u ON u.id = we.user_id
+     WHERE we.restaurant_id = $1
+       AND we.clock_out IS NOT NULL
+       AND we.clock_in >= $2
+       AND we.clock_in < ($3::date + INTERVAL '1 day')
+     GROUP BY u.id, u.name, u.role, week_start
+     ORDER BY week_start DESC, u.name`,
+    [restaurantId, fromDate, toDate],
+  );
+
+  const rows = result.rows.map(r => ({
+    user_id:    r.user_id,
+    user_name:  r.user_name,
+    user_role:  r.user_role,
+    week_start: r.week_start,
+    entry_count: Number(r.entry_count),
+    total_hours: Math.round(Number(r.total_hours) * 100) / 100,
+    overtime:    Math.max(0, Math.round((Number(r.total_hours) - threshold) * 100) / 100),
+  }));
+  res.json(rows);
+}));
+
+// GET /work-hours/monthly
+router.get('/work-hours/monthly', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const { from_date, to_date } = req.query as Record<string, string>;
+  const settings = await getHrSettings(restaurantId);
+  const threshold = Number(settings.weekly_overtime_threshold ?? 40) * 4; // rough monthly
+
+  const fromDate = from_date ?? new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0];
+  const toDate   = to_date   ?? new Date().toISOString().split('T')[0];
+
+  const result = await pool.query(
+    `SELECT
+       u.id AS user_id,
+       u.name AS user_name,
+       u.role AS user_role,
+       DATE_TRUNC('month', we.clock_in AT TIME ZONE 'Europe/Skopje') AS month_start,
+       COUNT(we.id) AS entry_count,
+       COALESCE(SUM(we.hours_worked), 0) AS total_hours
+     FROM work_entries we
+     JOIN users u ON u.id = we.user_id
+     WHERE we.restaurant_id = $1
+       AND we.clock_out IS NOT NULL
+       AND we.clock_in >= $2
+       AND we.clock_in < ($3::date + INTERVAL '1 day')
+     GROUP BY u.id, u.name, u.role, month_start
+     ORDER BY month_start DESC, u.name`,
+    [restaurantId, fromDate, toDate],
+  );
+
+  res.json(result.rows.map(r => ({
+    user_id:     r.user_id,
+    user_name:   r.user_name,
+    user_role:   r.user_role,
+    month_start: r.month_start,
+    entry_count: Number(r.entry_count),
+    total_hours: Math.round(Number(r.total_hours) * 100) / 100,
+  })));
+}));
+
+// GET /hr-settings
+router.get('/hr-settings', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const s = await getHrSettings(req.user!.restaurantId);
+  res.json(s);
+}));
+
+// PUT /hr-settings
+router.put('/hr-settings', authenticateToken, authorizeRole(['Admin', 'Manager']), asyncHandler(async (req: AuthRequest, res) => {
+  const restaurantId = req.user!.restaurantId;
+  const d = hrSettingsSchema.parse(req.body);
+  await getHrSettings(restaurantId); // ensure row exists
+
+  const sets: string[] = ['updated_at = NOW()'];
+  const params: unknown[] = [restaurantId];
+  if (d.weekly_overtime_threshold !== undefined) { params.push(d.weekly_overtime_threshold); sets.push(`weekly_overtime_threshold = $${params.length}`); }
+  if (d.daily_overtime_threshold !== undefined)  { params.push(d.daily_overtime_threshold);  sets.push(`daily_overtime_threshold = $${params.length}`); }
+  if (d.week_starts_on !== undefined)            { params.push(d.week_starts_on);            sets.push(`week_starts_on = $${params.length}`); }
+  if (d.default_break_minutes !== undefined)     { params.push(d.default_break_minutes);     sets.push(`default_break_minutes = $${params.length}`); }
+
+  const result = await pool.query(
+    `UPDATE hr_settings SET ${sets.join(', ')} WHERE restaurant_id = $1 RETURNING *`,
+    params,
+  );
+  res.json(result.rows[0]);
+}));
+
 export default router;

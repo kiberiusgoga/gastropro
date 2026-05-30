@@ -21,6 +21,7 @@ import SettingsPage from './pages/Settings/SettingsPage';
 import StockDashboard from './components/Stock/StockDashboard';
 import TransfersPage from './components/Transfers/TransfersPage';
 import NonFiscalInvoicesPage from './components/Invoices/NonFiscalInvoicesPage';
+import HRPage from './components/HR/HRPage';
 import { StockAlertsProvider, useStockAlerts } from './contexts/StockAlertsContext';
 import RestaurantSetupWizard from './components/Onboarding/RestaurantSetupWizard';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
@@ -159,6 +160,8 @@ const AppContent = () => {
         return <CustomerCRM />;
       case 'b2b-invoices':
         return <NonFiscalInvoicesPage />;
+      case 'hr':
+        return <HRPage />;
       case 'orders':
         return <OrdersView />;
       case 'kitchen':
