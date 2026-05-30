@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { History, ChevronLeft, ChevronRight, TrendingDown, TrendingUp, Minus, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import apiClient from '../../lib/apiClient';
 import { useStore } from '../../store/useStore';
 import ZReportView from './ZReportView';
@@ -46,6 +47,7 @@ function fmtMoney(n: string | null) {
 }
 
 const ShiftHistory: React.FC = () => {
+  const { t } = useTranslation();
   const { user, employees } = useStore();
   const isManager = user?.role === 'Admin' || user?.role === 'Manager';
 
@@ -107,14 +109,14 @@ const ShiftHistory: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <History size={20} className="text-accent-light" />
-        <h2 className="text-xl font-bold text-cream">Историја на смени</h2>
+        <h2 className="text-xl font-bold text-cream">{t('shift_history')}</h2>
         <span className="ml-auto text-xs text-cream-faint font-medium">{pagination.total} вкупно</span>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 bg-surface p-4 rounded-2xl border border-warm-line">
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">Од датум</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">{t('from_date')}</label>
           <input
             type="date"
             value={dateFrom}
@@ -123,7 +125,7 @@ const ShiftHistory: React.FC = () => {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">До датум</label>
+          <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">{t('to_date')}</label>
           <input
             type="date"
             value={dateTo}
@@ -133,13 +135,13 @@ const ShiftHistory: React.FC = () => {
         </div>
         {isManager && waiterOptions.length > 0 && (
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">Келнер</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-cream-faint">{t('waiter')}</label>
             <select
               value={filterUser}
               onChange={e => { setFilterUser(e.target.value); setPage(1); }}
               className="px-3 py-2 bg-warm-input border border-warm-line rounded-xl text-sm font-medium text-cream focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50"
             >
-              <option value="">Сите келнери</option>
+              <option value="">{t('all_waiters')}</option>
               {waiterOptions.map(e => (
                 <option key={e.id} value={e.id}>{e.name}</option>
               ))}

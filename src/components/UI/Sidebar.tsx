@@ -18,6 +18,7 @@ import {
   X,
   ArrowRightLeft,
   FileText,
+  Clock,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -71,6 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         { id: 'stock', icon: BarChart3, label: t('stock_dashboard'), badge: stockAlertCount > 0 ? stockAlertCount : undefined, badgeVariant: 'rose' as const },
         { id: 'transfers', icon: ArrowRightLeft, label: t('transfers_sidebar') },
         { id: 'staff', icon: UserCog, label: t('staff'), badge: notificationCount > 0 ? notificationCount : undefined, badgeVariant: 'accent' as const },
+        { id: 'hr', icon: Clock, label: t('hr_sidebar') },
         { id: 'crm', icon: Heart, label: t('crm') },
         { id: 'b2b-invoices', icon: FileText, label: t('b2b_invoices') },
         { id: 'billing', icon: CreditCard, label: t('billing') },

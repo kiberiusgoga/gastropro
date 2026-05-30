@@ -430,7 +430,7 @@ const NonFiscalInvoicesPage: React.FC = () => {
           icon={CheckCircle2} color="bg-emerald-500/15 text-emerald-300" />
         <KpiCard label={t('status_overdue')} count={kpi.overdue.length} amount={sum(kpi.overdue)}
           icon={AlertTriangle} color="bg-rose-500/15 text-rose-300" />
-        <KpiCard label="Вкупно" count={invoices.filter(i => getStatus(i) !== 'cancelled').length}
+        <KpiCard label={t('total')} count={invoices.filter(i => getStatus(i) !== 'cancelled').length}
           amount={sum(invoices.filter(i => getStatus(i) !== 'cancelled'))}
           icon={TrendingUp} color="bg-surface-2 text-cream-muted" />
       </div>
@@ -467,7 +467,7 @@ const NonFiscalInvoicesPage: React.FC = () => {
         <table className="w-full">
           <thead className="bg-surface-2 border-b border-warm-line">
             <tr>
-              {[t('invoice_number'), t('issue_date'), t('company'), 'Износ', t('due_date'), 'Статус', ''].map(h => (
+              {[t('invoice_number'), t('issue_date'), t('company'), t('amount'), t('due_date'), t('status'), ''].map(h => (
                 <th key={h} className="text-left text-[10px] font-black text-cream-faint uppercase tracking-widest py-3 px-4 last:w-28">
                   {h}
                 </th>

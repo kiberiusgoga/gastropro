@@ -281,29 +281,29 @@ const SettingsPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-16">
       <div>
-        <h1 className="text-2xl font-black text-cream uppercase tracking-tight">Подесувања</h1>
-        <p className="text-sm text-cream-faint mt-1">Управување со ресторанот и системот</p>
+        <h1 className="text-2xl font-black text-cream uppercase tracking-tight">{t('settings')}</h1>
+        <p className="text-sm text-cream-faint mt-1">{t('settings_subtitle')}</p>
       </div>
 
-      <Section icon={Store} title="Информации за ресторан" subtitle="Основни податоци кои се прикажуваат на сметките">
+      <Section icon={Store} title={t('restaurant_info')} subtitle={t('restaurant_info_subtitle')}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <Field label="Назив на ресторан">
+          <Field label={t('restaurant_name_label')}>
             <input className={inputCls} value={info.name}
               onChange={e => setInfo(s => ({ ...s, name: e.target.value }))} placeholder="GastroPro Restaurant" />
           </Field>
-          <Field label="Адреса">
+          <Field label={t('address')}>
             <input className={inputCls} value={info.address}
               onChange={e => setInfo(s => ({ ...s, address: e.target.value }))} placeholder="Ул. Партизанска бб, Скопје" />
           </Field>
-          <Field label="Телефон">
+          <Field label={t('phone')}>
             <input className={inputCls} value={info.phone}
               onChange={e => setInfo(s => ({ ...s, phone: e.target.value }))} placeholder="+389 2 123 456" />
           </Field>
-          <Field label="ДДВ Број">
+          <Field label={t('tax_number')}>
             <input className={inputCls} value={info.tax_number}
               onChange={e => setInfo(s => ({ ...s, tax_number: e.target.value }))} placeholder="MK4030000000000" />
           </Field>
-          <Field label="Валута">
+          <Field label={t('currency')}>
             <select className={inputCls} value={info.currency}
               onChange={e => setInfo(s => ({ ...s, currency: e.target.value }))}>
               <option value="MKD">MKD — Македонски денар</option>
@@ -311,7 +311,7 @@ const SettingsPage: React.FC = () => {
               <option value="USD">USD — Американски долар</option>
             </select>
           </Field>
-          <Field label="Временска зона">
+          <Field label={t('timezone')}>
             <select className={inputCls} value={info.timezone}
               onChange={e => setInfo(s => ({ ...s, timezone: e.target.value }))}>
               <option value="Europe/Skopje">Europe/Skopje (UTC+1/+2)</option>
@@ -323,7 +323,7 @@ const SettingsPage: React.FC = () => {
 
         <div className="mt-6 pt-6 border-t border-warm-line">
           <p className="text-xs font-black text-cream-faint uppercase tracking-widest mb-4">
-            Фактурирање (потребно за Б2Б фактури)
+            {t('billing_section')}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Field label={t('edb')}>
@@ -352,15 +352,15 @@ const SettingsPage: React.FC = () => {
           <button onClick={saveInfo} disabled={savingInfo}
             className="flex items-center gap-2 px-6 py-3 bg-accent text-[#faf5ee] rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all">
             <Save size={15} />
-            {savingInfo ? 'Зачувување...' : 'Зачувај промени'}
+            {savingInfo ? t('saving') : t('save_changes')}
           </button>
         </div>
       </Section>
 
-      <Section icon={Printer} title="Принтери" subtitle="Конфигурација на thermal и мрежни принтери">
+      <Section icon={Printer} title={t('printers_section')} subtitle={t('printers_subtitle')}>
         <div className="space-y-3 mb-6">
           {printers.length === 0 && (
-            <div className="py-10 text-center text-cream-faint text-sm">Нема конфигурирани принтери</div>
+            <div className="py-10 text-center text-cream-faint text-sm">{t('no_printers')}</div>
           )}
           {printers.map(p => (
             <div key={p.id}
@@ -394,7 +394,7 @@ const SettingsPage: React.FC = () => {
                       : 'bg-surface-2 text-cream-faint hover:bg-warm-input'
                   }`}>
                   {p.active ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
-                  {p.active ? 'Активен' : 'Неактивен'}
+                  {p.active ? t('active') : t('inactive')}
                 </button>
                 <button onClick={() => deletePrinter(p.id)}
                   className="p-2 text-cream-faint hover:text-rose-400 hover:bg-rose-900/20 rounded-xl transition-all">
@@ -407,13 +407,13 @@ const SettingsPage: React.FC = () => {
 
         {showAddPrinter ? (
           <div className="border-2 border-dashed border-warm-line rounded-2xl p-6 space-y-4">
-            <h3 className="text-xs font-black text-cream-faint uppercase tracking-widest">Нов принтер</h3>
+            <h3 className="text-xs font-black text-cream-faint uppercase tracking-widest">{t('new_printer')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="Назив">
+              <Field label={t('printer_name_label')}>
                 <input className={inputCls} value={newPrinter.name}
                   onChange={e => setNewPrinter(s => ({ ...s, name: e.target.value }))} placeholder="Касa — Сметки" />
               </Field>
-              <Field label="Тип">
+              <Field label={t('printer_type_label')}>
                 <select className={inputCls} value={newPrinter.type}
                   onChange={e => setNewPrinter(s => ({ ...s, type: e.target.value as any }))}>
                   <option value="receipt">Сметка (Receipt)</option>
@@ -421,14 +421,14 @@ const SettingsPage: React.FC = () => {
                   <option value="bar">Шанк (Bar)</option>
                 </select>
               </Field>
-              <Field label="Врска">
+              <Field label={t('printer_connection')}>
                 <select className={inputCls} value={newPrinter.connection_type}
                   onChange={e => setNewPrinter(s => ({ ...s, connection_type: e.target.value as any }))}>
                   <option value="browser">Browser (window.print)</option>
                   <option value="network">Мрежен (ESC/POS TCP)</option>
                 </select>
               </Field>
-              <Field label="Станица (опционално)">
+              <Field label={t('printer_station')}>
                 <select className={inputCls} value={newPrinter.station}
                   onChange={e => setNewPrinter(s => ({ ...s, station: e.target.value }))}>
                   <option value="">— без станица —</option>
@@ -441,11 +441,11 @@ const SettingsPage: React.FC = () => {
               </Field>
               {newPrinter.connection_type === 'network' && (
                 <>
-                  <Field label="IP адреса">
+                  <Field label={t('ip_address')}>
                     <input className={inputCls} value={newPrinter.ip_address}
                       onChange={e => setNewPrinter(s => ({ ...s, ip_address: e.target.value }))} placeholder="192.168.1.100" />
                   </Field>
-                  <Field label="Порт">
+                  <Field label={t('port')}>
                     <input className={inputCls} type="number" value={newPrinter.port}
                       onChange={e => setNewPrinter(s => ({ ...s, port: e.target.value }))} placeholder="9100" />
                   </Field>
@@ -455,12 +455,12 @@ const SettingsPage: React.FC = () => {
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowAddPrinter(false)}
                 className="px-5 py-2.5 bg-surface-2 text-cream-muted rounded-xl font-black text-xs uppercase tracking-widest hover:bg-warm-input transition-all">
-                Откажи
+                {t('cancel')}
               </button>
               <button onClick={addPrinter} disabled={savingPrinter}
                 className="flex items-center gap-2 px-5 py-2.5 bg-accent text-[#faf5ee] rounded-xl font-black text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all">
                 <Save size={13} />
-                {savingPrinter ? 'Зачувување...' : 'Зачувај принтер'}
+                {savingPrinter ? t('saving') : t('save_printer')}
               </button>
             </div>
           </div>
@@ -468,7 +468,7 @@ const SettingsPage: React.FC = () => {
           <button onClick={() => setShowAddPrinter(true)}
             className="flex items-center gap-2 px-5 py-3 border-2 border-dashed border-warm-line text-cream-faint hover:text-cream hover:border-warm-line-strong rounded-2xl font-black text-xs uppercase tracking-widest transition-all w-full justify-center">
             <Plus size={16} />
-            Додај принтер
+            {t('add_printer')}
           </button>
         )}
       </Section>
@@ -477,11 +477,11 @@ const SettingsPage: React.FC = () => {
         <CategoryManager />
       </Section>
 
-      <Section icon={Warehouse} title={t('warehouses')} subtitle="Управување со магацинскиот простор">
+      <Section icon={Warehouse} title={t('warehouses')} subtitle={t('warehouses_subtitle')}>
         <WarehousesTab />
       </Section>
 
-      <Section icon={LayoutGrid} title={t('tables_section_title')} subtitle="Управување со маси и магацинско назначување">
+      <Section icon={LayoutGrid} title={t('tables_section_title')} subtitle={t('tables_subtitle')}>
         <TablesSection />
       </Section>
 
@@ -501,7 +501,7 @@ const SettingsPage: React.FC = () => {
               onChange={e => setEmailCfg(s => ({ ...s, smtpUser: e.target.value }))}
               placeholder="restaurant@gmail.com" />
           </Field>
-          <Field label="Лозинка">
+          <Field label={t('password')}>
             <input type="password" className={inputCls} value={emailCfg.smtpPass}
               onChange={e => setEmailCfg(s => ({ ...s, smtpPass: e.target.value }))}
               placeholder="••••••••" />
@@ -511,7 +511,7 @@ const SettingsPage: React.FC = () => {
               onChange={e => setEmailCfg(s => ({ ...s, smtpFrom: e.target.value }))}
               placeholder="GastroPro <noreply@restaurant.mk>" />
           </Field>
-          <Field label="Наслов на порака">
+          <Field label={t('email_subject_label')}>
             <input className={inputCls} value={emailCfg.subjectTemplate}
               onChange={e => setEmailCfg(s => ({ ...s, subjectTemplate: e.target.value }))} />
           </Field>
@@ -527,14 +527,14 @@ const SettingsPage: React.FC = () => {
             <span className="text-sm text-cream-muted font-medium">{t('auto_send_on_z_close')}</span>
           </label>
           <p className="text-xs text-cream-faint mt-1.5 ml-14">
-            При затворање на смена ќе се пратат е-поштенски извештаи до сите добавувачи со поврзани производи.
+            {t('auto_send_description')}
           </p>
         </div>
         <div className="mt-6 pt-6 border-t border-warm-line">
-          <p className="text-xs font-black text-cream-faint uppercase tracking-widest mb-4">Тест испраќање</p>
+          <p className="text-xs font-black text-cream-faint uppercase tracking-widest mb-4">{t('test_send')}</p>
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <Field label="Е-пошта адреса за тест">
+              <Field label={t('test_email_address')}>
                 <input className={inputCls} type="email" value={testEmailTo}
                   onChange={e => setTestEmailTo(e.target.value)}
                   placeholder="test@example.com" />
@@ -559,31 +559,31 @@ const SettingsPage: React.FC = () => {
         </div>
       </Section>
 
-      <Section icon={Lock} title="Промени лозинка" subtitle="Смена на лозинка за тековната сметка">
+      <Section icon={Lock} title={t('change_password')} subtitle={t('change_password_subtitle')}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <Field label="Тековна лозинка">
+          <Field label={t('current_password')}>
             <input type="password" className={inputCls} value={pwd.current}
               onChange={e => setPwd(s => ({ ...s, current: e.target.value }))} placeholder="••••••••" />
           </Field>
-          <Field label="Нова лозинка">
+          <Field label={t('new_password')}>
             <input type="password" className={inputCls} value={pwd.next}
               onChange={e => setPwd(s => ({ ...s, next: e.target.value }))} placeholder="••••••••" />
           </Field>
-          <Field label="Потврди нова лозинка">
+          <Field label={t('confirm_new_password')}>
             <input type="password" className={inputCls} value={pwd.confirm}
               onChange={e => setPwd(s => ({ ...s, confirm: e.target.value }))} placeholder="••••••••" />
           </Field>
         </div>
         {pwd.next && pwd.confirm && pwd.next !== pwd.confirm && (
           <p className="mt-3 text-xs text-red-400 flex items-center gap-1.5">
-            <AlertCircle size={12} /> Лозинките не се совпаѓаат
+            <AlertCircle size={12} /> {t('passwords_mismatch')}
           </p>
         )}
         <div className="mt-6 flex justify-end">
           <button onClick={changePassword} disabled={savingPwd}
             className="flex items-center gap-2 px-6 py-3 bg-accent text-[#faf5ee] rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 active:scale-95 disabled:opacity-50 transition-all">
             <Lock size={15} />
-            {savingPwd ? 'Зачувување...' : 'Промени лозинка'}
+            {savingPwd ? t('saving') : t('change_password')}
           </button>
         </div>
       </Section>

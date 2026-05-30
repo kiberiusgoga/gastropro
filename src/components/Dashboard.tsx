@@ -185,7 +185,7 @@ const Dashboard = () => {
           loading={isStatsLoading}
         />
         <StatCard
-          title="Приход денес"
+          title={t('revenue_today')}
           value={todayRevenue === null ? '…' : `${todayRevenue.toLocaleString()} ден.`}
           icon={DollarSign}
           accent="orange"
@@ -201,7 +201,7 @@ const Dashboard = () => {
               {t('revenue_overview')}
             </h3>
             <p className="text-[10px] font-bold text-cream-muted uppercase tracking-widest mt-0.5">
-              {t('finances_and_sales')} — последни 7 дена
+              {t('finances_and_sales')} — {t('last_7_days')}
             </p>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/10">
