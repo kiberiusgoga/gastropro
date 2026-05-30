@@ -155,7 +155,8 @@ const ZReportView: React.FC<Props> = ({ zreport: z, onBack }) => {
           {z.per_warehouse && z.per_warehouse.length > 0 && (
             <div className="print:hidden">
               <Section title={t('per_warehouse_breakdown')}>
-                <p className="text-xs text-cream-faint mb-3">{t('revenue_by_location')}</p>
+                <p className="text-xs text-cream-faint mb-1">{t('revenue_by_location')}</p>
+                <p className="text-[10px] text-cream-faint/60 italic mb-3">{t('per_location_info')}</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>

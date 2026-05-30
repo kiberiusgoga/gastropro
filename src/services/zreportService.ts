@@ -129,7 +129,7 @@ export async function computeZReport(
        u.name AS opener_name,
        r.name AS restaurant_name,
        r.address AS restaurant_address,
-       r.settings->>'vat_number' AS vat_number,
+       r.tax_number AS vat_number,
        COALESCE(r.price_includes_vat, TRUE) AS price_includes_vat
      FROM shifts s
      JOIN restaurants r ON r.id = s.restaurant_id
@@ -371,6 +371,7 @@ export async function computeZReport(
      WHERE o.shift_id = $1
        AND o.restaurant_id = $2
        AND o.status = 'paid'
+       AND o.payment_type = 'fiscal'
      GROUP BY rt.warehouse_id, w.name, w.is_main
      ORDER BY w.is_main DESC NULLS LAST, w.name ASC NULLS LAST`,
     [shiftId, restaurantId],
