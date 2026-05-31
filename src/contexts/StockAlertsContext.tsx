@@ -54,7 +54,9 @@ export const StockAlertsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             });
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          if (err?.response?.status !== 401) console.error('StockAlerts fetch error:', err);
+        });
     };
 
     load();

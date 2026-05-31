@@ -29,6 +29,8 @@ import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
 import GuestMenu from './components/GuestMenu';
 import { featureFlagService } from './services/featureFlagService';
 import { billingService } from './services/billingService';
+import { shiftService } from './services/shiftService';
+import { WaiterShift } from './types';
 import { FeatureFlags } from './types';
 import { Menu } from 'lucide-react';
 
@@ -55,6 +57,30 @@ const AppContent = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags | null>(null);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [activeShifts, setActiveShifts] = useState<WaiterShift[]>([]);
+
+  const fetchActiveShifts = async () => {
+    const shifts = await shiftService.getAllActiveShifts();
+    setActiveShifts(shifts);
+  };
+
+  const handleAssignWaiter = async (waiterId: string, initialCash: number) => {
+    const result = await shiftService.openShiftForUser(waiterId, initialCash);
+    if (result) {
+      toast.success('Смената е успешно отворена.');
+      await fetchActiveShifts();
+    } else {
+      toast.error('Грешка при отворање на смената.');
+    }
+  };
+
+  const handleReleaseWaiter = async (_shiftId: string, _finalCash: number) => {
+    await fetchActiveShifts();
+  };
+
+  useEffect(() => {
+    if (activeTab === 'staff') fetchActiveShifts();
+  }, [activeTab]);
 
   useEffect(() => {
     const fetchSubAndFlags = async () => {
@@ -143,9 +169,9 @@ const AppContent = () => {
         return (
           <StaffView
             staff={employees as any}
-            shifts={[]}
-            onAssignWaiter={() => {}}
-            onReleaseWaiter={() => {}}
+            shifts={activeShifts}
+            onAssignWaiter={handleAssignWaiter}
+            onReleaseWaiter={handleReleaseWaiter}
             onAddStaff={fetchEmployees}
           />
         );

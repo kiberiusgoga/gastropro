@@ -1,5 +1,5 @@
 import apiClient from '../lib/apiClient';
-import { Shift } from '../types';
+import { Shift, WaiterShift } from '../types';
 import { ShiftReportData } from '../components/POS/ShiftReport';
 
 export const shiftService = {
@@ -44,6 +44,45 @@ export const shiftService = {
     } catch (error) {
       console.error(error);
       return null;
+    }
+  },
+
+  openShiftForUser: async (waiterId: string, initialCash: number): Promise<Shift | null> => {
+    try {
+      const response = await apiClient.post('/shifts', { initial_cash: initialCash, user_id: waiterId });
+      const row = response.data;
+      return {
+        id: row.id,
+        userId: row.user_id,
+        userName: '',
+        startTime: row.start_time,
+        startingCash: Number(row.initial_cash || 0),
+        status: row.status,
+        totalSales: 0,
+        restaurantId: row.restaurant_id,
+      } as Shift;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  },
+
+  getAllActiveShifts: async (): Promise<WaiterShift[]> => {
+    try {
+      const response = await apiClient.get('/shifts', { params: { status: 'open', limit: '100' } });
+      return (response.data.data || []).map((row: Record<string, unknown>) => ({
+        id: row.id as string,
+        restaurantId: (row.restaurant_id as string) || '',
+        waiterId: row.user_id as string,
+        waiterName: (row.user_name as string) || '',
+        startTime: row.start_time as string,
+        endTime: (row.end_time as string) || undefined,
+        initialCash: Number(row.initial_cash || 0),
+        totalSales: 0,
+        status: row.status as 'open' | 'closed',
+      } as WaiterShift));
+    } catch {
+      return [];
     }
   },
 

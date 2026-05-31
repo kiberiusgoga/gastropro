@@ -10,7 +10,7 @@ import { getMainWarehouse } from './services/warehouseResolver';
 import { authenticateToken, AuthRequest, authorizeRole, generateAccessToken, generateRefreshToken } from './auth';
 import { sseAdd, sseRemove, sseBroadcast } from './lib/sse';
 import { asyncHandler } from './middleware/errorMiddleware';
-import { AuthenticationError, NotFoundError, ValidationError, ConflictError } from './lib/errors';
+import { AuthenticationError, NotFoundError, ValidationError, ConflictError, ForbiddenError } from './lib/errors';
 import { z } from 'zod';
 import logger from './lib/logger';
 import { generateTempPassword } from './utils/passwordGenerator';
@@ -2735,10 +2735,30 @@ router.get('/shifts/active', authenticateToken, asyncHandler(async (req: AuthReq
 }));
 
 router.post('/shifts', authenticateToken, asyncHandler(async (req: AuthRequest, res) => {
-  const { initial_cash } = req.body;
+  const bodySchema = z.object({
+    initial_cash: z.number().min(0).default(0),
+    user_id: z.string().uuid().optional(),
+  });
+  const data = bodySchema.parse(req.body);
+
+  const shiftUserId = data.user_id ?? req.user!.id;
+
+  if (data.user_id && data.user_id !== req.user!.id) {
+    if (req.user!.role !== 'Admin' && req.user!.role !== 'Manager') {
+      throw new ForbiddenError('Only Admin or Manager can open a shift for another user');
+    }
+    const userCheck = await pool.query(
+      'SELECT id FROM users WHERE id = $1 AND restaurant_id = $2 AND active = TRUE',
+      [data.user_id, req.user!.restaurantId]
+    );
+    if (userCheck.rows.length === 0) {
+      throw new ValidationError('Selected waiter not found in this restaurant');
+    }
+  }
+
   const result = await pool.query(
     'INSERT INTO shifts (restaurant_id, user_id, initial_cash) VALUES ($1, $2, $3) RETURNING *',
-    [req.user?.restaurantId, req.user?.id, initial_cash || 0]
+    [req.user!.restaurantId, shiftUserId, data.initial_cash]
   );
   res.status(201).json(result.rows[0]);
 }));

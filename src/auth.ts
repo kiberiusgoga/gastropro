@@ -20,7 +20,7 @@ function requireSecret(name: string): string {
 const JWT_SECRET = requireSecret('JWT_SECRET');
 const REFRESH_SECRET = requireSecret('JWT_REFRESH_SECRET');
 
-const ACCESS_TOKEN_EXPIRY = '15m';
+const ACCESS_TOKEN_EXPIRY = '60m';
 const REFRESH_TOKEN_EXPIRY = '7d';
 
 export interface AuthRequest extends Request {

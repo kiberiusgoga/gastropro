@@ -35,13 +35,13 @@ describe('generateAccessToken', () => {
     expect(decoded.restaurantId).toBe(testUser.restaurantId)
   })
 
-  it('expires in approximately 15 minutes', () => {
+  it('expires in approximately 60 minutes', () => {
     const token = generateAccessToken(testUser)
     const decoded = jwt.decode(token) as Record<string, number>
     const nowSeconds = Math.floor(Date.now() / 1000)
     const diff = decoded.exp - nowSeconds
-    expect(diff).toBeGreaterThan(14 * 60)
-    expect(diff).toBeLessThanOrEqual(15 * 60)
+    expect(diff).toBeGreaterThan(59 * 60)
+    expect(diff).toBeLessThanOrEqual(60 * 60)
   })
 })
 

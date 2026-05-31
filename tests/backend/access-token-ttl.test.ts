@@ -32,7 +32,7 @@ const MOCK_USER = { id: 'user-1', email: 'admin@test.com', role: 'Admin', restau
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('Access token TTL — 15 minutes', () => {
+describe('Access token TTL — 60 minutes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPool.query.mockReset()
@@ -44,12 +44,12 @@ describe('Access token TTL — 15 minutes', () => {
 
   // ── 1. exp claim is exactly 900 seconds ahead of iat ─────────────────────
 
-  it('1. newly issued token has exp − iat = 900s (15 minutes)', () => {
+  it('1. newly issued token has exp − iat = 3600s (60 minutes)', () => {
     const token = generateAccessToken(MOCK_USER)
     const payload = JSON.parse(
       Buffer.from(token.split('.')[1], 'base64url').toString()
     ) as { iat: number; exp: number }
-    expect(payload.exp - payload.iat).toBe(900)
+    expect(payload.exp - payload.iat).toBe(3600)
   })
 
   // ── 2. token is valid immediately after issuance ──────────────────────────
@@ -71,10 +71,10 @@ describe('Access token TTL — 15 minutes', () => {
   // ── 4. token is expired at the 16-minute mark ────────────────────────────
   // (1 minute past TTL — no clock-skew tolerance at that margin)
 
-  it('4. token is expired at t+16min (past TTL)', () => {
+  it('4. token is expired at t+61min (past TTL)', () => {
     vi.useFakeTimers()
     const token = generateAccessToken(MOCK_USER)
-    vi.advanceTimersByTime(16 * 60 * 1000)
+    vi.advanceTimersByTime(61 * 60 * 1000)
     expect(verifyAccessToken(token)).toBeNull()
   })
 
@@ -84,7 +84,7 @@ describe('Access token TTL — 15 minutes', () => {
     // ── 5a. issue and expire the token ─────────────────────────────────────
     vi.useFakeTimers()
     const expiredToken = generateAccessToken(MOCK_USER)
-    vi.advanceTimersByTime(16 * 60 * 1000)
+    vi.advanceTimersByTime(61 * 60 * 1000)
 
     // GET /auth/me with expired token → 401
     const mockClient = { query: vi.fn(), release: vi.fn() }
@@ -108,6 +108,6 @@ describe('Access token TTL — 15 minutes', () => {
     const payload = JSON.parse(
       Buffer.from(freshToken.split('.')[1], 'base64url').toString()
     ) as { iat: number; exp: number }
-    expect(payload.exp - payload.iat).toBe(900)
+    expect(payload.exp - payload.iat).toBe(3600)
   })
 })
