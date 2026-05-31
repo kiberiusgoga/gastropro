@@ -81,7 +81,7 @@ const StaffView: React.FC<StaffViewProps> = ({
     }
   };
 
-  const filteredStaff = staff.filter(s => s.role === selectedGroup);
+  const filteredStaff = staff.filter(s => s.role === groupToRole[selectedGroup]);
 
   if (lastZReport) {
     return (
@@ -166,7 +166,7 @@ const StaffView: React.FC<StaffViewProps> = ({
                 className="w-full p-3 bg-warm-input border border-warm-line rounded-xl text-cream font-medium focus:outline-none focus:ring-2 focus:ring-accent/20"
               >
                 <option value="" className="bg-surface">{t('select_placeholder')}</option>
-                {staff.filter(s => s.role === 'waiter' && !activeShifts.find(as => as.waiterId === s.id)).map(s => (
+                {staff.filter(s => s.role === groupToRole['waiter'] && !activeShifts.find(as => as.waiterId === s.id)).map(s => (
                   <option key={s.id} value={s.id} className="bg-surface">{s.name}</option>
                 ))}
               </select>
