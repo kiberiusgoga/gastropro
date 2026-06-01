@@ -578,7 +578,7 @@ const MenuList: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 md:gap-3">
+      <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide flex-1">
           <button
             onClick={() => setSelectedCategoryId('all')}

@@ -436,7 +436,7 @@ const NonFiscalInvoicesPage: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap items-center">
+      <div className="flex gap-3 flex-wrap lg:flex-nowrap items-center">
         <div className="flex gap-1 bg-surface border border-warm-line rounded-xl p-1">
           {STATUSES.map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
@@ -463,8 +463,8 @@ const NonFiscalInvoicesPage: React.FC = () => {
       </div>
 
       {/* Invoices table */}
-      <div className="bg-surface border border-warm-line rounded-card overflow-hidden">
-        <table className="w-full">
+      <div className="bg-surface border border-warm-line rounded-card overflow-x-auto">
+        <table className="w-full min-w-[640px]">
           <thead className="bg-surface-2 border-b border-warm-line">
             <tr>
               {[t('invoice_number'), t('issue_date'), t('company'), t('amount'), t('due_date'), t('status'), ''].map(h => (

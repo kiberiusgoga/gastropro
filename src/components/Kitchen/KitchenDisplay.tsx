@@ -158,7 +158,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({
             <button
               key={station.id}
               onClick={() => setActiveStation(station.id)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-2 ${
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-2 flex-shrink-0 whitespace-nowrap ${
                 activeStation === station.id
                   ? 'bg-accent border-accent text-[#faf5ee] shadow-card'
                   : 'bg-surface-2 border-warm-line text-cream-muted hover:border-warm-line-strong'

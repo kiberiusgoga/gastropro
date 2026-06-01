@@ -155,7 +155,7 @@ const Products = () => {
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full min-w-[700px] border-collapse">
             <thead>
               <tr className="bg-surface-2 border-b border-warm-line">
                 <th className="table-header">{t('name')}</th>
