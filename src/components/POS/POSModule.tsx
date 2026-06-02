@@ -22,6 +22,7 @@ import {
   Tag,
   Calendar,
   Clock,
+  ChevronUp,
 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { tableService, posService } from '../../services/posService';
@@ -60,6 +61,7 @@ const POSModule = () => {
   const [cardAmount, setCardAmount] = useState<string>('');
   const [nfCompanies, setNfCompanies] = useState<Array<{ id: string; name: string; tin: string; payment_terms_days: number }>>([]);
   const [nfCompanyId, setNfCompanyId] = useState<string>('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
@@ -228,6 +230,7 @@ const POSModule = () => {
   const handleTableSelect = useCallback(async (table: Table) => {
     if (!user?.restaurantId) return;
     setSelectedTable(table);
+    if (window.innerWidth < 1024) setDrawerOpen(true);
     if (table.status === 'occupied' && table.currentOrderId) {
       const order = await posService.getOpenOrderForTable(table.id, user.restaurantId);
       setCurrentOrder(order);
@@ -512,7 +515,7 @@ const POSModule = () => {
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col lg:flex-row overflow-hidden bg-base">
       {/* Left Side: Table Map or Menu */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+      <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6">
         {!selectedTable && orderType === 'dine_in' ? (
           <div className="space-y-8">
             {/* Header */}
@@ -753,8 +756,40 @@ const POSModule = () => {
         </div>
       )}
 
-      {/* Right Side: Order Sidebar */}
-      <div className="w-full lg:w-[450px] bg-surface border-l border-warm-line flex flex-col shadow-2xl relative z-20">
+      {/* Mobile/tablet backdrop */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* Right Side: Order Panel — desktop sidebar / mobile bottom drawer */}
+      <div className={`
+        fixed bottom-0 left-0 right-0 z-50 max-h-[85vh]
+        lg:static lg:w-[450px] lg:max-h-none lg:z-20
+        bg-surface border-t lg:border-t-0 lg:border-l border-warm-line
+        flex flex-col shadow-2xl rounded-t-2xl lg:rounded-none
+        transition-transform duration-300 ease-out
+        ${drawerOpen ? 'translate-y-0' : 'translate-y-[calc(100%-64px)]'}
+        lg:translate-y-0
+      `}>
+        {/* Mobile drawer handle (hidden on desktop) */}
+        <button
+          className="lg:hidden flex items-center justify-between w-full px-5 h-16 border-b border-warm-line shrink-0"
+          onClick={() => setDrawerOpen(o => !o)}
+        >
+          <div className="flex items-center gap-2 text-cream">
+            <ChevronUp size={20} className={`transition-transform duration-300 ${drawerOpen ? 'rotate-180' : ''}`} />
+            <span className="font-black uppercase text-sm tracking-wide">
+              Нарачка{currentOrder?.items.length ? ` · ${currentOrder.items.length} ставки` : ''}
+            </span>
+          </div>
+          <span className="font-black text-cream text-lg font-serif italic">
+            {currentOrder?.totalAmount ?? 0} ден
+          </span>
+        </button>
+
         <div className="p-8 border-b border-warm-line bg-surface-2/50 backdrop-blur-md">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-black text-cream uppercase tracking-tighter font-serif italic">Нарачка</h2>
