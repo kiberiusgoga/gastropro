@@ -6,15 +6,7 @@ let authListeners: Array<(user: User | null) => void> = [];
 export const authService = {
   login: async (email: string, password: string): Promise<User> => {
     try {
-      // Demo shortcut — redirect to real API with seeded credentials
-      const resolvedEmail = (email === 'demo' || email === 'admin@storehouse.mk')
-        ? 'admin@gastropro.mk'
-        : email;
-      const resolvedPassword = (email === 'demo' || email === 'admin@storehouse.mk')
-        ? 'admin123'
-        : password;
-
-      const response = await apiClient.post('/auth/login', { email: resolvedEmail, password: resolvedPassword });
+      const response = await apiClient.post('/auth/login', { email, password });
       const { accessToken, refreshToken, user } = response.data;
       
       localStorage.setItem('gastropro_token', accessToken);

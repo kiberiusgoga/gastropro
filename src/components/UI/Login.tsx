@@ -47,19 +47,6 @@ const Login = ({ onNewRestaurant }: LoginProps) => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    try {
-      const user = await authService.login('admin@gastropro.mk', 'admin123');
-      toast.success(t('login_success') + ' (Demo)');
-      setUser(user);
-    } catch (error: unknown) {
-      const err = error as Error;
-      toast.error(err?.message || 'Demo Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-base p-6 relative overflow-hidden">
@@ -86,13 +73,27 @@ const Login = ({ onNewRestaurant }: LoginProps) => {
               <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4 grayscale group-hover:grayscale-0 transition-all" />
               Google
             </button>
-            <button
-              onClick={handleDemoLogin}
-              disabled={loading}
-              className="flex items-center justify-center gap-3 py-4 px-6 bg-accent text-[#faf5ee] border border-accent/80 rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 transition-all shadow-card whitespace-nowrap"
-            >
-              Demo Login
-            </button>
+            {import.meta.env.DEV ? (
+              <button
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    const user = await authService.login('admin@gastropro.mk', 'admin123');
+                    toast.success(t('login_success') + ' (Demo)');
+                    setUser(user);
+                  } catch (error: unknown) {
+                    const err = error as Error;
+                    toast.error(err?.message || 'Demo Login failed');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="flex items-center justify-center gap-3 py-4 px-6 bg-accent text-[#faf5ee] border border-accent/80 rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 transition-all shadow-card whitespace-nowrap"
+              >
+                Demo Login
+              </button>
+            ) : null}
           </div>
 
           <div className="relative mb-10">

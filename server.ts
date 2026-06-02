@@ -10,6 +10,17 @@ import hpp from "hpp";
 import mongoSanitize from "express-mongo-sanitize";
 import router from "./src/api";
 import { errorMiddleware } from "./src/middleware/errorMiddleware";
+import logger from "./src/lib/logger";
+
+// Crash safety — let process managers (PM2/systemd) restart on fatal errors
+process.on('uncaughtException', (err: Error) => {
+  logger.error('Uncaught Exception — shutting down', { message: err.message, stack: err.stack });
+  setTimeout(() => process.exit(1), 1000);
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  logger.error('Unhandled Rejection', { reason: String(reason) });
+});
 
 async function startServer() {
   const app = express();
@@ -54,7 +65,7 @@ async function startServer() {
   app.use(hpp());
 
   // 6. Request logging
-  app.use(morgan('dev'));
+  app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
   // 7. Global rate limit — 1000 req / IP / 15 min across all API routes
   // NOTE: express-rate-limit v7+ uses `limit` (not `max`) as the option name.
@@ -118,21 +129,22 @@ async function startServer() {
     immutable: false,
   }));
 
-  // Routes
-  app.use("/api", router);
-  app.use(errorMiddleware as express.ErrorRequestHandler);
-
-  // Health check — generic response so DB errors don't leak connection details
+  // Health check — must be registered BEFORE the API router so auth middleware
+  // in the router doesn't intercept /api/health and return 401
   app.get("/api/health", async (_req, res) => {
     try {
       const { default: pool } = await import("./src/db");
       await pool.query("SELECT 1");
-      res.json({ status: "ok", timestamp: new Date().toISOString() });
+      res.json({ status: "ok", db: "connected", timestamp: new Date().toISOString() });
     } catch (e) {
-      console.error('Health check DB failure:', e);
-      res.status(503).json({ status: "error" });
+      logger.error('Health check DB failure', { error: String(e) });
+      res.status(503).json({ status: "error", db: "disconnected" });
     }
   });
+
+  // Routes
+  app.use("/api", router);
+  app.use(errorMiddleware as express.ErrorRequestHandler);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

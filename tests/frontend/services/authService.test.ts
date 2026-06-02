@@ -47,44 +47,6 @@ beforeEach(() => {
 })
 
 // ---------------------------------------------------------------------------
-// authService.login — alias redirect
-// "demo" and "admin@storehouse.mk" are legacy aliases that resolve to
-// admin@gastropro.mk / admin123 and go through the real API.
-// ---------------------------------------------------------------------------
-
-describe('authService.login — alias redirect', () => {
-  it('redirects admin@storehouse.mk to admin@gastropro.mk credentials', async () => {
-    mockPost.mockResolvedValueOnce({
-      data: { accessToken: 'alias-acc', refreshToken: 'alias-ref', user: realUser },
-    } as never)
-    await authService.login('admin@storehouse.mk', 'any')
-    expect(mockPost).toHaveBeenCalledWith('/auth/login', {
-      email: 'admin@gastropro.mk',
-      password: 'admin123',
-    })
-  })
-
-  it('redirects "demo" alias to admin@gastropro.mk credentials', async () => {
-    mockPost.mockResolvedValueOnce({
-      data: { accessToken: 'alias-acc', refreshToken: 'alias-ref', user: realUser },
-    } as never)
-    await authService.login('demo', 'any')
-    expect(mockPost).toHaveBeenCalledWith('/auth/login', {
-      email: 'admin@gastropro.mk',
-      password: 'admin123',
-    })
-  })
-
-  it('alias login stores tokens returned by the API in localStorage', async () => {
-    mockPost.mockResolvedValueOnce({
-      data: { accessToken: 'alias-acc', refreshToken: 'alias-ref', user: realUser },
-    } as never)
-    await authService.login('admin@storehouse.mk', 'any')
-    expect(localStorage.getItem('gastropro_token')).toBe('alias-acc')
-    expect(localStorage.getItem('gastropro_refresh_token')).toBe('alias-ref')
-  })
-})
-
 // ---------------------------------------------------------------------------
 // authService.login — real API
 // ---------------------------------------------------------------------------
