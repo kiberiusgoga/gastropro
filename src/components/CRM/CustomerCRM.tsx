@@ -70,7 +70,7 @@ const CustomerCRM: React.FC<CustomerCRMProps> = ({ customers: initialCustomers, 
             id="customer-search"
             name="customer-search"
             type="text"
-            placeholder="Пребарај гости по име, телефон или е-пошта..."
+            placeholder="Пребарај гости..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-4 bg-warm-input border border-warm-line rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/20 focus:border-accent/50 transition-all text-lg font-medium text-cream placeholder:text-cream-faint"

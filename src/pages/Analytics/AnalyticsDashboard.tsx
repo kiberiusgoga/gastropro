@@ -88,7 +88,7 @@ const AnalyticsDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map(stat => (
           <div key={stat.key} className="bg-surface p-6 rounded-3xl shadow-card border border-warm-line hover:shadow-card-lg transition-shadow">
             <div className="flex items-center justify-between mb-4">

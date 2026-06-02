@@ -89,7 +89,7 @@ const Login = ({ onNewRestaurant }: LoginProps) => {
             <button
               onClick={handleDemoLogin}
               disabled={loading}
-              className="flex items-center justify-center gap-3 py-4 px-6 bg-accent text-[#faf5ee] border border-accent/80 rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 transition-all shadow-card"
+              className="flex items-center justify-center gap-3 py-4 px-6 bg-accent text-[#faf5ee] border border-accent/80 rounded-2xl font-black text-xs uppercase tracking-widest hover:brightness-110 transition-all shadow-card whitespace-nowrap"
             >
               Demo Login
             </button>

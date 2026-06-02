@@ -179,7 +179,7 @@ const ShiftHistory: React.FC = () => {
           <>
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="text-[10px] font-black uppercase tracking-widest text-cream-faint border-b border-warm-line bg-surface-2/50">
                     <th className="text-left px-6 py-3">Келнер</th>

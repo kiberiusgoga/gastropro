@@ -207,7 +207,7 @@ const AppContent = () => {
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'dark' : ''} bg-base transition-colors duration-300`}>
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors offset="80px" />
 
       <Sidebar
         activeTab={activeTab}

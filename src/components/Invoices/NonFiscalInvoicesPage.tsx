@@ -437,10 +437,10 @@ const NonFiscalInvoicesPage: React.FC = () => {
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap lg:flex-nowrap items-center">
-        <div className="flex gap-1 bg-surface border border-warm-line rounded-xl p-1">
+        <div className="flex gap-1 bg-surface border border-warm-line rounded-xl p-1 overflow-x-auto">
           {STATUSES.map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0 whitespace-nowrap ${
                 statusFilter === s ? 'bg-accent text-[#faf5ee]' : 'text-cream-muted hover:text-cream'
               }`}>
               {t(`status_${s}` as any)}
